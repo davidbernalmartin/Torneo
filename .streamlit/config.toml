@@ -1,23 +1,45 @@
 [theme]
+# Base de la que heredamos
 base = "dark"
-primaryColor = "#ffffff"
-backgroundColor = "#e34c48" # Rojo principal
-secondaryBackgroundColor = "#ffffff" # Fondo de los widgets en el cuerpo
-textColor = "#000000" # Texto de widgets en negro
-font = "sans-serif"
-baseRadius = "large"
 
-[theme.sidebar]
-backgroundColor = "#8b1e1e" 
-textColor = "#ffffff"
-secondaryBackgroundColor = "#a52a2a" 
-primaryColor = "#ffffff"
+# Color de acento (Botones principales, radios, etc.) - Negro para contraste total
+primaryColor = "#000000"
 
-[theme.sidebar]
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f1f1f1" # Un gris muy tenue para los inputs del sidebar
+# Fondo principal de la app (Tu rojo corporativo plano)
+backgroundColor = "#e34c48"
+
+# Fondo de los widgets (Selectbox, Inputs) - Blanco puro para que se lea perfecto
+secondaryBackgroundColor = "#ffffff"
+
+# Color del texto general - Negro (para los widgets blancos) o Blanco (para el fondo rojo)
+# Nota: Streamlit lo gestionará según el fondo, pero lo forzamos a Negro para los widgets.
 textColor = "#000000"
-primaryColor = "#e34c48" # Los iconos/acentos del sidebar en tu rojo
+
+# Tipografía y Estilo
+font = "sans-serif"
+headingFont = "sans-serif"
+baseFontSize = 16
+baseFontWeight = 400
+
+# Bordes (Para que parezca una app moderna, no cuadrada)
+# 'large' da ese toque circular a botones y cajas
+baseRadius = "large"
+buttonRadius = "large"
+
+# Bordes de widgets
+showWidgetBorder = true
+borderColor = "#000000"
+
+# Colores para Gráficos (Si algún día metes estadísticas de goles/puntos)
+# Usamos una paleta que combine con el rojo y blanco
+chartCategoricalColors = ["#000000", "#e34c48", "#555555", "#ffffff"]
+
+[theme.sidebar]
+# El Sidebar lo ponemos Blanco para que "corte" visualmente el rojo del fondo
+backgroundColor = "#8b1e1e"
+secondaryBackgroundColor = "#a52a2a" # Un gris muy tenue para los inputs del sidebar
+textColor = "#ffffff"
+primaryColor = "#ffffff" # Los iconos/acentos del sidebar en tu rojo
 
 [server]
 headless = true
