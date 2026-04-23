@@ -4,53 +4,41 @@ from src.database import get_supabase
 
 def renderizar_tarjeta_grupo(grupo, participantes):
     """
-    Dibuja un solo grupo bien enmarcado para la vista de administración.
-    Versión corregida sin cajas vacías.
+    Dibuja un solo grupo usando el borde nativo de Streamlit.
     """
-    # 1. Abrimos el marco de la tarjeta
-    st.markdown(
-        f"""
-        <div style="
-            border: 1px solid #464e5f; 
-            border-radius: 12px; 
-            padding: 20px; 
-            background-color: #1a1c24; 
-            margin-bottom: 20px;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
-        ">
-        """, unsafe_allow_html=True)
-    
-    # 2. Cabecera con columnas nativas de Streamlit
-    col_t, col_b = st.columns([0.7, 0.3])
-    
-    with col_t:
-        st.markdown(f"#### 📋 {grupo['nombre']}")
+    # El parámetro border=True crea el marco automáticamente
+    with st.container(border=True):
+        # Cabecera
+        col_t, col_b = st.columns([0.7, 0.3])
         
-    with col_b:
-        url_tv = f"/?view=tv&grupo={grupo['nombre']}"
-        # Icono de pantalla completa
-        st.link_button("⛶", url_tv, use_container_width=True, help="Ver en pantalla completa")
+        with col_t:
+            st.markdown(f"#### 📋 {grupo['nombre']}")
+            
+        with col_b:
+            url_tv = f"/?view=tv&grupo={grupo['nombre']}"
+            # Usamos el icono de pantalla completa
+            st.link_button("⛶", url_tv, use_container_width=True)
 
-    # 3. Lista de participantes
-    for i in range(grupo['tipo_grupo']):
-        if i < len(participantes):
-            p = participantes[i]
-            escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/25"
-            nombre = p['equipos']['nombre']
-            st.markdown(
-                f"""<div style="display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #333;">
-                    <img src="{escudo}" style="width: 25px; height: 25px; margin-right: 12px; object-fit: contain;">
-                    <span style="font-size: 1rem; color: #e0e0e0;">{nombre}</span>
-                </div>""", unsafe_allow_html=True)
-        else:
-            st.markdown(
-                f"""<div style="padding: 10px 0; color: #666; font-style: italic; border-bottom: 1px solid #333; display: flex; align-items: center;">
-                    <span style="margin-right: 12px; opacity: 0.5;">👤</span>
-                    <span style="font-size: 0.9rem;">Esperando equipo...</span>
-                </div>""", unsafe_allow_html=True)
-    
-    # 4. Cerramos el marco de la tarjeta
-    st.markdown("</div>", unsafe_allow_html=True)
+        # Separador visual
+        st.markdown("<hr style='margin: 10px 0; border: 0; border-top: 1px solid #444;'>", unsafe_allow_html=True)
+        
+        # Lista de participantes
+        for i in range(grupo['tipo_grupo']):
+            if i < len(participantes):
+                p = participantes[i]
+                escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/25"
+                nombre = p['equipos']['nombre']
+                st.markdown(
+                    f"""<div style="display: flex; align-items: center; padding: 5px 0;">
+                        <img src="{escudo}" style="width: 25px; height: 25px; margin-right: 10px; object-fit: contain;">
+                        <span style="color: #e0e0e0;">{nombre}</span>
+                    </div>""", unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    f"""<div style="padding: 5px 0; color: #666; font-style: italic; display: flex; align-items: center;">
+                        <span style="margin-right: 10px; opacity: 0.5;">👤</span>
+                        <span>Esperando equipo...</span>
+                    </div>""", unsafe_allow_html=True)
 
 def mostrar_grupo_tv(nombre_grupo_url):
     """Vista para la TV: Versión compacta con escudos"""
