@@ -2,43 +2,65 @@ import streamlit as st
 import time
 from src.database import get_supabase
 
+import streamlit as st
+
 def renderizar_tarjeta_grupo(grupo, participantes):
     """
-    Dibuja un solo grupo usando el borde nativo de Streamlit.
+    Dibuja el grupo como una tarjeta única en HTML para evitar errores de cajas vacías.
     """
-    # El parámetro border=True crea el marco automáticamente
-    with st.container(border=True):
-        # Cabecera
-        col_t, col_b = st.columns([0.7, 0.3])
-        
-        with col_t:
-            st.markdown(f"#### 📋 {grupo['nombre']}")
-            
-        with col_b:
-            url_tv = f"/?view=tv&grupo={grupo['nombre']}"
-            # Usamos el icono de pantalla completa
-            st.link_button("⛶", url_tv, use_container_width=True)
+    # 1. Construimos la lista de participantes en una variable
+    filas_html = ""
+    for i in range(grupo['tipo_grupo']):
+        if i < len(participantes):
+            p = participantes[i]
+            escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/25"
+            nombre = p['equipos']['nombre']
+            filas_html += f"""
+            <div style="display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #333;">
+                <img src="{escudo}" style="width: 25px; height: 25px; margin-right: 12px; object-fit: contain;">
+                <span style="font-size: 1rem; color: #e0e0e0;">{nombre}</span>
+            </div>"""
+        else:
+            filas_html += f"""
+            <div style="display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #333; color: #666; font-style: italic;">
+                <span style="margin-right: 12px; opacity: 0.5;">👤</span>
+                <span style="font-size: 0.9rem;">Esperando equipo...</span>
+            </div>"""
 
-        # Separador visual
-        st.markdown("<hr style='margin: 10px 0; border: 0; border-top: 1px solid #444;'>", unsafe_allow_html=True)
-        
-        # Lista de participantes
-        for i in range(grupo['tipo_grupo']):
-            if i < len(participantes):
-                p = participantes[i]
-                escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/25"
-                nombre = p['equipos']['nombre']
-                st.markdown(
-                    f"""<div style="display: flex; align-items: center; padding: 5px 0;">
-                        <img src="{escudo}" style="width: 25px; height: 25px; margin-right: 10px; object-fit: contain;">
-                        <span style="color: #e0e0e0;">{nombre}</span>
-                    </div>""", unsafe_allow_html=True)
-            else:
-                st.markdown(
-                    f"""<div style="padding: 5px 0; color: #666; font-style: italic; display: flex; align-items: center;">
-                        <span style="margin-right: 10px; opacity: 0.5;">👤</span>
-                        <span>Esperando equipo...</span>
-                    </div>""", unsafe_allow_html=True)
+    # 2. Definimos la URL de destino
+    url_tv = f"/?view=tv&grupo={grupo['nombre']}"
+
+    # 3. Renderizamos TODO el bloque de la tarjeta de una sola vez
+    # El botón '⛶' ahora es un enlace <a> con estilo de botón
+    st.markdown(f"""
+        <div style="
+            border: 1px solid #464e5f; 
+            border-radius: 12px; 
+            padding: 20px; 
+            background-color: #1a1c24; 
+            margin-bottom: 20px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; font-size: 1.3rem; color: white;">📋 {grupo['nombre']}</h3>
+                <a href="{url_tv}" target="_blank" style="
+                    text-decoration: none; 
+                    background-color: #262730; 
+                    border: 1px solid #464e5f; 
+                    color: white; 
+                    padding: 4px 12px; 
+                    border-radius: 8px; 
+                    font-size: 1.2rem;
+                    transition: background-color 0.3s;
+                " onmouseover="this.style.backgroundColor='#363947'" onmouseout="this.style.backgroundColor='#262730'">
+                    ⛶
+                </a>
+            </div>
+            <div style="margin-top: 10px;">
+                {filas_html}
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
 def mostrar_grupo_tv(nombre_grupo_url):
     """Vista para la TV: Versión compacta con escudos"""
