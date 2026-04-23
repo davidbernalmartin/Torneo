@@ -54,11 +54,11 @@ if menu == "Carga de Equipos":
                     
                 if isinstance(resultado, str):
                         st.error(resultado)
-                    else:
-                        st.success(f"¡{len(equipos_dict)} equipos cargados con éxito!")
-                        st.rerun()
-            else:
-                st.error("El archivo debe tener las columnas: 'nombre' y 'escudo_url'")
+                else:
+                    st.success(f"¡{len(equipos_dict)} equipos cargados con éxito!")
+                    st.rerun()
+        else:
+            st.error("El archivo debe tener las columnas: 'nombre' y 'escudo_url'")
     
         # --- AÑADE ESTO AL FINAL DE LA SECCIÓN DE CARGA ---
         st.write("---")
