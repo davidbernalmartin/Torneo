@@ -85,20 +85,34 @@ if menu == "Configurador":
                 tamano_grupo = st.number_input("Equipos por grupo", min_value=1, value=4)
             with col3:
                 st.write("Acción")
-                if st.button("➕ Añadir"):
-                    # 1. Consultar cuántos grupos hay ya en esta fase para seguir la cuenta
-                    res_conteo = supabase.table("grupos").select("id", count="exact").eq("fase_id", fase_id).execute()
-                    total_existentes = res_conteo.count if res_conteo.count is not None else 0
-                    
+               if st.button("➕ Añadir"):
+                    # 1. Inicializamos la lista para evitar NameError
                     nuevos_grupos = []
-                    for i in range(num_grupos):
-                        # El nuevo número será el total existente + 1, + 2, etc.
-                        siguiente_numero = total_existentes + i + 1
-                        nuevos_grupos.append({
-                            "fase_id": fase_id,
-                            "nombre": f"Grupo {siguiente_numero} ({fase_sel})",
-                            "tipo_grupo": tamano_grupo
-                        })
+                    
+                    try:
+                        # 2. Consultar cuántos grupos hay ya en esta fase
+                        res_conteo = supabase.table("grupos").select("id", count="exact").eq("fase_id", fase_id).execute()
+                        total_existentes = res_conteo.count if res_conteo.count is not None else 0
+                        
+                        # 3. Generar la lista de nuevos registros
+                        for i in range(num_grupos):
+                            siguiente_numero = total_existentes + i + 1
+                            nuevos_grupos.append({
+                                "fase_id": fase_id,
+                                "nombre": f"Grupo {siguiente_numero}", # Nombre más limpio
+                                "tipo_grupo": tamano_grupo
+                            })
+                        
+                        # 4. Solo ejecutamos si la lista tiene contenido
+                        if nuevos_grupos:
+                            supabase.table("grupos").insert(nuevos_grupos).execute()
+                            st.success(f"¡Añadidos grupos del {total_existentes + 1} al {total_existentes + num_grupos}!")
+                            st.rerun()
+                        else:
+                            st.error("No se generaron grupos para añadir.")
+                            
+                    except Exception as e:
+                        st.error(f"Hubo un error al interactuar con Supabase: {e}")
     
                 # 2. Insertar en Supabase
                 supabase.table("grupos").insert(nuevos_grupos).execute()
