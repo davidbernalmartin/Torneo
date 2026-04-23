@@ -1,6 +1,36 @@
 # src/components.py
 import streamlit as st
 
+def mostrar_pantalla_tv():
+    supabase = get_supabase()
+    
+    # 1. Seleccionamos qué grupo queremos proyectar
+    # (Esto lo puedes guardar en una tabla de 'ajustes' en Supabase o usar un selector aquí)
+    fases = supabase.table("fases").select("*").order("orden").execute().data
+    
+    if fases:
+        # Para que sea automático, podrías elegir siempre el primer grupo de la fase actual
+        # o dejar un selector oculto.
+        st.title("🏆 Resultados en Tiempo Real")
+        
+        # Consultamos los grupos y sus participantes
+        # NOTA: Aquí podrías añadir un st.empty() y un bucle para refresco automático
+        # pero Streamlit ya refresca al detectar cambios en la DB si usas fragmentos.
+        
+        # Por ahora, mostramos un carrusel o un grupo específico
+        grupos = supabase.table("grupos").select("*").execute().data
+        
+        for grupo in grupos:
+            with st.container():
+                st.header(f"📍 {grupo['nombre']}")
+                # Aquí dibujarías la tabla de clasificación de ese grupo en grande
+                # usando fuentes grandes para que se vea bien en la TV.
+                renderizar_tabla_grande(grupo['id'])
+                
+        # Auto-refresh cada 30 segundos
+        st.info("Actualizando automáticamente...")
+        st.rerun()
+
 def renderizar_cuadro_vacio(lista_grupos):
     """
     Dibuja los grupos con sus huecos vacíos según el tamaño definido (tipo_grupo).
