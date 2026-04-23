@@ -9,7 +9,7 @@ primaryColor = "#000000"
 backgroundColor = "#e34c48"
 
 # Fondo de los widgets (Selectbox, Inputs) - Blanco puro para que se lea perfecto
-secondaryBackgroundColor = "#ffffff"
+secondaryBackgroundColor = "#8b1e1e"
 
 # Color del texto general - Negro (para los widgets blancos) o Blanco (para el fondo rojo)
 # Nota: Streamlit lo gestionará según el fondo, pero lo forzamos a Negro para los widgets.
