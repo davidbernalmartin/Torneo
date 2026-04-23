@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from src.database import *
 from src.logic import *
+from src.components import *
 
 st.set_page_config(page_title="Gestor Torneo RFFM", layout="wide")
 
@@ -11,8 +12,19 @@ st.title("🏆 Gestión de Campeonato RFFM")
 menu = st.sidebar.selectbox("Menú", ["Dashboard", "Configurador", "Carga de Equipos", "Cuadro Visual"])
 
 if menu == "Dashboard":
-    st.write(f"Bienvenido David. Tienes {len(get_equipos())} equipos cargados.")
-    # Aquí irá un resumen de la fase actual
+    if menu == "Dashboard":
+    equipos = get_equipos()
+    st.subheader(f"📊 Resumen del Campeonato")
+    
+    col_e1, col_e2 = st.columns(2)
+    col_e1.metric("Total Equipos", len(equipos))
+    col_e2.metric("En Competición", len([e for e in equipos if not e['eliminado']]))
+    
+    st.write("---")
+    st.subheader("🛡️ Plantilla de Equipos")
+    
+    # Llamamos al componente visual
+    renderizar_tarjetas_equipos(equipos)
 
 if menu == "Carga de Equipos":
     st.subheader("🚀 Importación Masiva de Equipos")
@@ -41,9 +53,17 @@ if menu == "Carga de Equipos":
                     resultado = subir_equipos_batch(equipos_dict)
                     
                 if isinstance(resultado, str):
-                    st.error(resultado)
-                else:
-                    st.success(f"¡{len(equipos_dict)} equipos cargados con éxito!")
+                        st.error(resultado)
+                    else:
+                        st.success(f"¡{len(equipos_dict)} equipos cargados con éxito!")
+                        st.rerun()
+            else:
+                st.error("El archivo debe tener las columnas: 'nombre' y 'escudo_url'")
+    
+        # --- AÑADE ESTO AL FINAL DE LA SECCIÓN DE CARGA ---
+        st.write("---")
+        st.subheader("👀 Equipos actualmente en la Base de Datos")
+        renderizar_tarjetas_equipos(get_equipos())
         else:
             st.error("El archivo debe tener las columnas: 'nombre' y 'escudo_url'")
 
