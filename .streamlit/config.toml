@@ -1,17 +1,21 @@
 [theme]
-# Blanco para los radios, botones y detalles de acento
-primaryColor = "#ffffff"
+# Color de acento (checks, botones activos, etc.)
+primaryColor = "#000000" 
 
-# Tu rojo plano corporativo
+# Fondo principal de la aplicación (Tu rojo corporativo)
 backgroundColor = "#e34c48"
 
-# El fondo del Sidebar y de los widgets será blanco
+# Fondo de widgets (selectbox, inputs) y del Sidebar
 secondaryBackgroundColor = "#ffffff"
 
-# Texto general de la app en blanco para que destaque sobre el rojo
-textColor = "#ffffff"
+# Color del texto general
+textColor = "#000000"
 
+# Fuente profesional
 font = "sans serif"
+
+[server]
+headless = true
 
 [server]
 headless = true
