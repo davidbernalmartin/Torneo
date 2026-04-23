@@ -171,35 +171,36 @@ if menu == "Configurador":
                     st.warning(f"⚠️ Faltan {total_equipos_bd - total_plazas} plazas por configurar.")
 
 if menu == "Cuadro Visual":
-    st.subheader("🖼️ Previsualización del Cuadro de Competición")
-    
+    st.subheader("🖼️ Cuadro General del Torneo")
     supabase = get_supabase()
-    fases_res = supabase.table("fases").select("*").order("orden").execute()
-    fases = fases_res.data
     
+    # 1. Selector de Fase
+    fases = supabase.table("fases").select("*").order("orden").execute().data
     if not fases:
-        st.info("No hay fases creadas.")
+        st.info("Crea una fase para ver el cuadro.")
     else:
-        fase_sel = st.selectbox("Selecciona la Fase", [f["nombre"] for f in fases])
-        fase_actual = next(f for f in fases if f["nombre"] == fase_sel)
+        fase_sel = st.selectbox("Fase", [f["nombre"] for f in fases])
+        fase_id = next(f["id"] for f in fases if f["nombre"] == fase_sel)
         
-        grupos_res = supabase.table("grupos").select("*").eq("fase_id", fase_actual['id']).order("nombre").execute()
+        # 2. Traer Grupos y Participantes
+        grupos = supabase.table("grupos").select("*").eq("fase_id", fase_id).order("nombre").execute().data
         
-        if grupos_res.data:
-            for grupo in grupos_res.data:
-                # Creamos dos columnas: una para el título y otra para el botón de TV
-                col_titulo, col_btn = st.columns([0.85, 0.15])
-                
-                with col_titulo:
-                    st.markdown(f"### 📋 {grupo['nombre']}")
-                
-                with col_btn:
-                    # Generamos la URL dinámica con el parámetro del grupo
-                    url_tv = f"/?view=tv&grupo={grupo['id']}"
-                    st.link_button("📺 TV", url_tv, use_container_width=True, help="Abrir vista para televisión")
-                
-                # Renderizamos los huecos o equipos debajo
-                # (Aquí puedes llamar a renderizar_cuadro_vacio o la función de participantes)
-                from src.components import renderizar_cuadro_vacio
-                renderizar_cuadro_vacio([grupo]) 
-                st.write("---")
+        if grupos:
+            # Traer todos los participantes de esta fase para no hacer mil consultas
+            ids_grupos = [g['id'] for g in grupos]
+            todos_part = supabase.table("participantes_grupo")\
+                .select("*, equipos(nombre, escudo_url)")\
+                .in_("grupo_id", ids_grupos).execute().data
+            
+            # Organizamos en 3 columnas para el administrador
+            cols = st.columns(3)
+            for idx, grupo in enumerate(grupos):
+                with cols[idx % 3]:
+                    # Filtramos los participantes que pertenecen a este grupo
+                    part_grupo = [p for p in todos_part if p['grupo_id'] == grupo['id']]
+                    
+                    # Llamamos a nuestra nueva función de tarjeta
+                    from src.components import renderizar_tarjeta_grupo
+                    renderizar_tarjeta_grupo(grupo, part_grupo)
+        else:
+            st.warning("No hay grupos configurados en esta fase.")
