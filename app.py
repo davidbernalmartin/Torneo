@@ -107,19 +107,25 @@ if menu == "Configurador":
             st.write("### Estructura actual de la Fase")
             grupos_res = supabase.table("grupos").select("*").eq("fase_id", fase_id).execute()
             
+            # Dentro de if menu == "Configurador" -> Visualización
             if grupos_res.data:
                 df_grupos = pd.DataFrame(grupos_res.data)
-                st.dataframe(df_grupos[['nombre', 'tipo_grupo']], use_container_width=True)
-                
                 total_plazas = df_grupos['tipo_grupo'].sum()
-                st.metric("Total plazas configuradas", f"{total_plazas} / 101")
-
-                # BOTÓN DE SORTEO (Solo si hay plazas suficientes)
-                if total_plazas >= 101:
-                    st.warning("⚠️ Tienes plazas suficientes. ¿Quieres repartir los equipos?")
-                    if st.button("🎲 Realizar Sorteo Aleatorio"):
-                        realizar_sorteo(fase_id, grupos_res.data)
                 
-                if st.button("🗑️ Borrar todos los grupos"):
-                    supabase.table("grupos").delete().eq("fase_id", fase_id).execute()
-                    st.rerun()
+                # Consultamos cuántos equipos hay cargados realmente
+                res_equipos = supabase.table("equipos").select("id", count="exact").eq("eliminado", False).execute()
+                total_equipos_bd = res_equipos.count if res_equipos.count is not None else 0
+                
+                # Mostramos la comparativa real
+                col_m1, col_m2 = st.columns(2)
+                col_m1.metric("Equipos en BD", total_equipos_bd)
+                col_m2.metric("Plazas en Grupos", f"{total_plazas} / {total_equipos_bd}")
+            
+                if total_plazas >= total_equipos_bd:
+                    st.success("✅ Tienes plazas suficientes para todos los equipos cargados.")
+                    if st.button("🎲 Lanzar Sorteo Aleatorio"):
+                        with st.spinner("Distribuyendo equipos..."):
+                            realizar_sorteo(fase_id, grupos_res.data)
+                            st.rerun()
+                else:
+                    st.warning(f"⚠️ Faltan {total_equipos_bd - total_plazas} plazas por configurar.")
