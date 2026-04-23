@@ -13,3 +13,15 @@ def get_equipos():
     # Traemos todos los equipos ordenados por nombre
     response = supabase.table("equipos").select("*").order("nombre").execute()
     return response.data
+
+def subir_equipos_batch(lista_equipos):
+    """
+    lista_equipos: lista de diccionarios [{'nombre': '...', 'escudo_url': '...'}, ...]
+    """
+    supabase = get_supabase()
+    try:
+        # Usamos el método .insert() de supabase que acepta listas
+        response = supabase.table("equipos").insert(lista_equipos).execute()
+        return response
+    except Exception as e:
+        return f"Error: {e}"
