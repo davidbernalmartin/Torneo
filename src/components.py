@@ -178,17 +178,48 @@ def mostrar_grupo_tv(nombre_grupo_url):
         st.error(f"Error en la visualización: {e}")
         
 def renderizar_tarjetas_equipos(lista_equipos):
+    """
+    Muestra la lista de equipos inscritos con el nuevo estilo de tarjetas blancas.
+    """
     if not lista_equipos:
         st.info("No hay equipos cargados.")
         return
-    cols = st.columns(3)
+
+    # Usamos 4 columnas para que queden más compactas y se vea más profesional
+    cols = st.columns(4)
+    
     for idx, equipo in enumerate(lista_equipos):
-        col_actual = cols[idx % 3]
+        col_actual = cols[idx % 4]
         with col_actual:
+            # Escudo por defecto si no hay URL
+            escudo = equipo['escudo_url'] if equipo['escudo_url'] else 'https://via.placeholder.com/100'
+            
             st.markdown(
-                f"""<div style="border: 1px solid #464e5f; border-radius: 10px; padding: 15px; 
-                margin-bottom: 15px; background-color: #1a1c24; text-align: center; min-height: 180px;">
-                    <img src="{equipo['escudo_url'] if equipo['escudo_url'] else 'https://via.placeholder.com/100'}" 
-                         style="max-width: 80px; max-height: 80px; border-radius: 50%; margin-bottom: 10px;">
-                    <div style="font-weight: bold; font-size: 1.1em; color: white;">{equipo['nombre']}</div>
-                </div>""", unsafe_allow_html=True)
+                f"""
+                <div style="
+                    background-color: white; 
+                    border-radius: 12px; 
+                    padding: 20px; 
+                    margin-bottom: 20px; 
+                    text-align: center; 
+                    box-shadow: 0px 4px 10px rgba(0,0,0,0.2);
+                    border: 1px solid #ddd;
+                    min-height: 160px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                ">
+                    <img src="{escudo}" 
+                         style="width: 70px; height: 70px; object-fit: contain; margin-bottom: 12px;">
+                    <div style="
+                        font-weight: 800; 
+                        font-size: 1rem; 
+                        color: #1a1c24; 
+                        text-transform: uppercase;
+                        line-height: 1.2;
+                    ">
+                        {equipo['nombre']}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
