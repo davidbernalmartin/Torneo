@@ -1,6 +1,60 @@
 # src/components.py
 import streamlit as st
 
+def mostrar_grupo_tv(grupo_id):
+    supabase = get_supabase()
+    
+    # 1. Obtener datos del grupo y sus participantes
+    # Hacemos un join para traer el nombre del equipo y su escudo
+    res = supabase.table("participantes_grupo")\
+        .select("puntos, goles, equipo_id, equipos(nombre, escudo_url), grupos(nombre)")\
+        .eq("grupo_id", grupo_id)\
+        .order("puntos", desc=True)\
+        .execute()
+    
+    if not res.data:
+        st.error(f"No se encontraron datos para el grupo ID: {grupo_id}")
+        return
+
+    nombre_grupo = res.data[0]['grupos']['nombre']
+    st.title(f"📍 {nombre_grupo}")
+    st.write("---")
+
+    # 2. Renderizar tabla gigante
+    # Usamos HTML/CSS para controlar el tamaño exacto, ya que st.table es pequeño
+    tabla_html = """
+    <table style="width:100%; border-collapse: collapse; font-size: 2.5rem; color: white;">
+        <tr style="border-bottom: 2px solid #444; background-color: #1f2937;">
+            <th style="padding: 20px; text-align: left;">Equipo</th>
+            <th style="padding: 20px; text-align: center;">PTS</th>
+            <th style="padding: 20px; text-align: center;">GF</th>
+        </tr>
+    """
+
+    for p in res.data:
+        equipo = p['equipos']['nombre']
+        escudo = p['equipos']['escudo_url']
+        pts = p['puntos']
+        gf = p['goles']
+        
+        tabla_html += f"""
+        <tr style="border-bottom: 1px solid #333;">
+            <td style="padding: 20px; display: flex; align-items: center;">
+                <img src="{escudo}" style="width: 80px; margin-right: 20px;"> {equipo}
+            </td>
+            <td style="padding: 20px; text-align: center; font-weight: bold; color: #00e676;">{pts}</td>
+            <td style="padding: 20px; text-align: center;">{gf}</td>
+        </tr>
+        """
+    
+    tabla_html += "</table>"
+    st.markdown(tabla_html, unsafe_allow_html=True)
+
+    # 3. Auto-refresco (importante para que la TV se actualice sola)
+    import time
+    time.sleep(30) # Espera 30 segundos
+    st.rerun()
+
 def mostrar_pantalla_tv():
     supabase = get_supabase()
     
