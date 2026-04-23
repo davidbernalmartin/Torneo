@@ -178,8 +178,7 @@ if menu == "Cuadro Visual":
         fase_sel = st.selectbox("Selecciona Fase", [f["nombre"] for f in fases])
         f_actual = next(f for f in fases if f["nombre"] == fase_sel)
         
-        res_grupos = supabase.table("grupos").select("*").eq("fase_id", f_actual['id']).execute().data
-        grupos = res_grupos.data
+        grupos = supabase.table("grupos").select("*").eq("fase_id", f_actual['id']).execute().data
         
         # 2. TRUCO DE MAGIA: Ordenación natural (numérica)
         # Esto separa el número del nombre para que el 10 vaya después del 2
