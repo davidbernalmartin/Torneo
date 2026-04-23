@@ -63,8 +63,6 @@ if menu == "Carga de Equipos":
         st.write("---")
         st.subheader("👀 Equipos actualmente en la Base de Datos")
         renderizar_tarjetas_equipos(get_equipos())
-        else:
-            st.error("El archivo debe tener las columnas: 'nombre' y 'escudo_url'")
 
 if menu == "Configurador":
     st.subheader("⚙️ Definición de Grupos por Fase")
