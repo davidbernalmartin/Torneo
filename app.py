@@ -174,33 +174,22 @@ if menu == "Cuadro Visual":
     st.subheader("🖼️ Cuadro General del Torneo")
     supabase = get_supabase()
     
-    # 1. Selector de Fase
     fases = supabase.table("fases").select("*").order("orden").execute().data
     if not fases:
-        st.info("Crea una fase para ver el cuadro.")
+        st.info("Crea una fase primero.")
     else:
-        fase_sel = st.selectbox("Fase", [f["nombre"] for f in fases])
-        fase_id = next(f["id"] for f in fases if f["nombre"] == fase_sel)
+        fase_sel = st.selectbox("Selecciona Fase", [f["nombre"] for f in fases])
+        f_actual = next(f for f in fases if f["nombre"] == fase_sel)
         
-        # 2. Traer Grupos y Participantes
-        grupos = supabase.table("grupos").select("*").eq("fase_id", fase_id).order("nombre").execute().data
+        grupos = supabase.table("grupos").select("*").eq("fase_id", f_actual['id']).order("nombre").execute().data
         
         if grupos:
-            # Traer todos los participantes de esta fase para no hacer mil consultas
-            ids_grupos = [g['id'] for g in grupos]
-            todos_part = supabase.table("participantes_grupo")\
-                .select("*, equipos(nombre, escudo_url)")\
-                .in_("grupo_id", ids_grupos).execute().data
+            # Traemos todos los participantes de golpe para ahorrar velocidad
+            ids_g = [g['id'] for g in grupos]
+            todos_p = supabase.table("participantes_grupo").select("*, equipos(nombre, escudo_url)").in_("grupo_id", ids_g).execute().data
             
-            # Organizamos en 3 columnas para el administrador
-            cols = st.columns(3)
-            for idx, grupo in enumerate(grupos):
+            cols = st.columns(3) # 3 columnas para el administrador
+            for idx, g in enumerate(grupos):
                 with cols[idx % 3]:
-                    # Filtramos los participantes que pertenecen a este grupo
-                    part_grupo = [p for p in todos_part if p['grupo_id'] == grupo['id']]
-                    
-                    # Llamamos a nuestra nueva función de tarjeta
-                    from src.components import renderizar_tarjeta_grupo
-                    renderizar_tarjeta_grupo(grupo, part_grupo)
-        else:
-            st.warning("No hay grupos configurados en esta fase.")
+                    p_grupo = [p for p in todos_p if p['grupo_id'] == g['id']]
+                    renderizar_tarjeta_grupo(g, p_grupo)
