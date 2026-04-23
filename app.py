@@ -49,45 +49,66 @@ if menu == "Carga de Equipos":
 if menu == "Configurador":
     st.subheader("⚙️ Definición de Grupos por Fase")
     
-    # 1. Obtener fases existentes
     supabase = get_supabase()
+    
+    # 1. Gestión de Fases (Crear la fase si no existe)
+    with st.expander("➕ Crear Nueva Fase"):
+        nueva_fase_nombre = st.text_input("Nombre de la fase (ej: Primera Ronda)")
+        orden_fase = st.number_input("Orden", min_value=1, value=1)
+        if st.button("Guardar Fase"):
+            supabase.table("fases").insert({"nombre": nueva_fase_nombre, "orden": orden_fase}).execute()
+            st.success("Fase creada")
+            st.rerun()
+
+    # 2. Obtener fases existentes
     fases_res = supabase.table("fases").select("*").order("orden").execute()
     fases = fases_res.data
     
     if not fases:
-        st.warning("Primero crea una fase (ej. 'Primera Ronda') en la base de datos.")
+        st.info("Crea una fase arriba para empezar a configurar grupos.")
     else:
+        # Usamos un selectbox para elegir la fase
         fase_sel = st.selectbox("Selecciona la Fase a configurar", [f["nombre"] for f in fases])
-        fase_id = next(f["id"] for f in fases if f["nombre"] == fase_sel)
         
-        st.write("---")
-        col1, col2, col3 = st.columns([2, 2, 1])
+        # BUSCAMOS EL ID de la fase seleccionada de forma segura
+        fase_actual = next((f for f in fases if f["nombre"] == fase_sel), None)
         
-        with col1:
-            num_grupos = st.number_input("Número de grupos", min_value=1, value=1)
-        with col2:
-            tamano_grupo = st.number_input("Equipos por grupo", min_value=1, value=4)
-        with col3:
-            st.write("Acción")
-            if st.button("➕ Añadir"):
-                # Generamos los grupos en la tabla 'grupos'
-                nuevos_grupos = []
-                for i in range(num_grupos):
-                    nuevos_grupos.append({
-                        "fase_id": fase_id,
-                        "nombre": f"Grupo {i+1} ({fase_sel})",
-                        "tipo_grupo": tamano_grupo
-                    })
-                
-                supabase.table("grupos").insert(nuevos_grupos).execute()
-                st.success(f"¡{num_grupos} grupos de {tamano_grupo} añadidos!")
+        if fase_actual:
+            fase_id = fase_actual["id"] # Ahora sí está definida de forma segura
+            
+            st.write("---")
+            col1, col2, col3 = st.columns([2, 2, 1])
+            
+            with col1:
+                num_grupos = st.number_input("Número de grupos", min_value=1, value=1)
+            with col2:
+                tamano_grupo = st.number_input("Equipos por grupo", min_value=1, value=4)
+            with col3:
+                st.write("Acción")
+                if st.button("➕ Añadir"):
+                    nuevos_grupos = []
+                    for i in range(num_grupos):
+                        nuevos_grupos.append({
+                            "fase_id": fase_id,
+                            "nombre": f"Grupo {i+1} ({fase_sel})",
+                            "tipo_grupo": tamano_grupo
+                        })
+                    supabase.table("grupos").insert(nuevos_grupos).execute()
+                    st.success(f"¡{num_grupos} grupos añadidos!")
+                    st.rerun()
 
-    # 3. Visualización de lo configurado
-    st.write("### Estructura actual de la Fase")
-    grupos_res = supabase.table("grupos").select("*").eq("fase_id", fase_id).execute()
-    if grupos_res.data:
-        df_grupos = pd.DataFrame(grupos_res.data)
-        st.dataframe(df_grupos[['nombre', 'tipo_grupo']], use_container_width=True)
-        
-        total_plazas = df_grupos['tipo_grupo'].sum()
-        st.metric("Total plazas configuradas", f"{total_plazas} / 101")
+            # 3. Visualización de lo configurado (Solo si fase_id existe)
+            st.write("### Estructura actual de la Fase")
+            grupos_res = supabase.table("grupos").select("*").eq("fase_id", fase_id).execute()
+            
+            if grupos_res.data:
+                df_grupos = pd.DataFrame(grupos_res.data)
+                st.dataframe(df_grupos[['nombre', 'tipo_grupo']], use_container_width=True)
+                
+                total_plazas = df_grupos['tipo_grupo'].sum()
+                st.metric("Total plazas configuradas", f"{total_plazas} / 101")
+                
+                if st.button("🗑️ Borrar todos los grupos de esta fase"):
+                    supabase.table("grupos").delete().eq("fase_id", fase_id).execute()
+                    st.warning("Grupos eliminados")
+                    st.rerun()
