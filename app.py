@@ -100,10 +100,10 @@ if menu == "Configurador":
                             "tipo_grupo": tamano_grupo
                         })
     
-    # 2. Insertar en Supabase
-    supabase.table("grupos").insert(nuevos_grupos).execute()
-    st.success(f"¡Añadidos grupos del {total_existentes + 1} al {total_existentes + num_grupos}!")
-    st.rerun()
+            # 2. Insertar en Supabase
+            supabase.table("grupos").insert(nuevos_grupos).execute()
+            st.success(f"¡Añadidos grupos del {total_existentes + 1} al {total_existentes + num_grupos}!")
+            st.rerun()
 
             # 3. Visualización de lo configurado (Solo si fase_id existe)
             st.write("### Estructura actual de la Fase")
