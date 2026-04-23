@@ -103,9 +103,9 @@ def renderizar_cuadro_vacio(lista_grupos):
             with st.container():
                 # Cabecera del grupo
                 c1, c2 = st.columns(2)
-                width c1:
+                with c1:
                     st.markdown(f"### 📋 {grupo['nombre']}")
-                width c2:
+                with c2:
                     # Dentro del bucle donde visualizas los grupos en el modo Administrador:
                     for grupo in grupos_res.data:
                         url_tv = f"https://tu-app.streamlit.app/?view=tv&grupo={grupo['id']}"
