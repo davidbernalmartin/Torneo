@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from src.database import *
+from src.logic import *
 
 st.set_page_config(page_title="Gestor Torneo RFFM", layout="wide")
 
@@ -48,12 +49,11 @@ if menu == "Carga de Equipos":
 
 if menu == "Configurador":
     st.subheader("⚙️ Definición de Grupos por Fase")
-    
     supabase = get_supabase()
     
-    # 1. Gestión de Fases (Crear la fase si no existe)
+    # 1. Gestión de Fases
     with st.expander("➕ Crear Nueva Fase"):
-        nueva_fase_nombre = st.text_input("Nombre de la fase (ej: Primera Ronda)")
+        nueva_fase_nombre = st.text_input("Nombre de la fase (ej: Fase de grupos)")
         orden_fase = st.number_input("Orden", min_value=1, value=1)
         if st.button("Guardar Fase"):
             supabase.table("fases").insert({"nombre": nueva_fase_nombre, "orden": orden_fase}).execute()
@@ -65,16 +65,13 @@ if menu == "Configurador":
     fases = fases_res.data
     
     if not fases:
-        st.info("Crea una fase arriba para empezar a configurar grupos.")
+        st.info("Crea una fase arriba para empezar.")
     else:
-        # Usamos un selectbox para elegir la fase
         fase_sel = st.selectbox("Selecciona la Fase a configurar", [f["nombre"] for f in fases])
-        
-        # BUSCAMOS EL ID de la fase seleccionada de forma segura
         fase_actual = next((f for f in fases if f["nombre"] == fase_sel), None)
         
         if fase_actual:
-            fase_id = fase_actual["id"] # Ahora sí está definida de forma segura
+            fase_id = fase_actual["id"]
             
             st.write("---")
             col1, col2, col3 = st.columns([2, 2, 1])
@@ -86,40 +83,27 @@ if menu == "Configurador":
             with col3:
                 st.write("Acción")
                 if st.button("➕ Añadir"):
-                    # 1. Inicializamos la lista para evitar NameError
-                    nuevos_grupos = []
-                    
                     try:
-                        # 2. Consultar cuántos grupos hay ya en esta fase
                         res_conteo = supabase.table("grupos").select("id", count="exact").eq("fase_id", fase_id).execute()
                         total_existentes = res_conteo.count if res_conteo.count is not None else 0
                         
-                        # 3. Generar la lista de nuevos registros
+                        nuevos_grupos = []
                         for i in range(num_grupos):
                             siguiente_numero = total_existentes + i + 1
                             nuevos_grupos.append({
                                 "fase_id": fase_id,
-                                "nombre": f"Grupo {siguiente_numero}", # Nombre más limpio
+                                "nombre": f"Grupo {siguiente_numero}",
                                 "tipo_grupo": tamano_grupo
                             })
                         
-                        # 4. Solo ejecutamos si la lista tiene contenido
                         if nuevos_grupos:
                             supabase.table("grupos").insert(nuevos_grupos).execute()
-                            st.success(f"¡Añadidos grupos del {total_existentes + 1} al {total_existentes + num_grupos}!")
+                            st.success(f"¡Añadidos!")
                             st.rerun()
-                        else:
-                            st.error("No se generaron grupos para añadir.")
-                            
                     except Exception as e:
-                        st.error(f"Hubo un error al interactuar con Supabase: {e}")
-    
-                # 2. Insertar en Supabase
-                supabase.table("grupos").insert(nuevos_grupos).execute()
-                st.success(f"¡Añadidos grupos del {total_existentes + 1} al {total_existentes + num_grupos}!")
-                st.rerun()
+                        st.error(f"Error: {e}")
 
-            # 3. Visualización de lo configurado (Solo si fase_id existe)
+            # 3. Visualización y Sorteo
             st.write("### Estructura actual de la Fase")
             grupos_res = supabase.table("grupos").select("*").eq("fase_id", fase_id).execute()
             
@@ -129,8 +113,13 @@ if menu == "Configurador":
                 
                 total_plazas = df_grupos['tipo_grupo'].sum()
                 st.metric("Total plazas configuradas", f"{total_plazas} / 101")
+
+                # BOTÓN DE SORTEO (Solo si hay plazas suficientes)
+                if total_plazas >= 101:
+                    st.warning("⚠️ Tienes plazas suficientes. ¿Quieres repartir los equipos?")
+                    if st.button("🎲 Realizar Sorteo Aleatorio"):
+                        realizar_sorteo(fase_id, grupos_res.data)
                 
-                if st.button("🗑️ Borrar todos los grupos de esta fase"):
+                if st.button("🗑️ Borrar todos los grupos"):
                     supabase.table("grupos").delete().eq("fase_id", fase_id).execute()
-                    st.warning("Grupos eliminados")
                     st.rerun()
