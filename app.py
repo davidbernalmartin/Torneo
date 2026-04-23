@@ -197,4 +197,4 @@ if menu == "Cuadro Visual":
 
 if menu == "Sorteo":
     supabase = get_supabase()
-    seccion_sorteo_manual(supabase, fase_seleccionada_id)
+    seccion_sorteo_manual(supabase)
