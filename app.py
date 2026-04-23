@@ -178,9 +178,27 @@ if menu == "Cuadro Visual":
         fase_sel = st.selectbox("Selecciona Fase", [f["nombre"] for f in fases])
         f_actual = next(f for f in fases if f["nombre"] == fase_sel)
         
-        grupos = supabase.table("grupos").select("*").eq("fase_id", f_actual['id']).order("nombre").execute().data
+        res_grupos = supabase.table("grupos").select("*").eq("fase_id", f_actual['id']).execute().data
+        grupos = res_grupos.data
         
-        if grupos:
+        # 2. TRUCO DE MAGIA: Ordenación natural (numérica)
+        # Esto separa el número del nombre para que el 10 vaya después del 2
+        import re
+        
+        def extraer_numero(nombre_grupo):
+            # Busca números en el nombre (ej: "Grupo 1" -> 1)
+            numeros = re.findall(r'\d+', nombre_grupo)
+            return int(numeros[0]) if numeros else 0
+        
+        # Ordenamos la lista de grupos usando esa función
+        grupos_ordenados = sorted(grupos, key=lambda x: extraer_numero(x['nombre']))
+        
+        # 3. Ahora dibujamos las tarjetas usando la lista ordenada
+        cols = st.columns(3) # O las que uses en tu grid
+        for idx, grupo in enumerate(grupos_ordenados):
+
+        
+        if grupos_ordenados:
             # Traemos todos los participantes de golpe para ahorrar velocidad
             ids_g = [g['id'] for g in grupos]
             todos_p = supabase.table("participantes_grupo").select("*, equipos(nombre, escudo_url)").in_("grupo_id", ids_g).execute().data
