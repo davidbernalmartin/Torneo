@@ -146,3 +146,34 @@ if menu == "Configurador":
                             st.rerun()
                 else:
                     st.warning(f"⚠️ Faltan {total_equipos_bd - total_plazas} plazas por configurar.")
+
+if menu == "Cuadro Visual":
+    st.subheader("🖼️ Previsualización del Cuadro de Competición")
+    
+    supabase = get_supabase()
+    
+    # 1. Selector de fase para ver su cuadro
+    fases_res = supabase.table("fases").select("*").order("orden").execute()
+    fases = fases_res.data
+    
+    if not fases:
+        st.info("No hay fases creadas.")
+    else:
+        fase_sel = st.selectbox("Selecciona la Fase a visualizar", [f["nombre"] for f in fases])
+        fase_actual = next(f for f in fases if f["nombre"] == fase_sel)
+        
+        # 2. Consultar grupos de esa fase
+        grupos_res = supabase.table("grupos").select("*").eq("fase_id", fase_actual['id']).order("nombre").execute()
+        
+        # 3. Consultar si ya hay participantes (para saber si está vacío o no)
+        ids_grupos = [g['id'] for g in grupos_res.data]
+        part_res = supabase.table("participantes_grupo").select("grupo_id").in_("grupo_id", ids_grupos).execute()
+        
+        if len(part_res.data) > 0:
+            st.success("✅ El sorteo ya ha sido realizado para esta fase. Mostrando equipos asignados...")
+            # Aquí más adelante llamaremos a la función de 'cuadro con equipos'
+        else:
+            st.warning("⏳ Mostrando estructura de grupos vacía (Pendiente de sorteo)")
+            
+        from src.components import renderizar_cuadro_vacio
+        renderizar_cuadro_vacio(grupos_res.data)
