@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
-from src.database import subir_equipos_batch
-from src.database import get_equipos
+from src.database import *
 
 st.set_page_config(page_title="Gestor Torneo RFFM", layout="wide")
 
