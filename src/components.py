@@ -35,30 +35,35 @@ def renderizar_cuadro_vacio(lista_grupos):
                     margin-bottom: 5px; background-color: rgba(255, 255, 255, 0.05); color: #888;">
                     👤 Hueco Equipo {i+1}</div>""", unsafe_allow_html=True)
 
-def mostrar_grupo_tv(grupo_id):
+def mostrar_grupo_tv(nombre_grupo_url):
     supabase = get_supabase()
     
-    # 1. Intentamos obtener los participantes con sus datos de equipo
-    res = supabase.table("participantes_grupo")\
-        .select("puntos, goles, equipos(nombre, escudo_url), grupos(nombre, tipo_grupo)")\
+    # 1. Buscamos primero si existe el grupo con ese nombre para obtener su ID y datos
+    info_grupo_res = supabase.table("grupos")\
+        .select("id, nombre, tipo_grupo")\
+        .eq("nombre", nombre_grupo_url)\
+        .maybe_single().execute()
+    
+    if not info_grupo_res.data:
+        st.error(f"❌ El grupo '{nombre_grupo_url}' no existe en la base de datos.")
+        st.info("Asegúrate de escribirlo exactamente igual (Mayúsculas, espacios, etc.)")
+        return
+
+    grupo_id = info_grupo_res.data['id']
+    nombre_display = info_grupo_res.data['nombre']
+    tipo_grupo = info_grupo_res.data['tipo_grupo']
+
+    # 2. Intentamos obtener los participantes asignados a ese ID
+    res_part = supabase.table("participantes_grupo")\
+        .select("puntos, goles, equipos(nombre, escudo_url)")\
         .eq("grupo_id", grupo_id)\
         .order("puntos", desc=True).execute()
     
-    # 2. Variable para el nombre del grupo (la sacamos de la respuesta o consultamos si está vacío)
-    if res.data:
-        nombre_grupo = res.data[0]['grupos']['nombre']
-        participantes = res.data
-        tipo_grupo = res.data[0]['grupos']['tipo_grupo']
-    else:
-        info_grupo = supabase.table("grupos").select("nombre, tipo_grupo").eq("id", grupo_id).single().execute()
-        nombre_grupo = info_grupo.data['nombre'] if info_grupo.data else "Grupo"
-        tipo_grupo = info_grupo.data['tipo_grupo'] if info_grupo.data else 0
-        participantes = []
+    participantes = res_part.data if res_part.data else []
 
-    # Título Gigante
-    st.markdown(f"<h1 style='text-align: center; font-size: 5rem; margin-bottom: 20px;'>{nombre_grupo}</h1>", unsafe_allow_html=True)
+    # --- RENDERIZADO GIGANTE ---
+    st.markdown(f"<h1 style='text-align: center; font-size: 5rem; margin-bottom: 20px;'>{nombre_display}</h1>", unsafe_allow_html=True)
     
-    # 3. Construcción de la Tabla
     tabla_html = """
     <table style="width:100%; border-collapse: collapse; font-size: 2.8rem; color: white; font-family: sans-serif;">
         <tr style="border-bottom: 3px solid #444; background-color: #1f2937;">
@@ -69,7 +74,6 @@ def mostrar_grupo_tv(grupo_id):
     """
 
     if participantes:
-        # Renderizar equipos reales
         for p in participantes:
             equipo = p['equipos']['nombre']
             escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/80"
@@ -78,12 +82,10 @@ def mostrar_grupo_tv(grupo_id):
                 <td style="padding: 25px; display: flex; align-items: center;">
                     <img src="{escudo}" style="width: 100px; height: 100px; margin-right: 30px; object-fit: contain;"> {equipo}
                 </td>
-                <td style="padding: 25px; text-align: center; font-weight: bold; color: #00e676;">{p['puntos']}</td>
-                <td style="padding: 25px; text-align: center;">{p['goles']}</td>
             </tr>
             """
     else:
-        # Renderizar "Huecos vacíos" si no hay sorteo
+        # Huecos vacíos si no hay sorteo
         for i in range(tipo_grupo):
             tabla_html += f"""
             <tr style="border-bottom: 1px solid #333; opacity: 0.5;">
@@ -99,13 +101,6 @@ def mostrar_grupo_tv(grupo_id):
     tabla_html += "</table>"
     st.markdown(tabla_html, unsafe_allow_html=True)
 
-    # 4. Footer de actualización
-    st.markdown(f"""
-        <div style="position: fixed; bottom: 20px; right: 20px; color: #555; font-size: 1.2rem;">
-            Actualización automática activa...
-        </div>
-    """, unsafe_allow_html=True)
-
-    # 5. Auto-refresco cada 30 segundos
+    # Auto-refresco
     time.sleep(30)
     st.rerun()
