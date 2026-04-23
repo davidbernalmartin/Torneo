@@ -170,7 +170,7 @@ def mostrar_grupo_tv(nombre_grupo_url):
 
         # 4. Refresco automático
         import time
-        time.sleep(20)
+        time.sleep(5)
         st.rerun()
 
     except Exception as e:
