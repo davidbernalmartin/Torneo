@@ -1,5 +1,6 @@
 import streamlit as st
 from src.database import get_supabase
+import time
 
 def renderizar_tarjetas_equipos(lista_equipos):
     if not lista_equipos:
@@ -36,41 +37,75 @@ def renderizar_cuadro_vacio(lista_grupos):
 
 def mostrar_grupo_tv(grupo_id):
     supabase = get_supabase()
-    # Consulta con Join para traer datos de equipos y grupos
+    
+    # 1. Intentamos obtener los participantes con sus datos de equipo
     res = supabase.table("participantes_grupo")\
-        .select("puntos, goles, equipo_id, equipos(nombre, escudo_url), grupos(nombre)")\
+        .select("puntos, goles, equipos(nombre, escudo_url), grupos(nombre, tipo_grupo)")\
         .eq("grupo_id", grupo_id)\
         .order("puntos", desc=True).execute()
     
-    if not res.data:
-        st.error("No hay datos para este grupo.")
-        return
+    # 2. Variable para el nombre del grupo (la sacamos de la respuesta o consultamos si está vacío)
+    if res.data:
+        nombre_grupo = res.data[0]['grupos']['nombre']
+        participantes = res.data
+        tipo_grupo = res.data[0]['grupos']['tipo_grupo']
+    else:
+        info_grupo = supabase.table("grupos").select("nombre, tipo_grupo").eq("id", grupo_id).single().execute()
+        nombre_grupo = info_grupo.data['nombre'] if info_grupo.data else "Grupo"
+        tipo_grupo = info_grupo.data['tipo_grupo'] if info_grupo.data else 0
+        participantes = []
 
-    nombre_grupo = res.data[0]['grupos']['nombre']
-    st.markdown(f"<h1 style='text-align: center; font-size: 4rem;'>{nombre_grupo}</h1>", unsafe_allow_html=True)
+    # Título Gigante
+    st.markdown(f"<h1 style='text-align: center; font-size: 5rem; margin-bottom: 20px;'>{nombre_grupo}</h1>", unsafe_allow_html=True)
     
+    # 3. Construcción de la Tabla
     tabla_html = """
-    <table style="width:100%; border-collapse: collapse; font-size: 2.5rem; color: white;">
-        <tr style="border-bottom: 2px solid #444; background-color: #1f2937;">
-            <th style="padding: 20px; text-align: left;">Equipo</th>
-            <th style="padding: 20px; text-align: center;">PTS</th>
-            <th style="padding: 20px; text-align: center;">GF</th>
+    <table style="width:100%; border-collapse: collapse; font-size: 2.8rem; color: white; font-family: sans-serif;">
+        <tr style="border-bottom: 3px solid #444; background-color: #1f2937;">
+            <th style="padding: 25px; text-align: left;">Equipo</th>
+            <th style="padding: 25px; text-align: center; width: 150px;">PTS</th>
+            <th style="padding: 25px; text-align: center; width: 150px;">GF</th>
         </tr>
     """
-    for p in res.data:
-        equipo = p['equipos']['nombre']
-        escudo = p['equipos']['escudo_url']
-        tabla_html += f"""
-        <tr style="border-bottom: 1px solid #333;">
-            <td style="padding: 20px; display: flex; align-items: center;">
-                <img src="{escudo}" style="width: 80px; margin-right: 20px;"> {equipo}
-            </td>
-            <td style="padding: 20px; text-align: center; font-weight: bold; color: #00e676;">{p['puntos']}</td>
-            <td style="padding: 20px; text-align: center;">{p['goles']}</td>
-        </tr>"""
+
+    if participantes:
+        # Renderizar equipos reales
+        for p in participantes:
+            equipo = p['equipos']['nombre']
+            escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/80"
+            tabla_html += f"""
+            <tr style="border-bottom: 1px solid #333;">
+                <td style="padding: 25px; display: flex; align-items: center;">
+                    <img src="{escudo}" style="width: 100px; height: 100px; margin-right: 30px; object-fit: contain;"> {equipo}
+                </td>
+                <td style="padding: 25px; text-align: center; font-weight: bold; color: #00e676;">{p['puntos']}</td>
+                <td style="padding: 25px; text-align: center;">{p['goles']}</td>
+            </tr>
+            """
+    else:
+        # Renderizar "Huecos vacíos" si no hay sorteo
+        for i in range(tipo_grupo):
+            tabla_html += f"""
+            <tr style="border-bottom: 1px solid #333; opacity: 0.5;">
+                <td style="padding: 25px; display: flex; align-items: center; color: #888; font-style: italic;">
+                    <div style="width: 100px; height: 100px; margin-right: 30px; border: 2px dashed #555; border-radius: 50%;"></div>
+                    Esperando Equipo {i+1}...
+                </td>
+                <td style="padding: 25px; text-align: center;">--</td>
+                <td style="padding: 25px; text-align: center;">--</td>
+            </tr>
+            """
+
     tabla_html += "</table>"
     st.markdown(tabla_html, unsafe_allow_html=True)
-    
-    import time
+
+    # 4. Footer de actualización
+    st.markdown(f"""
+        <div style="position: fixed; bottom: 20px; right: 20px; color: #555; font-size: 1.2rem;">
+            Actualización automática activa...
+        </div>
+    """, unsafe_allow_html=True)
+
+    # 5. Auto-refresco cada 30 segundos
     time.sleep(30)
     st.rerun()
