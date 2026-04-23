@@ -30,7 +30,7 @@ def renderizar_tarjeta_grupo(grupo, participantes):
         st.write("")
 
 def mostrar_grupo_tv(nombre_grupo_url):
-    """Vista para la TV: Cajas gigantes con Escudos"""
+    """Vista para la TV: Versión compacta con escudos"""
     supabase = get_supabase()
     
     try:
@@ -46,54 +46,53 @@ def mostrar_grupo_tv(nombre_grupo_url):
         nombre_display = datos_grupo['nombre']
         tipo_grupo = datos_grupo['tipo_grupo']
 
-        # Título en gigante
+        # Título ajustado (de 7rem a 4rem)
         st.markdown(f"""
-            <h1 style='text-align: center; font-size: 7rem; margin-top: -20px; color: white;'>
+            <h1 style='text-align: center; font-size: 4rem; margin-top: -40px; color: white;'>
                 {nombre_display}
             </h1>
         """, unsafe_allow_html=True)
         
         st.write("---")
 
-        # 2. Obtener participantes con escudos
+        # 2. Obtener participantes
         res_part = supabase.table("participantes_grupo").select("equipos(nombre, escudo_url)").eq("grupo_id", grupo_id).execute()
         participantes = res_part.data if res_part.data else []
 
-        # 3. Dibujar las cajas
+        # 3. Dibujar las cajas (más pequeñas)
         for i in range(tipo_grupo):
             if i < len(participantes):
                 # EQUIPO ASIGNADO
                 nombre_equipo = participantes[i]['equipos']['nombre']
                 escudo = participantes[i]['equipos']['escudo_url']
                 
-                # HTML para la caja con escudo (usando flexbox para alinear)
                 st.markdown(f"""
                     <div style="
                         background-color: #1E88E5; 
-                        padding: 20px 40px; 
-                        border-radius: 15px; 
-                        margin-bottom: 15px; 
+                        padding: 10px 30px; 
+                        border-radius: 12px; 
+                        margin-bottom: 10px; 
                         display: flex; 
                         align-items: center; 
                         justify-content: center;
-                        box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
+                        box-shadow: 0px 3px 8px rgba(0,0,0,0.3);
                     ">
-                        {f'<img src="{escudo}" style="height: 100px; width: 100px; object-fit: contain; margin-right: 30px;">' if escudo else ''}
-                        <span style="font-size: 4.5rem; font-weight: bold; color: white;">{nombre_equipo}</span>
+                        {f'<img src="{escudo}" style="height: 60px; width: 60px; object-fit: contain; margin-right: 20px;">' if escudo else ''}
+                        <span style="font-size: 2.8rem; font-weight: bold; color: white;">{nombre_equipo}</span>
                     </div>
                 """, unsafe_allow_html=True)
             else:
-                # HUECO VACÍO (Estilo punteado que te gustó)
+                # HUECO VACÍO (Más bajo)
                 st.markdown(f"""
                     <div style="
-                        padding: 35px; 
-                        border: 4px dashed #555; 
-                        border-radius: 15px; 
-                        margin-bottom: 15px; 
+                        padding: 15px; 
+                        border: 3px dashed #555; 
+                        border-radius: 12px; 
+                        margin-bottom: 10px; 
                         text-align: center; 
-                        opacity: 0.6;
+                        opacity: 0.5;
                     ">
-                        <span style="font-size: 3rem; color: #888; font-style: italic;">Esperando Sorteo...</span>
+                        <span style="font-size: 2rem; color: #888; font-style: italic;">Esperando Sorteo...</span>
                     </div>
                 """, unsafe_allow_html=True)
 
@@ -104,7 +103,7 @@ def mostrar_grupo_tv(nombre_grupo_url):
 
     except Exception as e:
         st.error(f"Error en la visualización: {e}")
-
+        
 def renderizar_tarjetas_equipos(lista_equipos):
     if not lista_equipos:
         st.info("No hay equipos cargados.")
