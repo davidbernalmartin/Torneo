@@ -2,6 +2,66 @@ import streamlit as st
 import time
 from src.database import get_supabase
 
+def seccion_sorteo_manual(supabase, fase_id):
+    """
+    Componente para gestionar el sorteo físico bola a bola.
+    """
+    st.subheader("🔮 Mesa de Sorteo")
+
+    # 1. Cargar equipos y filtrar los que ya tienen grupo
+    res_e = supabase.table("equipos").select("id, nombre").execute()
+    res_p = supabase.table("participantes_grupo").select("equipo_id").execute()
+    
+    asignados_ids = [p['equipo_id'] for p in res_p.data]
+    equipos_libres = [e for e in res_e.data if e['id'] not in asignados_ids]
+    
+    # 2. Cargar grupos de la fase actual
+    res_g = supabase.table("grupos").select("id, nombre").eq("fase_id", fase_id).execute()
+    grupos = res_g.data
+
+    if not equipos_libres:
+        st.success("🏁 ¡Sorteo completado!")
+        return
+
+    # 3. Interfaz de entrada
+    with st.container(border=True):
+        c1, c2, c3 = st.columns([1, 1, 0.6])
+        
+        with c1:
+            equipo_nombre = st.selectbox(
+                "Equipo (Bola extraída):", 
+                options=[""] + [e['nombre'] for e in equipos_libres],
+                key="sb_equipo"
+            )
+            
+        with c2:
+            # El grupo se queda guardado en el estado para ir más rápido
+            grupo_nombre = st.selectbox(
+                "Asignar al Grupo:", 
+                options=[""] + [g['nombre'] for g in grupos],
+                key="sb_grupo"
+            )
+            
+        with c3:
+            st.write("##")
+            if st.button("CONFIRMAR 📥", use_container_width=True, type="primary"):
+                if equipo_nombre and grupo_nombre:
+                    id_e = next(e['id'] for e in equipos_libres if e['nombre'] == equipo_nombre)
+                    id_g = next(g['id'] for g in grupos if g['nombre'] == grupo_nombre)
+                    
+                    supabase.table("participantes_grupo").insert({
+                        "grupo_id": id_g,
+                        "equipo_id": id_e,
+                        "puntos": 0, "goles": 0
+                    }).execute()
+                    
+                    st.toast(f"{equipo_nombre} -> {grupo_nombre}", icon="✅")
+                    st.rerun()
+                else:
+                    st.error("Faltan datos")
+
+    st.info(f"Quedan **{len(equipos_libres)}** equipos en la urna.")
+
 def renderizar_tarjeta_grupo(grupo, participantes):
     """
     Dibuja una tarjeta de grupo simple y robusta usando componentes nativos.
