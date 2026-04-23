@@ -33,7 +33,7 @@ st.set_page_config(page_title="Gestor Torneo RFFM", layout="wide")
 st.title("🏆 Gestión de Campeonato RFFM")
 
 # Sidebar para navegación
-menu = st.sidebar.selectbox("Menú", ["Dashboard", "Configurador", "Carga de Equipos", "Cuadro Visual"])
+menu = st.sidebar.selectbox("Menú", ["Dashboard", "Configurador", "Carga de Equipos", "Cuadro Visual", "Sorteo"])
 
 if menu == "Dashboard":
     equipos = get_equipos()
@@ -194,3 +194,6 @@ if menu == "Cuadro Visual":
                 with cols[idx % 3]:
                     p_grupo = [p for p in todos_p if p['grupo_id'] == g['id']]
                     renderizar_tarjeta_grupo(g, p_grupo)
+
+if menu == "Sorteo":
+    seccion_sorteo_manual(supabase, fase_seleccionada_id)
