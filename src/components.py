@@ -78,9 +78,6 @@ def renderizar_tarjeta_grupo(grupo, participantes):
         # Texto negro para que resalte dentro del blanco
         st.markdown(f"<h3 style='color: black;'>📋 {grupo['nombre']}</h3>", unsafe_allow_html=True)
         
-        url_tv = f"/?view=tv&grupo={grupo['nombre']}"
-        st.link_button("📺 Ver Pantalla", url_tv, use_container_width=True)
-        
         for i in range(grupo['tipo_grupo']):
             if i < len(participantes):
                 p = participantes[i]
