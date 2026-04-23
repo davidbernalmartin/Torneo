@@ -4,35 +4,74 @@ from src.database import *
 from src.logic import *
 from src.components import *
 
-def añadir_fondo_ajustado():
+import streamlit as st
+
+def añadir_fondo_corporativo_ajustado():
+    """Añade el fondo rojo corporativo pero ajustado para legibilidad"""
     st.markdown(
         f"""
         <style>
+        /* 1. Fondo principal con degradado suave */
         .stApp {{
-            background-image: url("https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=2070");
-            background-attachment: fixed;
-            background-size: cover;
-            background-position: center;
+            background: linear-gradient(135deg, #7c0d0d 0%, #1a1c24 100%) !important;
+            background-attachment: fixed !important;
         }}
 
-        /* Esto añade una capa oscura semitransparente para que el texto se lea bien */
+        /* 2. Capa de superposición con el patrón de tu imagen (Sutil) */
         .stApp::before {{
             content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7); /* Ajusta el 0.7 para más o menos oscuridad */
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            /* Usamos la imagen original con mucha transparencia */
+            background-image: url("https://imgur.com/vHqY7oK.png"); /* O la URL de tu imagen */
+            background-size: cover;
+            background-position: center;
+            opacity: 0.1; /* MUY sutil para que no moleste */
             z-index: -1;
         }}
+        
+        /* 3. Ajuste de textos principales para que resalten */
+        h1, h2, h3, h4, h5, h6, .st-at {{
+            color: #FFFFFF !important;
+            font-weight: bold !important;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }}
+        
+        /* 4. Ajuste de botones nativos para que tengan el rojo corporativo */
+        div.stButton > button {{
+            background-color: #e61a1a !important; /* Tu ROJO intenso */
+            color: white !important;
+            border: none !important;
+            border-radius: 8px !important;
+            font-weight: bold !important;
+            transition: all 0.2s ease;
+        }}
+        
+        div.stButton > button:hover {{
+            background-color: #c41414 !important; /* Rojo más oscuro al pasar el ratón */
+            transform: translateY(-2px);
+            box-shadow: 0px 4px 8px rgba(0,0,0,0.3);
+        }}
+        
+        /* 5. Ajuste de inputs y desplegables (selectbox) */
+        div.stSelectbox, div.stNumberInput, div.stTextInput {{
+            background-color: rgba(255,255,255,0.05) !important;
+            border-radius: 8px !important;
+            color: #FFFFFF !important;
+        }}
+        
+        div.stSelectbox > div {{
+            color: #FFFFFF !important;
+        }}
+        
         </style>
         """,
         unsafe_allow_html=True
     )
 
-# Llamada a la función al inicio de la app
-añadir_fondo_ajustado()
+# --- Llamamos a la función antes de cualquier otro componente ---
+añadir_fondo_corporativo_ajustado()
 
 st.set_page_config(layout="wide")
 query_params = st.query_params
