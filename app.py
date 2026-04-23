@@ -164,10 +164,6 @@ if menu == "Configurador":
             
                 if total_plazas >= total_equipos_bd:
                     st.success("✅ Tienes plazas suficientes para todos los equipos cargados.")
-                    if st.button("🎲 Lanzar Sorteo Aleatorio"):
-                        with st.spinner("Distribuyendo equipos..."):
-                            realizar_sorteo(fase_id, grupos_res.data)
-                            st.rerun()
                 else:
                     st.warning(f"⚠️ Faltan {total_equipos_bd - total_plazas} plazas por configurar.")
 
