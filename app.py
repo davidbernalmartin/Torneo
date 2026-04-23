@@ -86,16 +86,24 @@ if menu == "Configurador":
             with col3:
                 st.write("Acción")
                 if st.button("➕ Añadir"):
+                    # 1. Consultar cuántos grupos hay ya en esta fase para seguir la cuenta
+                    res_conteo = supabase.table("grupos").select("id", count="exact").eq("fase_id", fase_id).execute()
+                    total_existentes = res_conteo.count if res_conteo.count is not None else 0
+                    
                     nuevos_grupos = []
                     for i in range(num_grupos):
+                        # El nuevo número será el total existente + 1, + 2, etc.
+                        siguiente_numero = total_existentes + i + 1
                         nuevos_grupos.append({
                             "fase_id": fase_id,
-                            "nombre": f"Grupo {i+1} ({fase_sel})",
+                            "nombre": f"Grupo {siguiente_numero} ({fase_sel})",
                             "tipo_grupo": tamano_grupo
                         })
-                    supabase.table("grupos").insert(nuevos_grupos).execute()
-                    st.success(f"¡{num_grupos} grupos añadidos!")
-                    st.rerun()
+    
+    # 2. Insertar en Supabase
+    supabase.table("grupos").insert(nuevos_grupos).execute()
+    st.success(f"¡Añadidos grupos del {total_existentes + 1} al {total_existentes + num_grupos}!")
+    st.rerun()
 
             # 3. Visualización de lo configurado (Solo si fase_id existe)
             st.write("### Estructura actual de la Fase")
