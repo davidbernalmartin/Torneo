@@ -2,46 +2,48 @@ import streamlit as st
 import time
 from src.database import get_supabase
 
-def seccion_sorteo_manual(supabase, fase_id):
+def seccion_sorteo_manual(supabase):
     """
-    Componente para gestionar el sorteo físico bola a bola.
+    Gestiona el sorteo automático buscando la fase de orden 1.
     """
-    st.subheader("🔮 Mesa de Sorteo")
+    st.subheader("🔮 Mesa de Sorteo (Fase Inicial)")
 
-    # 1. Cargar equipos y filtrar los que ya tienen grupo
-    res_e = supabase.table("equipos").select("id, nombre").execute()
-    res_p = supabase.table("participantes_grupo").select("equipo_id").execute()
+    # 1. Localizar automáticamente la fase de orden 1
+    res_fase = supabase.table("fases").select("id, nombre").eq("orden", 1).execute()
     
+    if not res_fase.data:
+        st.error("No se ha encontrado ninguna fase con orden 1 en la base de datos.")
+        return
+    
+    fase_inicial = res_fase.data[0]
+    fase_id = fase_inicial['id']
+    st.caption(f"Configurando sorteo para: **{fase_inicial['nombre']}**")
+
+    # 2. Cargar equipos libres (los que no están en ningún grupo de ESTA fase)
+    # Primero sacamos los grupos de esta fase
+    res_grupos = supabase.table("grupos").select("id, nombre").eq("fase_id", fase_id).execute()
+    grupos = res_grupos.data
+    ids_grupos = [g['id'] for g in grupos]
+
+    # Ahora vemos qué equipos ya están metidos en esos grupos
+    res_p = supabase.table("participantes_grupo").select("equipo_id").in_("grupo_id", ids_grupos).execute()
     asignados_ids = [p['equipo_id'] for p in res_p.data]
+
+    # Equipos totales vs asignados
+    res_e = supabase.table("equipos").select("id, nombre").execute()
     equipos_libres = [e for e in res_e.data if e['id'] not in asignados_ids]
-    
-    # 2. Cargar grupos de la fase actual
-    res_g = supabase.table("grupos").select("id, nombre").eq("fase_id", fase_id).execute()
-    grupos = res_g.data
 
     if not equipos_libres:
-        st.success("🏁 ¡Sorteo completado!")
+        st.success("🏁 ¡Sorteo completado! Todos los equipos están en sus grupos.")
         return
 
-    # 3. Interfaz de entrada
+    # 3. Interfaz de asignación
     with st.container(border=True):
         c1, c2, c3 = st.columns([1, 1, 0.6])
-        
         with c1:
-            equipo_nombre = st.selectbox(
-                "Equipo (Bola extraída):", 
-                options=[""] + [e['nombre'] for e in equipos_libres],
-                key="sb_equipo"
-            )
-            
+            equipo_nombre = st.selectbox("Bola Equipo:", [""] + [e['nombre'] for e in equipos_libres])
         with c2:
-            # El grupo se queda guardado en el estado para ir más rápido
-            grupo_nombre = st.selectbox(
-                "Asignar al Grupo:", 
-                options=[""] + [g['nombre'] for g in grupos],
-                key="sb_grupo"
-            )
-            
+            grupo_nombre = st.selectbox("Bola Grupo:", [""] + [g['nombre'] for g in grupos])
         with c3:
             st.write("##")
             if st.button("CONFIRMAR 📥", use_container_width=True, type="primary"):
@@ -55,12 +57,10 @@ def seccion_sorteo_manual(supabase, fase_id):
                         "puntos": 0, "goles": 0
                     }).execute()
                     
-                    st.toast(f"{equipo_nombre} -> {grupo_nombre}", icon="✅")
+                    st.toast(f"Asignado: {equipo_nombre} al {grupo_nombre}")
                     st.rerun()
-                else:
-                    st.error("Faltan datos")
 
-    st.info(f"Quedan **{len(equipos_libres)}** equipos en la urna.")
+    st.info(f"Faltan por asignar **{len(equipos_libres)}** equipos.")
 
 def renderizar_tarjeta_grupo(grupo, participantes):
     """
