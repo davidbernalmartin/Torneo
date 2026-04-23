@@ -6,9 +6,10 @@ import streamlit as st
 
 def renderizar_tarjeta_grupo(grupo, participantes):
     """
-    Dibuja el grupo como una tarjeta única en HTML para evitar errores de cajas vacías.
+    Dibuja el grupo como una tarjeta premium interactiva. 
+    Toda la tarjeta funciona como enlace a la vista TV.
     """
-    # 1. Construimos la lista de participantes en una variable
+    # 1. Preparamos el contenido de los equipos
     filas_html = ""
     for i in range(grupo['tipo_grupo']):
         if i < len(participantes):
@@ -16,50 +17,75 @@ def renderizar_tarjeta_grupo(grupo, participantes):
             escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/25"
             nombre = p['equipos']['nombre']
             filas_html += f"""
-            <div style="display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #333;">
-                <img src="{escudo}" style="width: 25px; height: 25px; margin-right: 12px; object-fit: contain;">
-                <span style="font-size: 1rem; color: #e0e0e0;">{nombre}</span>
+            <div style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <img src="{escudo}" style="width: 28px; height: 28px; margin-right: 15px; object-fit: contain; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));">
+                <span style="font-size: 1.05rem; color: #f0f0f0; font-weight: 500;">{nombre}</span>
             </div>"""
         else:
             filas_html += f"""
-            <div style="display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #333; color: #666; font-style: italic;">
-                <span style="margin-right: 12px; opacity: 0.5;">👤</span>
-                <span style="font-size: 0.9rem;">Esperando equipo...</span>
+            <div style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); color: #555; font-style: italic;">
+                <span style="margin-right: 15px; opacity: 0.3; font-size: 1.2rem;">👤</span>
+                <span style="font-size: 0.95rem;">Esperando sorteo...</span>
             </div>"""
 
-    # 2. Definimos la URL de destino
+    # 2. URL de la vista TV
     url_tv = f"/?view=tv&grupo={grupo['nombre']}"
 
-    # 3. Renderizamos TODO el bloque de la tarjeta de una sola vez
-    # El botón '⛶' ahora es un enlace <a> con estilo de botón
+    # 3. Renderizado de la tarjeta "Chula"
+    # Hemos añadido un efecto de escala (zoom) y cambio de color al pasar el ratón (hover)
     st.markdown(f"""
-        <div style="
-            border: 1px solid #464e5f; 
-            border-radius: 12px; 
-            padding: 20px; 
-            background-color: #1a1c24; 
-            margin-bottom: 20px;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
-        ">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin: 0; font-size: 1.3rem; color: white;">📋 {grupo['nombre']}</h3>
-                <a href="{url_tv}" target="_blank" style="
-                    text-decoration: none; 
-                    background-color: #262730; 
-                    border: 1px solid #464e5f; 
-                    color: white; 
-                    padding: 4px 12px; 
-                    border-radius: 8px; 
-                    font-size: 1.2rem;
-                    transition: background-color 0.3s;
-                " onmouseover="this.style.backgroundColor='#363947'" onmouseout="this.style.backgroundColor='#262730'">
-                    ⛶
-                </a>
+        <a href="{url_tv}" target="_blank" style="text-decoration: none; color: inherit;">
+            <div class="grupo-card" style="
+                background: linear-gradient(145deg, #1e2029, #16171d);
+                border: 1px solid #3d4250;
+                border-radius: 16px;
+                padding: 25px;
+                margin-bottom: 25px;
+                transition: all 0.3s ease;
+                cursor: pointer;
+                position: relative;
+                overflow: hidden;
+            ">
+                <div style="position: absolute; top: 15px; right: 15px; opacity: 0.2; font-size: 1.2rem;">⛶</div>
+                
+                <h3 style="
+                    margin: 0 0 20px 0; 
+                    font-size: 1.4rem; 
+                    color: #00e676; 
+                    display: flex; 
+                    align-items: center;
+                    border-left: 4px solid #00e676;
+                    padding-left: 15px;
+                ">
+                    {grupo['nombre']}
+                </h3>
+                
+                <div style="display: flex; flex-direction: column;">
+                    {filas_html}
+                </div>
+                
+                <div style="
+                    margin-top: 15px; 
+                    text-align: right; 
+                    font-size: 0.75rem; 
+                    color: #444; 
+                    text-transform: uppercase; 
+                    letter-spacing: 1px;
+                ">
+                    Click para pantalla completa
+                </div>
             </div>
-            <div style="margin-top: 10px;">
-                {filas_html}
-            </div>
-        </div>
+        </a>
+        
+        <style>
+            /* Efecto de elevación al pasar el ratón */
+            div.grupo-card:hover {{
+                border-color: #00e676 !important;
+                transform: translateY(-5px);
+                box-shadow: 0px 10px 20px rgba(0,0,0,0.4);
+                background: linear-gradient(145deg, #232631, #1a1c24);
+            }}
+        </style>
     """, unsafe_allow_html=True)
 
 def mostrar_grupo_tv(nombre_grupo_url):
