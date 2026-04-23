@@ -85,7 +85,7 @@ if menu == "Configurador":
                 tamano_grupo = st.number_input("Equipos por grupo", min_value=1, value=4)
             with col3:
                 st.write("Acción")
-               if st.button("➕ Añadir"):
+                if st.button("➕ Añadir"):
                     # 1. Inicializamos la lista para evitar NameError
                     nuevos_grupos = []
                     
