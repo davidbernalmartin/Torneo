@@ -2,10 +2,6 @@ import streamlit as st
 import time
 from src.database import get_supabase
 
-import streamlit as st
-
-import streamlit as st
-
 def renderizar_tarjeta_grupo(grupo, participantes):
     """
     Dibuja una tarjeta de grupo simple y robusta usando componentes nativos.
