@@ -4,20 +4,28 @@ from src.database import *
 from src.logic import *
 from src.components import *
 
-# Detectar si hay parámetros en la URL
 query_params = st.query_params
 
 if "view" in query_params and query_params["view"] == "tv":
-    # --- MODO TELEVISIÓN ---
+    # Obtenemos el ID del grupo de la URL (si existe)
+    # Ejemplo de URL: https://tu-app.app/?view=tv&grupo=5
+    grupo_id_url = query_params.get("grupo")
+    
     st.markdown("""
         <style>
-            [data-testid="stSidebar"] {display: none;} /* Ocultar menú lateral */
-            .main {background-color: #0e1117;} /* Fondo oscuro total */
+            [data-testid="stSidebar"] {display: none;}
+            .main {background-color: #0e1117; color: white;}
+            h1, h2, h3 {text-align: center; font-size: 4rem !important;} /* Fuentes gigantes para TV */
         </style>
     """, unsafe_allow_html=True)
+
+    if grupo_id_url:
+        from src.components import mostrar_grupo_tv
+        mostrar_grupo_tv(grupo_id_url)
+    else:
+        st.warning("⚠️ No se ha especificado ningún ID de grupo en la URL.")
     
-    mostrar_pantalla_tv()
-    st.stop() 
+    st.stop()
 
 st.set_page_config(page_title="Gestor Torneo RFFM", layout="wide")
 
