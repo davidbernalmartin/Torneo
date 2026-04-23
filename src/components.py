@@ -1,6 +1,48 @@
 # src/components.py
 import streamlit as st
 
+def renderizar_cuadro_vacio(lista_grupos):
+    """
+    Dibuja los grupos con sus huecos vacíos según el tamaño definido (tipo_grupo).
+    """
+    if not lista_grupos:
+        st.info("No hay grupos configurados para esta fase.")
+        return
+
+    # Usamos un grid para los grupos (por ejemplo, 2 por fila para que se vean bien los huecos)
+    cols_grupos = st.columns(2)
+    
+    for idx, grupo in enumerate(lista_grupos):
+        col_actual = cols_grupos[idx % 2]
+        
+        with col_actual:
+            with st.container():
+                # Cabecera del grupo
+                st.markdown(f"### 📋 {grupo['nombre']}")
+                
+                # Generamos los huecos vacíos basados en 'tipo_grupo'
+                for i in range(grupo['tipo_grupo']):
+                    st.markdown(
+                        f"""
+                        <div style="
+                            border: 1px dashed #626771;
+                            border-radius: 5px;
+                            padding: 8px 15px;
+                            margin-bottom: 5px;
+                            background-color: rgba(255, 255, 255, 0.05);
+                            color: #888;
+                            font-style: italic;
+                            display: flex;
+                            justify-content: space-between;
+                        ">
+                            <span>👤 Hueco Equipo {i+1}</span>
+                            <span>--</span>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                st.write("") # Espaciado entre grupos
+                
 def renderizar_tarjetas_equipos(lista_equipos):
     """
     Renderiza una lista de equipos en un grid de 3 columnas usando tarjetas.
