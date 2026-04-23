@@ -4,6 +4,7 @@ from src.database import *
 from src.logic import *
 from src.components import *
 
+st.set_page_config(layout="wide")
 query_params = st.query_params
 
 if "view" in query_params and query_params["view"] == "tv":
