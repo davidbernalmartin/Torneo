@@ -4,6 +4,36 @@ from src.database import *
 from src.logic import *
 from src.components import *
 
+def añadir_fondo_ajustado():
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url("https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=2070");
+            background-attachment: fixed;
+            background-size: cover;
+            background-position: center;
+        }}
+
+        /* Esto añade una capa oscura semitransparente para que el texto se lea bien */
+        .stApp::before {{
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); /* Ajusta el 0.7 para más o menos oscuridad */
+            z-index: -1;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+# Llamada a la función al inicio de la app
+añadir_fondo_ajustado()
+
 st.set_page_config(layout="wide")
 query_params = st.query_params
 
