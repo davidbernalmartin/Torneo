@@ -4,6 +4,21 @@ from src.database import *
 from src.logic import *
 from src.components import *
 
+# Detectar si hay parámetros en la URL
+query_params = st.query_params
+
+if "view" in query_params and query_params["view"] == "tv":
+    # --- MODO TELEVISIÓN ---
+    st.markdown("""
+        <style>
+            [data-testid="stSidebar"] {display: none;} /* Ocultar menú lateral */
+            .main {background-color: #0e1117;} /* Fondo oscuro total */
+        </style>
+    """, unsafe_allow_html=True)
+    
+    mostrar_pantalla_tv()
+    st.stop() 
+
 st.set_page_config(page_title="Gestor Torneo RFFM", layout="wide")
 
 st.title("🏆 Gestión de Campeonato RFFM")
