@@ -102,7 +102,7 @@ def renderizar_cuadro_vacio(lista_grupos):
         with col_actual:
             with st.container():
                 # Cabecera del grupo
-                c1, c2 = st.columns([0.9, 0.1])
+                c1, c2 = st.columns(2)
                 width c1:
                     st.markdown(f"### 📋 {grupo['nombre']}")
                 width c2:
