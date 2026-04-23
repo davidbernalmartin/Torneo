@@ -4,89 +4,46 @@ from src.database import get_supabase
 
 import streamlit as st
 
+import streamlit as st
+
 def renderizar_tarjeta_grupo(grupo, participantes):
     """
-    Dibuja el grupo como una tarjeta premium interactiva. 
-    Toda la tarjeta funciona como enlace a la vista TV.
+    Dibuja una tarjeta de grupo simple y robusta usando componentes nativos.
     """
-    # 1. Preparamos el contenido de los equipos
-    filas_html = ""
-    for i in range(grupo['tipo_grupo']):
-        if i < len(participantes):
-            p = participantes[i]
-            escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/25"
-            nombre = p['equipos']['nombre']
-            filas_html += f"""
-            <div style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                <img src="{escudo}" style="width: 28px; height: 28px; margin-right: 15px; object-fit: contain; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));">
-                <span style="font-size: 1.05rem; color: #f0f0f0; font-weight: 500;">{nombre}</span>
-            </div>"""
-        else:
-            filas_html += f"""
-            <div style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); color: #555; font-style: italic;">
-                <span style="margin-right: 15px; opacity: 0.3; font-size: 1.2rem;">👤</span>
-                <span style="font-size: 0.95rem;">Esperando sorteo...</span>
-            </div>"""
-
-    # 2. URL de la vista TV
-    url_tv = f"/?view=tv&grupo={grupo['nombre']}"
-
-    # 3. Renderizado de la tarjeta "Chula"
-    # Hemos añadido un efecto de escala (zoom) y cambio de color al pasar el ratón (hover)
-    st.markdown(f"""
-        <a href="{url_tv}" target="_blank" style="text-decoration: none; color: inherit;">
-            <div class="grupo-card" style="
-                background: linear-gradient(145deg, #1e2029, #16171d);
-                border: 1px solid #3d4250;
-                border-radius: 16px;
-                padding: 25px;
-                margin-bottom: 25px;
-                transition: all 0.3s ease;
-                cursor: pointer;
-                position: relative;
-                overflow: hidden;
-            ">
-                <div style="position: absolute; top: 15px; right: 15px; opacity: 0.2; font-size: 1.2rem;">⛶</div>
-                
-                <h3 style="
-                    margin: 0 0 20px 0; 
-                    font-size: 1.4rem; 
-                    color: #00e676; 
-                    display: flex; 
-                    align-items: center;
-                    border-left: 4px solid #00e676;
-                    padding-left: 15px;
-                ">
-                    {grupo['nombre']}
-                </h3>
-                
-                <div style="display: flex; flex-direction: column;">
-                    {filas_html}
-                </div>
-                
-                <div style="
-                    margin-top: 15px; 
-                    text-align: right; 
-                    font-size: 0.75rem; 
-                    color: #444; 
-                    text-transform: uppercase; 
-                    letter-spacing: 1px;
-                ">
-                    Click para pantalla completa
-                </div>
-            </div>
-        </a>
+    # Usamos el contenedor nativo con borde (esto evita las cajas vacías)
+    with st.container(border=True):
+        # Cabecera: Nombre del grupo
+        st.markdown(f"### 📋 {grupo['nombre']}")
         
-        <style>
-            /* Efecto de elevación al pasar el ratón */
-            div.grupo-card:hover {{
-                border-color: #00e676 !important;
-                transform: translateY(-5px);
-                box-shadow: 0px 10px 20px rgba(0,0,0,0.4);
-                background: linear-gradient(145deg, #232631, #1a1c24);
-            }}
-        </style>
-    """, unsafe_allow_html=True)
+        # Botón sutil para la TV (ahora debajo del título para evitar líos de columnas)
+        url_tv = f"/?view=tv&grupo={grupo['nombre']}"
+        st.link_button("📺 Ver Pantalla Completa", url_tv, use_container_width=True)
+        
+        st.write("") # Espaciador
+
+        # Lista de participantes o huecos
+        for i in range(grupo['tipo_grupo']):
+            if i < len(participantes):
+                p = participantes[i]
+                escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/30"
+                nombre = p['equipos']['nombre']
+                
+                # Caja para equipo asignado (Estilo simple)
+                st.markdown(
+                    f"""
+                    <div style="background-color: #1E88E5; padding: 10px; border-radius: 8px; margin-bottom: 5px; display: flex; align-items: center;">
+                        <img src="{escudo}" style="width: 25px; height: 25px; margin-right: 10px; object-fit: contain;">
+                        <span style="font-weight: bold; color: white;">{nombre}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                # Caja para hueco vacío (El estilo que te gustó)
+                st.markdown(
+                    """
+                    <div style="border: 2px dashed #555; padding: 10px; border-radius: 8px; margin-bottom: 5px; text-align: center; color: #888;">
+                        <span style="font-size: 0.9rem; font-style: italic;">👤 Esperando equipo...</span>
+                    </div>
+                    """, unsafe_allow_html=True)
 
 def mostrar_grupo_tv(nombre_grupo_url):
     """Vista para la TV: Versión compacta con escudos"""
