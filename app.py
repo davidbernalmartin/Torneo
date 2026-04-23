@@ -12,7 +12,6 @@ st.title("🏆 Gestión de Campeonato RFFM")
 menu = st.sidebar.selectbox("Menú", ["Dashboard", "Configurador", "Carga de Equipos", "Cuadro Visual"])
 
 if menu == "Dashboard":
-    if menu == "Dashboard":
     equipos = get_equipos()
     st.subheader(f"📊 Resumen del Campeonato")
     
