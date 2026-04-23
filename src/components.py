@@ -30,73 +30,80 @@ def renderizar_tarjeta_grupo(grupo, participantes):
         st.write("")
 
 def mostrar_grupo_tv(nombre_grupo_url):
-    """Vista Gigante para la Televisión buscando por NOMBRE"""
+    """Vista Gigante para la Televisión corregida"""
     supabase = get_supabase()
     
     try:
-        # 1. Buscamos el grupo por nombre de forma más segura
+        # 1. Buscamos el grupo
         res_grupo = supabase.table("grupos").select("id, nombre, tipo_grupo").eq("nombre", nombre_grupo_url).execute()
         
-        # Verificamos si hay datos en la lista
-        if not res_grupo.data or len(res_grupo.data) == 0:
-            st.error(f"❌ El grupo '{nombre_grupo_url}' no existe.")
-            st.info("Asegúrate de que el nombre coincide exactamente en el Configurador.")
+        if not res_grupo.data:
+            st.error(f"Grupo '{nombre_grupo_url}' no encontrado.")
             return
 
-        # Cogemos el primer resultado encontrado
         datos_grupo = res_grupo.data[0]
         grupo_id = datos_grupo['id']
-        nombre_display = datos_grupo['nombre']
         tipo_grupo = datos_grupo['tipo_grupo']
 
-        # 2. Buscamos participantes para este ID
+        # 2. Buscamos participantes
         res_part = supabase.table("participantes_grupo").select("puntos, goles, equipos(nombre, escudo_url)").eq("grupo_id", grupo_id).order("puntos", desc=True).execute()
         participantes = res_part.data if res_part.data else []
 
-        # --- RENDERIZADO GIGANTE ---
-        st.markdown(f"<h1 style='text-align: center; font-size: 5rem; margin-bottom: 20px;'>{nombre_display}</h1>", unsafe_allow_html=True)
-        
-        tabla_html = """
-        <table style="width:100%; border-collapse: collapse; font-size: 2.8rem; color: white; font-family: sans-serif;">
-            <tr style="border-bottom: 3px solid #444; background-color: #1f2937;">
-                <th style="padding: 25px; text-align: left;">Equipo</th>
-                <th style="padding: 25px; text-align: center; width: 150px;">PTS</th>
-                <th style="padding: 25px; text-align: center; width: 150px;">GF</th>
-            </tr>
+        # --- CONSTRUCCIÓN DEL STRING HTML (Todo en una variable) ---
+        # Añadimos un contenedor con fondo oscuro y bordes redondeados para que parezca una tarjeta
+        html_final = f"""
+        <div style="background-color: #1a1c24; padding: 30px; border-radius: 15px; border: 1px solid #333;">
+            <h1 style='text-align: center; font-size: 5rem; color: white; margin-bottom: 30px; font-family: sans-serif;'>
+                {datos_grupo['nombre']}
+            </h1>
+            <table style="width:100%; border-collapse: collapse; font-size: 2.8rem; color: white; font-family: sans-serif;">
+                <tr style="border-bottom: 3px solid #444; background-color: #1f2937;">
+                    <th style="padding: 25px; text-align: left;">Equipo</th>
+                    <th style="padding: 25px; text-align: center;">PTS</th>
+                    <th style="padding: 25px; text-align: center;">GF</th>
+                </tr>
         """
 
         if participantes:
             for p in participantes:
-                equipo = p['equipos']['nombre']
                 escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/100"
-                tabla_html += f"""
+                html_final += f"""
                 <tr style="border-bottom: 1px solid #333;">
                     <td style="padding: 25px; display: flex; align-items: center;">
-                        <img src="{escudo}" style="width: 100px; height: 100px; margin-right: 30px; object-fit: contain;"> {equipo}
+                        <img src="{escudo}" style="width: 100px; height: 100px; margin-right: 30px; object-fit: contain;">
+                        <span style="font-weight: 500;">{p['equipos']['nombre']}</span>
                     </td>
                     <td style="padding: 25px; text-align: center; font-weight: bold; color: #00e676;">{p['puntos']}</td>
                     <td style="padding: 25px; text-align: center;">{p['goles']}</td>
-                </tr>"""
+                </tr>
+                """
         else:
+            # Renderizar huecos vacíos con estilo profesional
             for i in range(tipo_grupo):
-                tabla_html += f"""
-                <tr style="border-bottom: 1px solid #333; opacity: 0.5;">
-                    <td style="padding: 25px; display: flex; align-items: center; color: #888; font-style: italic;">
-                        <div style="width: 100px; height: 100px; margin-right: 30px; border: 2px dashed #555; border-radius: 50%;"></div>
-                        Esperando Equipo {i+1}...
+                html_final += f"""
+                <tr style="border-bottom: 1px solid #333; opacity: 0.4;">
+                    <td style="padding: 25px; display: flex; align-items: center; color: #888;">
+                        <div style="width: 100px; height: 100px; margin-right: 30px; border: 3px dashed #444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                            E{i+1}
+                        </div>
+                        <span style="font-style: italic;">Esperando Equipo {i+1}...</span>
                     </td>
                     <td style="padding: 25px; text-align: center;">--</td>
                     <td style="padding: 25px; text-align: center;">--</td>
-                </tr>"""
+                </tr>
+                """
 
-        tabla_html += "</table>"
-        st.markdown(tabla_html, unsafe_allow_html=True)
+        html_final += "</table></div>"
+
+        # IMPORTANTE: Esto es lo que hace que se vea como tabla y no como texto
+        st.markdown(html_final, unsafe_allow_html=True)
         
+        # Refresco automático
         time.sleep(30)
         st.rerun()
 
     except Exception as e:
-        st.error(f"Error crítico en la vista TV: {e}")
+        st.error(f"Error en el renderizado: {e}")
 
 def renderizar_tarjetas_equipos(lista_equipos):
     if not lista_equipos:
