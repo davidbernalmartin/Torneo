@@ -3,31 +3,55 @@ import time
 from src.database import get_supabase
 
 def renderizar_tarjeta_grupo(grupo, participantes):
-    """Vista para el Administrador (Cuadro Visual)"""
+    """
+    Dibuja un solo grupo bien enmarcado para la vista de administración.
+    """
+    # Creamos un contenedor con estilo de tarjeta
     with st.container():
-        col_t, col_b = st.columns([0.7, 0.3])
-        col_t.markdown(f"### 📋 {grupo['nombre']}")
+        st.markdown(
+            f"""
+            <div style="
+                border: 1px solid #464e5f; 
+                border-radius: 12px; 
+                padding: 15px; 
+                background-color: #1a1c24; 
+                margin-bottom: 20px;
+                box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+            ">
+            """, unsafe_allow_html=True)
         
-        # El link para la TV usando el nombre como parámetro
-        url_tv = f"/?view=tv&grupo={grupo['nombre']}"
-        col_b.link_button("📺 TV", url_tv, use_container_width=True)
+        # Cabecera: Título y Botón
+        col_t, col_b = st.columns([0.7, 0.3])
+        
+        with col_t:
+            st.markdown(f"#### 📋 {grupo['nombre']}")
+            
+        with col_b:
+            url_tv = f"/?view=tv&grupo={grupo['nombre']}"
+            # Usamos el icono de 'fullscreen' que es más estándar para pantalla completa
+            st.link_button("⛶", url_tv, use_container_width=True, help="Ver en pantalla completa")
 
+        st.markdown("<div style='margin-top: 10px;'>", unsafe_allow_html=True)
+        
+        # Lista de participantes o huecos
         for i in range(grupo['tipo_grupo']):
             if i < len(participantes):
                 p = participantes[i]
-                escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/30"
+                escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/25"
                 nombre = p['equipos']['nombre']
                 st.markdown(
-                    f"""<div style="display: flex; align-items: center; padding: 5px; border-bottom: 1px solid #333;">
-                        <img src="{escudo}" style="width: 25px; margin-right: 10px;">
-                        <span>{nombre}</span>
+                    f"""<div style="display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #333;">
+                        <img src="{escudo}" style="width: 25px; height: 25px; margin-right: 12px; object-fit: contain;">
+                        <span style="font-size: 1rem; color: #e0e0e0;">{nombre}</span>
                     </div>""", unsafe_allow_html=True)
             else:
                 st.markdown(
-                    f"""<div style="padding: 5px; color: #666; font-style: italic; border-bottom: 1px solid #333; border-left: 3px dashed #444;">
-                        👤 Esperando equipo...
+                    f"""<div style="padding: 8px 0; color: #777; font-style: italic; border-bottom: 1px solid #333; display: flex; align-items: center;">
+                        <span style="margin-right: 12px; opacity: 0.5;">👤</span>
+                        <span style="font-size: 0.9rem;">Esperando equipo...</span>
                     </div>""", unsafe_allow_html=True)
-        st.write("")
+        
+        st.markdown("</div></div>", unsafe_allow_html=True)
 
 def mostrar_grupo_tv(nombre_grupo_url):
     """Vista para la TV: Versión compacta con escudos"""
