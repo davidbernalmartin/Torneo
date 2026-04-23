@@ -63,52 +63,42 @@ def seccion_sorteo_manual(supabase):
     st.info(f"Faltan por asignar **{len(equipos_libres)}** equipos.")
 
 def renderizar_tarjeta_grupo(grupo, participantes):
-    """
-    Dibuja una tarjeta de grupo con fondo blanco y letras negras.
-    """
-    # Usamos el contenedor nativo con un estilo CSS inyectado para forzar el blanco
+    """Tarjeta blanca minimalista sobre fondo rojo plano"""
+    # Este CSS asegura que el fondo de la tarjeta sea blanco puro
     st.markdown("""
         <style>
         div[data-testid="stVerticalBlockBorderWrapper"] {
             background-color: white !important;
-            border-radius: 12px !important;
+            border: none !important;
         }
         </style>
     """, unsafe_allow_html=True)
 
     with st.container(border=True):
-        # Título del grupo en negro
-        st.markdown(f"<h3 style='color: black; margin-bottom: 0;'>📋 {grupo['nombre']}</h3>", unsafe_allow_html=True)
+        # Texto negro para que resalte dentro del blanco
+        st.markdown(f"<h3 style='color: black;'>📋 {grupo['nombre']}</h3>", unsafe_allow_html=True)
         
-        # Botón sutil
         url_tv = f"/?view=tv&grupo={grupo['nombre']}"
-        st.link_button("📺 Pantalla Completa", url_tv, use_container_width=True)
+        st.link_button("📺 Ver Pantalla", url_tv, use_container_width=True)
         
-        st.write("") 
-
-        # Lista de participantes
         for i in range(grupo['tipo_grupo']):
             if i < len(participantes):
                 p = participantes[i]
-                escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/30"
+                escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else ""
                 nombre = p['equipos']['nombre']
                 
-                # Caja para equipo (Azul corporativo pero con texto legible sobre blanco)
-                st.markdown(
-                    f"""
-                    <div style="background-color: #f0f2f6; padding: 10px; border-radius: 8px; margin-bottom: 5px; display: flex; align-items: center; border: 1px solid #ddd;">
-                        <img src="{escudo}" style="width: 25px; height: 25px; margin-right: 10px; object-fit: contain;">
-                        <span style="font-weight: bold; color: #1a1c24;">{nombre}</span>
+                st.markdown(f"""
+                    <div style="background-color: #f8f9fa; padding: 8px; border-radius: 5px; margin-bottom: 5px; display: flex; align-items: center; border: 1px solid #eee;">
+                        <img src="{escudo}" style="width: 20px; margin-right: 10px;">
+                        <span style="color: black; font-weight: 500;">{nombre}</span>
                     </div>
-                    """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
             else:
-                # Caja para hueco vacío (Gris suave sobre blanco)
-                st.markdown(
-                    """
-                    <div style="border: 1px dashed #ccc; padding: 10px; border-radius: 8px; margin-bottom: 5px; text-align: center; color: #999;">
-                        <span style="font-size: 0.9rem; font-style: italic;">👤 Esperando equipo...</span>
+                st.markdown("""
+                    <div style="padding: 8px; border: 1px dashed #ddd; border-radius: 5px; margin-bottom: 5px; text-align: center; color: #aaa; font-size: 0.8rem;">
+                        Esperando equipo...
                     </div>
-                    """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
                     
 def mostrar_grupo_tv(nombre_grupo_url):
     """Vista para la TV: Versión compacta con escudos"""
