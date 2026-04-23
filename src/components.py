@@ -2,6 +2,37 @@ import streamlit as st
 from src.database import get_supabase
 import time
 
+def renderizar_tarjeta_grupo(grupo, participantes):
+    """
+    Dibuja un solo grupo con sus participantes o huecos vacíos.
+    """
+    with st.container():
+        # Cabecera: Nombre del grupo + Botón para TV (solo si no estamos en modo TV)
+        col_t, col_b = st.columns([0.7, 0.3])
+        col_t.markdown(f"### 📋 {grupo['nombre']}")
+        
+        # El link para la TV usando el nombre como parámetro
+        url_tv = f"/?view=tv&grupo={grupo['nombre']}"
+        col_b.link_button("📺 TV", url_tv, use_container_width=True)
+
+        # Renderizar la lista
+        for i in range(grupo['tipo_grupo']):
+            if i < len(participantes):
+                p = participantes[i]
+                escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/30"
+                nombre = p['equipos']['nombre']
+                st.markdown(
+                    f"""<div style="display: flex; align-items: center; padding: 5px; border-bottom: 1px solid #333;">
+                        <img src="{escudo}" style="width: 25px; margin-right: 10px;">
+                        <span>{nombre}</span>
+                    </div>""", unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    f"""<div style="padding: 5px; color: #666; font-style: italic; border-bottom: 1px solid #333; border-left: 3px dashed #444;">
+                        👤 Esperando equipo...
+                    </div>""", unsafe_allow_html=True)
+        st.write("") # Espacio
+
 def renderizar_tarjetas_equipos(lista_equipos):
     if not lista_equipos:
         st.info("No hay equipos cargados todavía.")
@@ -34,73 +65,3 @@ def renderizar_cuadro_vacio(lista_grupos):
                     f"""<div style="border: 1px dashed #626771; border-radius: 5px; padding: 8px; 
                     margin-bottom: 5px; background-color: rgba(255, 255, 255, 0.05); color: #888;">
                     👤 Hueco Equipo {i+1}</div>""", unsafe_allow_html=True)
-
-def mostrar_grupo_tv(nombre_grupo_url):
-    supabase = get_supabase()
-    
-    # 1. Buscamos primero si existe el grupo con ese nombre para obtener su ID y datos
-    info_grupo_res = supabase.table("grupos")\
-        .select("id, nombre, tipo_grupo")\
-        .eq("nombre", nombre_grupo_url)\
-        .maybe_single().execute()
-    
-    if not info_grupo_res.data:
-        st.error(f"❌ El grupo '{nombre_grupo_url}' no existe en la base de datos.")
-        st.info("Asegúrate de escribirlo exactamente igual (Mayúsculas, espacios, etc.)")
-        return
-
-    grupo_id = info_grupo_res.data['id']
-    nombre_display = info_grupo_res.data['nombre']
-    tipo_grupo = info_grupo_res.data['tipo_grupo']
-
-    # 2. Intentamos obtener los participantes asignados a ese ID
-    res_part = supabase.table("participantes_grupo")\
-        .select("puntos, goles, equipos(nombre, escudo_url)")\
-        .eq("grupo_id", grupo_id)\
-        .order("puntos", desc=True).execute()
-    
-    participantes = res_part.data if res_part.data else []
-
-    # --- RENDERIZADO GIGANTE ---
-    st.markdown(f"<h1 style='text-align: center; font-size: 5rem; margin-bottom: 20px;'>{nombre_display}</h1>", unsafe_allow_html=True)
-    
-    tabla_html = """
-    <table style="width:100%; border-collapse: collapse; font-size: 2.8rem; color: white; font-family: sans-serif;">
-        <tr style="border-bottom: 3px solid #444; background-color: #1f2937;">
-            <th style="padding: 25px; text-align: left;">Equipo</th>
-            <th style="padding: 25px; text-align: center; width: 150px;">PTS</th>
-            <th style="padding: 25px; text-align: center; width: 150px;">GF</th>
-        </tr>
-    """
-
-    if participantes:
-        for p in participantes:
-            equipo = p['equipos']['nombre']
-            escudo = p['equipos']['escudo_url'] if p['equipos']['escudo_url'] else "https://via.placeholder.com/80"
-            tabla_html += f"""
-            <tr style="border-bottom: 1px solid #333;">
-                <td style="padding: 25px; display: flex; align-items: center;">
-                    <img src="{escudo}" style="width: 100px; height: 100px; margin-right: 30px; object-fit: contain;"> {equipo}
-                </td>
-            </tr>
-            """
-    else:
-        # Huecos vacíos si no hay sorteo
-        for i in range(tipo_grupo):
-            tabla_html += f"""
-            <tr style="border-bottom: 1px solid #333; opacity: 0.5;">
-                <td style="padding: 25px; display: flex; align-items: center; color: #888; font-style: italic;">
-                    <div style="width: 100px; height: 100px; margin-right: 30px; border: 2px dashed #555; border-radius: 50%;"></div>
-                    Esperando Equipo {i+1}...
-                </td>
-                <td style="padding: 25px; text-align: center;">--</td>
-                <td style="padding: 25px; text-align: center;">--</td>
-            </tr>
-            """
-
-    tabla_html += "</table>"
-    st.markdown(tabla_html, unsafe_allow_html=True)
-
-    # Auto-refresco
-    time.sleep(30)
-    st.rerun()
