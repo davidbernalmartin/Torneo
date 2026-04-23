@@ -98,7 +98,7 @@ def renderizar_tarjeta_grupo(grupo, participantes):
                 """, unsafe_allow_html=True)
                     
 def mostrar_grupo_tv(nombre_grupo_url):
-    """Vista para la TV: Versión compacta con escudos"""
+    """Vista para la TV: Estilo blanco corporativo sobre fondo rojo"""
     supabase = get_supabase()
     
     try:
@@ -114,53 +114,58 @@ def mostrar_grupo_tv(nombre_grupo_url):
         nombre_display = datos_grupo['nombre']
         tipo_grupo = datos_grupo['tipo_grupo']
 
-        # Título ajustado (de 7rem a 4rem)
+        # Título en blanco para que resalte sobre el fondo rojo de la app
         st.markdown(f"""
-            <h1 style='text-align: center; font-size: 4rem; margin-top: -40px; color: white;'>
+            <h1 style='text-align: center; font-size: 5rem; margin-top: -20px; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);'>
                 {nombre_display}
             </h1>
         """, unsafe_allow_html=True)
         
-        st.write("---")
+        st.write("")
 
         # 2. Obtener participantes
         res_part = supabase.table("participantes_grupo").select("equipos(nombre, escudo_url)").eq("grupo_id", grupo_id).execute()
         participantes = res_part.data if res_part.data else []
 
-        # 3. Dibujar las cajas (más pequeñas)
+        # 3. Dibujar las "Fichas Blancas"
         for i in range(tipo_grupo):
             if i < len(participantes):
-                # EQUIPO ASIGNADO
+                # EQUIPO ASIGNADO (Blanco puro con letras negras)
                 nombre_equipo = participantes[i]['equipos']['nombre']
                 escudo = participantes[i]['equipos']['escudo_url']
                 
                 st.markdown(f"""
                     <div style="
-                        background-color: #1E88E5; 
-                        padding: 10px 30px; 
-                        border-radius: 12px; 
-                        margin-bottom: 10px; 
+                        background-color: white; 
+                        padding: 15px 40px; 
+                        border-radius: 15px; 
+                        margin-bottom: 15px; 
                         display: flex; 
                         align-items: center; 
-                        justify-content: center;
-                        box-shadow: 0px 3px 8px rgba(0,0,0,0.3);
+                        justify-content: flex-start;
+                        box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
+                        border: 1px solid #eee;
                     ">
-                        {f'<img src="{escudo}" style="height: 60px; width: 60px; object-fit: contain; margin-right: 20px;">' if escudo else ''}
-                        <span style="font-size: 2.8rem; font-weight: bold; color: white;">{nombre_equipo}</span>
+                        {f'<img src="{escudo}" style="height: 70px; width: 70px; object-fit: contain; margin-right: 30px;">' if escudo else ''}
+                        <span style="font-size: 3.5rem; font-weight: 900; color: #1a1c24; text-transform: uppercase;">
+                            {nombre_equipo}
+                        </span>
                     </div>
                 """, unsafe_allow_html=True)
             else:
-                # HUECO VACÍO (Más bajo)
+                # HUECO VACÍO (Dashed pero sobre fondo blanco tenue para que no sea transparente)
                 st.markdown(f"""
                     <div style="
-                        padding: 15px; 
-                        border: 3px dashed #555; 
-                        border-radius: 12px; 
-                        margin-bottom: 10px; 
-                        text-align: center; 
-                        opacity: 0.5;
+                        background-color: rgba(255,255,255,0.1); 
+                        padding: 20px; 
+                        border: 3px dashed rgba(255,255,255,0.4); 
+                        border-radius: 15px; 
+                        margin-bottom: 15px; 
+                        text-align: center;
                     ">
-                        <span style="font-size: 2rem; color: #888; font-style: italic;">Esperando Sorteo...</span>
+                        <span style="font-size: 2.2rem; color: rgba(255,255,255,0.6); font-style: italic; font-weight: bold;">
+                            ESPERANDO SORTEO...
+                        </span>
                     </div>
                 """, unsafe_allow_html=True)
 
