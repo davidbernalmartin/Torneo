@@ -11,7 +11,7 @@ def añadir_fondo_corporativo_plano():
         <style>
         /* 1. Fondo Rojo Plano */
         .stApp {{
-            background-color: #e61a1a !important; /* El rojo exacto de tu captura */
+            background-color: #e34c48 !important; /* El rojo exacto de tu captura */
         }}
 
         /* 2. Ajuste de textos principales (Blanco sobre Rojo) */
