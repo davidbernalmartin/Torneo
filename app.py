@@ -4,42 +4,6 @@ from src.database import *
 from src.logic import *
 from src.components import *
 
-def añadir_fondo_corporativo_plano():
-    """Añade el color rojo sólido corporativo sin degradados ni distracciones"""
-    st.markdown(
-        f"""
-        <style>
-        /* 1. Fondo Rojo Plano */
-        .stApp {{
-            background-color: #e34c48 !important; /* El rojo exacto de tu captura */
-        }}
-
-        /* 2. Ajuste de textos principales (Blanco sobre Rojo) */
-        h1, h2, h3, h4, h5, h6, p, label, .st-at {{
-            color: #FFFFFF !important;
-        }}
-        
-        /* 3. Estilo de botones nativos */
-        div.stButton > button {{
-            background-color: #ffffff !important; 
-            color: #e61a1a !important; /* Texto rojo sobre botón blanco */
-            border: 2px solid #ffffff !important;
-            font-weight: bold !important;
-        }}
-
-        /* 4. Forzar que los inputs se vean bien sobre el rojo */
-        .stSelectbox div[data-baseweb="select"] {{
-            background-color: white !important;
-            color: black !important;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-# Llamada al inicio
-añadir_fondo_corporativo_plano()
-
 st.set_page_config(layout="wide")
 query_params = st.query_params
 
