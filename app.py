@@ -196,18 +196,16 @@ if menu == "Cuadro Visual":
         # 3. Ahora dibujamos las tarjetas usando la lista ordenada
         cols = st.columns(3) # O las que uses en tu grid
         for idx, grupo in enumerate(grupos_ordenados):
-
-        
-        if grupos_ordenados:
-            # Traemos todos los participantes de golpe para ahorrar velocidad
-            ids_g = [g['id'] for g in grupos]
-            todos_p = supabase.table("participantes_grupo").select("*, equipos(nombre, escudo_url)").in_("grupo_id", ids_g).execute().data
-            
-            cols = st.columns(3) # 3 columnas para el administrador
-            for idx, g in enumerate(grupos):
-                with cols[idx % 3]:
-                    p_grupo = [p for p in todos_p if p['grupo_id'] == g['id']]
-                    renderizar_tarjeta_grupo(g, p_grupo)
+            if grupos_ordenados:
+                # Traemos todos los participantes de golpe para ahorrar velocidad
+                ids_g = [g['id'] for g in grupos]
+                todos_p = supabase.table("participantes_grupo").select("*, equipos(nombre, escudo_url)").in_("grupo_id", ids_g).execute().data
+                
+                cols = st.columns(3) # 3 columnas para el administrador
+                for idx, g in enumerate(grupos):
+                    with cols[idx % 3]:
+                        p_grupo = [p for p in todos_p if p['grupo_id'] == g['id']]
+                        renderizar_tarjeta_grupo(g, p_grupo)
 
 if menu == "Sorteo":
     supabase = get_supabase()
