@@ -196,4 +196,5 @@ if menu == "Cuadro Visual":
                     renderizar_tarjeta_grupo(g, p_grupo)
 
 if menu == "Sorteo":
+    supabase = get_supabase()
     seccion_sorteo_manual(supabase, fase_seleccionada_id)
