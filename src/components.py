@@ -59,10 +59,9 @@ def seccion_sorteo_manual(supabase):
         with c2:
             # El selector ahora solo muestra los grupos con sitio
             opciones_grupos = [""] + [f"{g['nombre']} ({g['plazas_libres']} huecos)" for g in grupos_disponibles]
+            indice_defecto = 0
             if (len(opciones_grupos) != 0):
                 indice_defecto = 1
-            else
-                indice_defecto = 0
             grupo_sel_display = st.selectbox("Bola Grupo:", opciones_grupos, index=indice_defecto)
         with c3:
             st.write("##")
