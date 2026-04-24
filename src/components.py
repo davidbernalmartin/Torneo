@@ -115,16 +115,27 @@ def mostrar_grupo_tv(nombre_grupo_url):
         nombre_display = datos_grupo['nombre']
         tipo_grupo = datos_grupo['tipo_grupo']
 
-        # Título principal
-        # Título con el logo integrado
+        # Título con el logo integrado y centrado
         st.markdown(
             f"""
-            <div style="display: flex; align-items: center;">
-                <img src="{LOGO_RFFM_URL}" style="width: 50px; margin-right: 15px;">
-                <h1 style='text-align: center; font-size: 5rem; margin-top: -20px; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);'>
+            <div style="
+                display: flex; 
+                align-items: center; 
+                justify-content: center; /* ESTO CENTRA EL CONTENIDO HORIZONTALMENTE */
+                gap: 20px;              /* ESPACIO ENTRE LOGOS Y TEXTO */
+                width: 100%;
+            ">
+                <img src="{LOGO_RFFM_URL}" style="width: 80px;"> <h1 style="
+                    text-align: center; 
+                    font-size: 5rem; 
+                    margin: 0; 
+                    color: white; 
+                    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                    line-height: 1;
+                ">
                     {nombre_display}
                 </h1>
-                <img src="{LOGO_RFFM_URL}" style="width: 50px; margin-right: 15px;">
+                <img src="{LOGO_RFFM_URL}" style="width: 80px;">
             </div>
             """, 
             unsafe_allow_html=True
