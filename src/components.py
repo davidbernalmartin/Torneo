@@ -205,7 +205,7 @@ def mostrar_grupo_tv(nombre_grupo_url):
 
         # 5. Refresco automático (Ojo: bajamos el tiempo si quieres que el cambio sea rápido)
         import time
-        time.sleep(10) # 10 segundos es más razonable para que dé tiempo a leer
+        time.sleep(3) # 10 segundos es más razonable para que dé tiempo a leer
         st.rerun()
 
     except Exception as e:
