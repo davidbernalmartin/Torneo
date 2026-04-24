@@ -1,31 +1,140 @@
+import re
 import random
 import streamlit as st
-from src.database import get_supabase
+from collections import Counter
+
+from src.database import get_supabase, get_fases, get_grupos_por_fase
+
+
+# -------------------------------------------------------
+# SORTEO AUTOMÁTICO
+# -------------------------------------------------------
 
 def realizar_sorteo(fase_id, lista_grupos):
+    """
+    Reparte aleatoriamente los equipos no eliminados entre los grupos de la fase.
+    Borra primero los participantes existentes en esos grupos (limpieza de seguridad).
+    """
     supabase = get_supabase()
-    
-    # 1. Traemos solo los equipos que no están eliminados
-    equipos = supabase.table("equipos").select("id").eq("eliminado", False).execute().data
+
+    equipos = (
+        supabase.table("equipos")
+        .select("id")
+        .eq("eliminado", False)
+        .execute()
+        .data
+    )
     random.shuffle(equipos)
 
-    # 2. Limpieza de seguridad
-    ids_grupos = [g['id'] for g in lista_grupos]
+    ids_grupos = [g["id"] for g in lista_grupos]
     supabase.table("participantes_grupo").delete().in_("grupo_id", ids_grupos).execute()
 
     participantes = []
     equipo_idx = 0
-    
-    # 3. Lógica de llenado
+
     for grupo in lista_grupos:
-        for _ in range(grupo['tipo_grupo']):
+        for _ in range(grupo["tipo_grupo"]):
             if equipo_idx < len(equipos):
                 participantes.append({
-                    "grupo_id": grupo['id'],
-                    "equipo_id": equipos[equipo_idx]['id'],
+                    "grupo_id": grupo["id"],
+                    "equipo_id": equipos[equipo_idx]["id"],
                     "puntos": 0,
-                    "goles": 0
+                    "goles": 0,
                 })
                 equipo_idx += 1
             else:
-                break # No hay más equipos para repartir
+                break
+
+    if participantes:
+        supabase.table("participantes_grupo").insert(participantes).execute()
+
+
+# -------------------------------------------------------
+# SECCIÓN SORTEO MANUAL (componente de página)
+# -------------------------------------------------------
+
+def seccion_sorteo_manual(supabase):
+    """
+    Gestiona el sorteo manual buscando automáticamente la fase de orden 1.
+    """
+    st.subheader("Mesa de Sorteo (Fase Inicial)")
+
+    res_fase = supabase.table("fases").select("id, nombre").eq("orden", 1).execute()
+
+    if not res_fase.data:
+        st.error("No se ha encontrado ninguna fase con orden 1 en la base de datos.")
+        return
+
+    fase_inicial = res_fase.data[0]
+    fase_id = fase_inicial["id"]
+    st.caption(f"Configurando sorteo para: **{fase_inicial['nombre']}**")
+
+    res_grupos = (
+        supabase.table("grupos")
+        .select("id, nombre, tipo_grupo")
+        .eq("fase_id", fase_id)
+        .execute()
+    )
+    todos_los_grupos = res_grupos.data
+    ids_grupos = [g["id"] for g in todos_los_grupos]
+
+    res_p = (
+        supabase.table("participantes_grupo")
+        .select("grupo_id, equipo_id")
+        .in_("grupo_id", ids_grupos)
+        .execute()
+    )
+    asignados_ids = [p["equipo_id"] for p in res_p.data]
+    ocupacion_actual = Counter([p["grupo_id"] for p in res_p.data])
+
+    grupos_disponibles = []
+    for g in todos_los_grupos:
+        actual = ocupacion_actual.get(g["id"], 0)
+        if actual < g["tipo_grupo"]:
+            g["plazas_libres"] = g["tipo_grupo"] - actual
+            grupos_disponibles.append(g)
+
+    res_e = supabase.table("equipos").select("id, nombre").execute()
+    equipos_libres = [e for e in res_e.data if e["id"] not in asignados_ids]
+
+    if not equipos_libres:
+        st.success("¡Sorteo completado! Todos los equipos están en sus grupos.")
+        return
+
+    with st.container(border=True):
+        c1, c2, c3 = st.columns([1, 1, 0.6])
+        with c1:
+            equipo_nombre = st.selectbox(
+                "Bola Equipo:", [""] + [e["nombre"] for e in equipos_libres]
+            )
+        with c2:
+            opciones_grupos = [""] + [
+                f"{g['nombre']} ({g['plazas_libres']} huecos)" for g in grupos_disponibles
+            ]
+            indice_defecto = 1 if len(opciones_grupos) > 1 else 0
+            grupo_sel_display = st.selectbox(
+                "Bola Grupo:", opciones_grupos, index=indice_defecto
+            )
+        with c3:
+            st.write("##")
+            if st.button("CONFIRMAR", use_container_width=True, type="primary"):
+                if equipo_nombre and grupo_sel_display:
+                    nombre_grupo_limpio = grupo_sel_display.split(" (")[0]
+                    id_e = next(e["id"] for e in equipos_libres if e["nombre"] == equipo_nombre)
+                    id_g = next(g["id"] for g in grupos_disponibles if g["nombre"] == nombre_grupo_limpio)
+                    try:
+                        supabase.table("participantes_grupo").insert({
+                            "grupo_id": id_g,
+                            "equipo_id": id_e,
+                            "puntos": 0,
+                            "goles": 0,
+                        }).execute()
+                        st.toast(f"Asignado: {equipo_nombre} al {nombre_grupo_limpio}")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al confirmar asignación: {e}")
+
+    if not grupos_disponibles:
+        st.warning("⚠️ No quedan grupos con plazas disponibles. Revisa la configuración de la fase.")
+
+    st.info(f"Faltan por asignar **{len(equipos_libres)}** equipos.")
