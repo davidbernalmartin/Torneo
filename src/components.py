@@ -100,7 +100,7 @@ def renderizar_tarjeta_grupo(grupo, participantes):
 def mostrar_grupo_tv(nombre_grupo_url):
     """Vista para la TV: Estilo blanco corporativo sobre fondo rojo"""
     supabase = get_supabase()
-    LOGO_RFFM_URL = "https://www.rffm.es/_next/image?url=https%3A%2F%2Frffm-cms.s3.eu-west-1.amazonaws.com%2FSPONSORS_RFEF_54306a519c.png&w=96&q=75"
+    LOGO_RFFM_URL = "https://www.rffm.es/_next/image?url=https%3A%2F%2Frffm-cms.s3.eu-west-1.amazonaws.com%2Frffm_banner_horizontal_1f456e9471.png&w=640&q=75"
     try:
         # 1. Buscar el grupo actual
         res_grupo = supabase.table("grupos").select("id, nombre, tipo_grupo, fase_id").eq("nombre", nombre_grupo_url).execute()
