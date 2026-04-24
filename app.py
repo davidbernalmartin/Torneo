@@ -186,62 +186,24 @@ if menu == "Configurador":
             grupos = get_grupos_por_fase(fase_id)
 
             if grupos:
-                fase_anterior = next(
-                    (f for f in fases if f["orden"] == fase_actual["orden"] - 1), None
-                )
-                grupos_anteriores = []
-                if fase_anterior:
-                    grupos_anteriores = [
-                        g["nombre"] for g in get_grupos_por_fase(fase_anterior["id"])
-                    ]
+                if not es_fase_progresion:
+                    st.info("Fase 1: las plazas se llenan por sorteo, no requiere configuración de origen.")
+                else:
+                    fase_anterior = next(
+                        (f for f in fases if f["orden"] == fase_actual["orden"] - 1), None
+                    )
+                    grupos_fase_anterior = get_grupos_por_fase(fase_anterior["id"]) if fase_anterior else []
 
-                for grupo in grupos:
-                    with st.expander(f"⚙️ Configurar {grupo['nombre']} ({grupo['tipo_grupo']} plazas)"):
-                        if not es_fase_progresion:
-                            st.write("✅ Fase 1: Las plazas se llenan por sorteo aleatorio.")
-                        else:
-                            st.write(f"Define de dónde viene cada equipo para el **{grupo['nombre']}**:")
-
-                            plazas_actuales = get_participantes_grupo(grupo["id"])
-
-                            for i in range(grupo["tipo_grupo"]):
-                                col_p, col_o, col_pos = st.columns([1, 2, 2])
-                                col_p.write(f"Plaza {i+1}")
-
-                                config_existente = plazas_actuales[i] if i < len(plazas_actuales) else None
-
-                                orig_g = col_o.selectbox(
-                                    "Grupo Origen",
-                                    grupos_anteriores,
-                                    key=f"g_{grupo['id']}_{i}",
-                                )
-                                orig_pos = col_pos.selectbox(
-                                    "Clasificado",
-                                    ["1º", "2º", "3º", "4º"],
-                                    key=f"pos_{grupo['id']}_{i}",
-                                )
-                                etiqueta_referencia = f"{orig_g} | {orig_pos}"
-
-                                if st.button(f"Vincular Plaza {i+1}", key=f"btn_{grupo['id']}_{i}"):
-                                    payload = {
-                                        "grupo_id": grupo["id"],
-                                        "referencia_origen": etiqueta_referencia,
-                                        "equipo_id": None,
-                                    }
-                                    try:
-                                        if config_existente:
-                                            supabase.table("participantes_grupo").update(payload).eq(
-                                                "id", config_existente["id"]
-                                            ).execute()
-                                        else:
-                                            supabase.table("participantes_grupo").insert(payload).execute()
-                                        st.success(f"Plaza {i+1} vinculada a {etiqueta_referencia}")
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Error al vincular plaza: {e}")
+                    from src.components import configurar_progresion_visual
+                    configurar_progresion_visual(
+                        grupos_destino=grupos,
+                        grupos_origen=grupos_fase_anterior,
+                        supabase=supabase,
+                    )
 
                 total_plazas = sum(g["tipo_grupo"] for g in grupos)
                 st.info(f"Capacidad total de la fase: {total_plazas} equipos.")
+
 
 # -------------------------------------------------------
 # CUADRO VISUAL
