@@ -122,20 +122,19 @@ def mostrar_grupo_tv(nombre_grupo_url):
                 display: flex; 
                 align-items: center; 
                 justify-content: center; /* ESTO CENTRA EL CONTENIDO HORIZONTALMENTE */
-                gap: 20px;              /* ESPACIO ENTRE LOGOS Y TEXTO */
                 width: 100%;
             ">
-                <img src="{LOGO_RFFM_URL}" style="width: 80px;"> <h1 style="
+                <img src="{LOGO_RFFM_URL}" style="width: 100px;"> <h1 style="
                     text-align: center; 
                     font-size: 5rem; 
-                    margin: 0; 
+                    margin: 20; 
                     color: white; 
                     text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
                     line-height: 1;
                 ">
                     {nombre_display}
                 </h1>
-                <img src="{LOGO_RFFM_URL}" style="width: 80px;">
+                <img src="{LOGO_RFFM_URL}" style="width: 100px;">
             </div>
             """, 
             unsafe_allow_html=True
