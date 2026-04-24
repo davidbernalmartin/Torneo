@@ -54,7 +54,7 @@ if menu == "Dashboard":
     col_e2.metric("En Competición", len([e for e in equipos if not e['eliminado']]))
     
     st.write("---")
-    st.subheader("🛡️ Plantilla de Equipos")
+    st.subheader("Plantilla de Equipos")
     
     # Llamamos al componente visual
     renderizar_tarjetas_equipos(equipos)
