@@ -168,8 +168,6 @@ def mostrar_grupo_tv(nombre_grupo_url):
             # Ordenamos los nombres (Grupo 1, Grupo 2...)
             nombres_ordenados = sorted([g['nombre'] for g in res_hermanos.data], key=extraer_num)
             
-            st.markdown("<p style='text-align: center; color: white; opacity: 0.8;'>CAMBIAR DE GRUPO</p>", unsafe_allow_html=True)
-            
             # Creamos una fila de columnas (máximo 10 o 12 por fila)
             cols_nav = st.columns(len(nombres_ordenados))
             
