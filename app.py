@@ -171,7 +171,7 @@ if menu == "Configurador":
                         nuevos_grupos = [
                             {
                                 "fase_id": fase_id,
-                                "nombre": f"Grupo {total_existentes + i + 1}",
+                                "nombre": f"{fase_actual['nombre']} {total_existentes + i + 1}",
                                 "tipo_grupo": tamano_grupo,
                             }
                             for i in range(num_grupos)
