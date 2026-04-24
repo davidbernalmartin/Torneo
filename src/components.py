@@ -171,6 +171,145 @@ def mostrar_grupo_tv(nombre_grupo_url):
 
 
 # -------------------------------------------------------
+# TARJETA DE GRUPO MINIMALISTA (Cuadro Visual)
+# -------------------------------------------------------
+
+def renderizar_tarjeta_grupo_minimalista(
+    grupo, participantes, equipos_libres, es_progresion, fases, fase_actual, supabase
+):
+    """
+    Tarjeta blanca con borde sutil y sombra ligera para el Cuadro Visual.
+    Recibe los datos ya precargados — no hace ninguna consulta a Supabase,
+    excepto al confirmar una asignación puntual.
+    """
+    # Contenedor tarjeta
+    st.markdown(f"""
+        <div style="
+            background: white;
+            border: 1px solid #e8e8e8;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            padding: 16px 16px 8px 16px;
+            margin-bottom: 20px;
+        ">
+            <p style="
+                margin: 0 0 12px 0;
+                font-size: 0.75rem;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                color: #888;
+            ">{grupo['nombre']}</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Usamos un expander invisible para agrupar el contenido visualmente
+    # sin perder la capacidad de usar widgets de Streamlit (selectbox)
+    with st.container():
+        for i in range(grupo["tipo_grupo"]):
+            p_actual = participantes[i] if i < len(participantes) else None
+
+            if p_actual and p_actual["equipo_id"]:
+                # --- Fila de equipo asignado ---
+                nombre_equipo = p_actual["equipos"]["nombre"]
+                escudo = p_actual["equipos"]["escudo_url"] or ""
+                st.markdown(f"""
+                    <div style="
+                        display: flex; align-items: center;
+                        background: #fafafa;
+                        border: 1px solid #efefef;
+                        border-radius: 8px;
+                        padding: 6px 10px;
+                        margin-bottom: 6px;
+                        height: 40px; box-sizing: border-box;
+                    ">
+                        {"<img src='" + escudo + "' style='width:24px;height:24px;object-fit:contain;margin-right:10px;'>" if escudo else "<div style='width:24px;margin-right:10px;'></div>"}
+                        <span style="
+                            font-size: 0.82rem; font-weight: 700;
+                            color: #1a1a1a; text-transform: uppercase;
+                            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                        ">{nombre_equipo}</span>
+                    </div>
+                """, unsafe_allow_html=True)
+
+            else:
+                # --- Plaza vacía ---
+                if not es_progresion:
+                    opciones = [f"— Plaza {i+1}"] + [e["nombre"] for e in equipos_libres]
+                    seleccion = st.selectbox(
+                        f"plaza_{grupo['id']}_{i}",
+                        opciones,
+                        key=f"sel_{grupo['id']}_{i}",
+                        label_visibility="collapsed",
+                    )
+                    if seleccion != opciones[0]:
+                        try:
+                            e_id = next(e["id"] for e in equipos_libres if e["nombre"] == seleccion)
+                            supabase.table("participantes_grupo").insert({
+                                "grupo_id": grupo["id"],
+                                "equipo_id": e_id,
+                                "referencia_origen": "Sorteo",
+                            }).execute()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al asignar: {e}")
+                else:
+                    if p_actual and p_actual.get("referencia_origen"):
+                        ref = p_actual["referencia_origen"]
+                        nombre_g_orig = ref.split(" | ")[0] if " | " in ref else None
+                        if nombre_g_orig:
+                            try:
+                                f_ant = next(
+                                    f for f in fases if f["orden"] == fase_actual["orden"] - 1
+                                )
+                                res_g = (
+                                    supabase.table("grupos")
+                                    .select("id")
+                                    .eq("nombre", nombre_g_orig)
+                                    .eq("fase_id", f_ant["id"])
+                                    .execute()
+                                )
+                                if res_g.data:
+                                    res_cand = (
+                                        supabase.table("participantes_grupo")
+                                        .select("equipos(id, nombre)")
+                                        .eq("grupo_id", res_g.data[0]["id"])
+                                        .execute()
+                                    )
+                                    candidatos = [
+                                        p["equipos"] for p in res_cand.data if p["equipos"]
+                                    ]
+                                    opciones = [f"🏆 {ref}"] + [c["nombre"] for c in candidatos]
+                                    sel = st.selectbox(
+                                        f"prog_{grupo['id']}_{i}",
+                                        opciones,
+                                        key=f"sel_prog_{grupo['id']}_{i}",
+                                        label_visibility="collapsed",
+                                    )
+                                    if sel != opciones[0]:
+                                        try:
+                                            e_id = next(c["id"] for c in candidatos if c["nombre"] == sel)
+                                            supabase.table("participantes_grupo").update(
+                                                {"equipo_id": e_id}
+                                            ).eq("id", p_actual["id"]).execute()
+                                            st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Error al asignar progresión: {e}")
+                            except Exception as e:
+                                st.error(f"Error cargando candidatos: {e}")
+                    else:
+                        st.markdown("""
+                            <div style="
+                                border: 1px dashed #ddd; border-radius: 8px;
+                                height: 40px; margin-bottom: 6px;
+                                display: flex; align-items: center;
+                                justify-content: center;
+                                font-size: 0.78rem; color: #bbb;
+                            ">plaza pendiente</div>
+                        """, unsafe_allow_html=True)
+
+
+# -------------------------------------------------------
 # TARJETAS DE EQUIPOS (vista escritorio)
 # -------------------------------------------------------
 
