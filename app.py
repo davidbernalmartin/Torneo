@@ -31,7 +31,7 @@ def configurar_apariencia():
             background-size: contain;
             background-repeat: no-repeat;
             background-position: center;
-            opacity: 0.08; /* Muy sutil para que no moleste al leer */
+            opacity: 0.4; /* Muy sutil para que no moleste al leer */
             z-index: -1;
         }}
         </style>
