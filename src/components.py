@@ -171,6 +171,131 @@ def mostrar_grupo_tv(nombre_grupo_url):
 
 
 # -------------------------------------------------------
+# CONFIGURADOR DE PROGRESIÓN VISUAL (lado a lado)
+# -------------------------------------------------------
+
+def configurar_progresion_visual(grupos_destino, grupos_origen, supabase):
+    """
+    Vista lado a lado: grupos de la fase anterior (izquierda) y grupos
+    de la nueva fase (derecha). Para cada hueco del grupo destino se
+    elige el grupo de origen (o "Cualquier grupo").
+    Guarda referencia_origen = nombre del grupo origen, o "Cualquier grupo".
+    """
+    CUALQUIER = "Cualquier grupo"
+    opciones_origen = [CUALQUIER] + [g["nombre"] for g in grupos_origen]
+
+    # Cargamos todas las plazas ya configuradas de los grupos destino de una vez
+    ids_destino = [g["id"] for g in grupos_destino]
+    res_plazas = (
+        supabase.table("participantes_grupo")
+        .select("*")
+        .in_("grupo_id", ids_destino)
+        .execute()
+    )
+    plazas_por_grupo: dict = {}
+    for p in res_plazas.data:
+        plazas_por_grupo.setdefault(p["grupo_id"], []).append(p)
+
+    col_izq, col_sep, col_der = st.columns([5, 1, 5])
+
+    # --- Columna izquierda: grupos origen (solo informativo) ---
+    with col_izq:
+        st.markdown(
+            "<p style='font-size:0.72rem;font-weight:700;text-transform:uppercase;"
+            "letter-spacing:0.07em;color:#888;margin-bottom:10px;'>Fase anterior</p>",
+            unsafe_allow_html=True,
+        )
+        for g_orig in grupos_origen:
+            st.markdown(f"""
+                <div style="background:#8b0000;border-radius:10px;overflow:hidden;margin-bottom:8px;">
+                    <div style="background:#cc0000;padding:8px 12px;display:flex;align-items:center;gap:6px;">
+                        <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.4);flex-shrink:0;"></div>
+                        <span style="font-size:0.7rem;font-weight:700;color:white;text-transform:uppercase;letter-spacing:0.06em;">
+                            {g_orig['nombre']}
+                        </span>
+                    </div>
+                    <div style="padding:6px 10px 8px;">
+                        {"".join([
+                            f'<div style="background:rgba(255,255,255,0.08);border-radius:5px;'
+                            f'padding:5px 8px;margin-bottom:4px;font-size:0.7rem;color:rgba(255,255,255,0.6);">'
+                            f'{i+1}º clasificado</div>'
+                            for i in range(g_orig["tipo_grupo"])
+                        ])}
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+    # --- Separador con flecha ---
+    with col_sep:
+        st.markdown(
+            "<div style='display:flex;align-items:center;justify-content:center;"
+            "height:100%;padding-top:60px;font-size:1.4rem;color:#888;'>→</div>",
+            unsafe_allow_html=True,
+        )
+
+    # --- Columna derecha: grupos destino con selectboxes ---
+    with col_der:
+        st.markdown(
+            "<p style='font-size:0.72rem;font-weight:700;text-transform:uppercase;"
+            "letter-spacing:0.07em;color:#888;margin-bottom:10px;'>Nueva fase</p>",
+            unsafe_allow_html=True,
+        )
+        for g_dest in grupos_destino:
+            g_id = g_dest["id"]
+            plazas = plazas_por_grupo.get(g_id, [])
+
+            # Cabecera de la tarjeta destino
+            st.markdown(f"""
+                <div style="background:#8b0000;border-radius:10px;overflow:hidden;margin-bottom:4px;">
+                    <div style="background:#cc0000;padding:8px 12px;display:flex;align-items:center;gap:6px;">
+                        <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.4);flex-shrink:0;"></div>
+                        <span style="font-size:0.7rem;font-weight:700;color:white;text-transform:uppercase;letter-spacing:0.06em;">
+                            {g_dest['nombre']}
+                        </span>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+            # Un selectbox por hueco
+            for i in range(g_dest["tipo_grupo"]):
+                plaza = plazas[i] if i < len(plazas) else None
+                ref_actual = plaza["referencia_origen"] if plaza else None
+
+                # Índice por defecto: buscar la opción que coincide con lo guardado
+                idx_default = 0
+                if ref_actual and ref_actual in opciones_origen:
+                    idx_default = opciones_origen.index(ref_actual)
+
+                seleccion = st.selectbox(
+                    f"Hueco {i+1} — {g_dest['nombre']}",
+                    opciones_origen,
+                    index=idx_default,
+                    key=f"prog_cfg_{g_id}_{i}",
+                    label_visibility="collapsed",
+                )
+
+                # Guardar automáticamente al cambiar
+                if seleccion != ref_actual:
+                    payload = {
+                        "grupo_id": g_id,
+                        "referencia_origen": seleccion,
+                        "equipo_id": None,
+                    }
+                    try:
+                        if plaza:
+                            supabase.table("participantes_grupo").update(payload).eq(
+                                "id", plaza["id"]
+                            ).execute()
+                        else:
+                            supabase.table("participantes_grupo").insert(payload).execute()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al guardar hueco {i+1}: {e}")
+
+            st.markdown("<div style='margin-bottom:8px;'></div>", unsafe_allow_html=True)
+
+
+# -------------------------------------------------------
 # -------------------------------------------------------
 # TARJETA DE GRUPO — dark/deportiva, un botón por grupo
 # -------------------------------------------------------
@@ -276,44 +401,71 @@ def renderizar_tarjeta_grupo_minimalista(
             ]
             for i, p_actual in plazas_vacias:
                 if p_actual and p_actual.get("referencia_origen"):
-                    ref = p_actual["referencia_origen"]
-                    nombre_g_orig = ref.split(" | ")[0] if " | " in ref else None
-                    if nombre_g_orig:
-                        try:
-                            f_ant = next(f for f in fases if f["orden"] == fase_actual["orden"] - 1)
+                    ref = p_actual["referencia_origen"]  # nombre del grupo o "Cualquier grupo"
+                    CUALQUIER = "Cualquier grupo"
+                    try:
+                        f_ant = next(f for f in fases if f["orden"] == fase_actual["orden"] - 1)
+                        if ref == CUALQUIER:
+                            # Todos los equipos de la fase anterior no asignados aún
+                            grupos_ant = (
+                                supabase.table("grupos")
+                                .select("id")
+                                .eq("fase_id", f_ant["id"])
+                                .execute()
+                                .data
+                            )
+                            ids_grupos_ant = [g["id"] for g in grupos_ant]
+                            ya_asignados = {
+                                p["equipo_id"] for p in todos_participantes if p.get("equipo_id")
+                            } if "todos_participantes" in dir() else set()
+                            res_cand = (
+                                supabase.table("participantes_grupo")
+                                .select("equipos(id, nombre)")
+                                .in_("grupo_id", ids_grupos_ant)
+                                .execute()
+                            )
+                            candidatos = [
+                                p["equipos"] for p in res_cand.data
+                                if p["equipos"] and p["equipos"]["id"] not in ya_asignados
+                            ]
+                        else:
+                            # Solo equipos del grupo origen configurado
                             res_g = (
                                 supabase.table("grupos")
                                 .select("id")
-                                .eq("nombre", nombre_g_orig)
+                                .eq("nombre", ref)
                                 .eq("fase_id", f_ant["id"])
                                 .execute()
                             )
-                            if res_g.data:
-                                res_cand = (
-                                    supabase.table("participantes_grupo")
-                                    .select("equipos(id, nombre)")
-                                    .eq("grupo_id", res_g.data[0]["id"])
-                                    .execute()
-                                )
-                                candidatos = [p["equipos"] for p in res_cand.data if p["equipos"]]
-                                opciones = ["— elige clasificado —"] + [c["nombre"] for c in candidatos]
-                                sel = st.selectbox(
-                                    f"Plaza {i + 1} — {ref}",
-                                    opciones,
-                                    key=f"sel_prog_{grupo_id}_{i}",
-                                    label_visibility="collapsed",
-                                )
-                                if sel != opciones[0]:
-                                    try:
-                                        e_id = next(c["id"] for c in candidatos if c["nombre"] == sel)
-                                        supabase.table("participantes_grupo").update(
-                                            {"equipo_id": e_id}
-                                        ).eq("id", p_actual["id"]).execute()
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Error al asignar progresión: {e}")
-                        except Exception as e:
-                            st.error(f"Error cargando candidatos: {e}")
+                            if not res_g.data:
+                                st.warning(f"Grupo '{ref}' no encontrado en la fase anterior.")
+                                continue
+                            res_cand = (
+                                supabase.table("participantes_grupo")
+                                .select("equipos(id, nombre)")
+                                .eq("grupo_id", res_g.data[0]["id"])
+                                .execute()
+                            )
+                            candidatos = [p["equipos"] for p in res_cand.data if p["equipos"]]
+
+                        opciones = ["— elige equipo —"] + [c["nombre"] for c in candidatos]
+                        sel = st.selectbox(
+                            f"Plaza {i + 1}",
+                            opciones,
+                            key=f"sel_prog_{grupo_id}_{i}",
+                            label_visibility="collapsed",
+                        )
+                        if sel != opciones[0]:
+                            try:
+                                e_id = next(c["id"] for c in candidatos if c["nombre"] == sel)
+                                supabase.table("participantes_grupo").update(
+                                    {"equipo_id": e_id}
+                                ).eq("id", p_actual["id"]).execute()
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error al asignar: {e}")
+                    except Exception as e:
+                        st.error(f"Error cargando candidatos: {e}")
 
 # -------------------------------------------------------
 # TARJETAS DE EQUIPOS (vista escritorio)
