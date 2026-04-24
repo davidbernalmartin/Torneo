@@ -197,7 +197,7 @@ def mostrar_grupo_tv(nombre_grupo_url):
 
         # --- 4. NAVEGADOR DE GRUPOS (Minitarjetas inferiores) ---
         st.write("---")
-        # Buscamos todos los grupos de la misma fase para el menú
+       # Obtenemos los grupos (mismo código que antes)
         res_hermanos = supabase.table("grupos").select("nombre").eq("fase_id", fase_id).execute()
         
         if res_hermanos.data:
@@ -206,24 +206,30 @@ def mostrar_grupo_tv(nombre_grupo_url):
                 nums = re.findall(r'\d+', n)
                 return int(nums[0]) if nums else 0
             
-            # Ordenamos los nombres (Grupo 1, Grupo 2...)
             nombres_ordenados = sorted([g['nombre'] for g in res_hermanos.data], key=extraer_num)
             
-            # Creamos una fila de columnas (máximo 10 o 12 por fila)
-            cols_nav = st.columns(len(nombres_ordenados))
+            st.markdown("<p style='text-align: center; color: white; opacity: 0.8; margin-bottom: 5px;'>CAMBIAR DE GRUPO</p>", unsafe_allow_html=True)
             
-            for idx, nombre_btn in enumerate(nombres_ordenados):
-                # Extraemos solo el número o inicial para la minitarjeta (ej: "G1", "G2")
-                num_solo = re.findall(r'\d+', nombre_btn)
-                label = f"G{num_solo[0]}" if num_solo else nombre_btn[:2]
+            # --- LA CLAVE ESTÁ AQUÍ ---
+            # Usamos un contenedor único para los botones para evitar duplicados
+            nav_container = st.container()
+            
+            with nav_container:
+                # Calculamos columnas dinámicamente según el número de grupos
+                n_grupos = len(nombres_ordenados)
+                cols_nav = st.columns(n_grupos)
                 
-                # Si es el grupo actual, le damos un estilo diferente (primario)
-                es_actual = (nombre_btn == nombre_grupo_url)
-                
-                if cols_nav[idx].button(label, key=f"nav_{nombre_btn}", use_container_width=True, type="primary" if es_actual else "secondary"):
-                    # Al pulsar, cambiamos el parámetro de la URL (query_params)
-                    st.query_params["grupo"] = nombre_btn
-                    st.rerun()
+                for idx, nombre_btn in enumerate(nombres_ordenados):
+                    num_solo = re.findall(r'\d+', nombre_btn)
+                    label = f"G{num_solo[0]}" if num_solo else nombre_btn[:2]
+                    
+                    es_actual = (nombre_btn == nombre_grupo_url)
+                    
+                    # Usamos una key muy específica para que Streamlit no se líe
+                    if cols_nav[idx].button(label, key=f"btn_nav_tv_{nombre_btn}", use_container_width=True, type="primary" if es_actual else "secondary"):
+                        # Cambiamos el parámetro y forzamos reinicio inmediato
+                        st.query_params["grupo"] = nombre_btn
+                        st.rerun()
 
         # 5. Refresco automático (Ojo: bajamos el tiempo si quieres que el cambio sea rápido)
         import time
