@@ -100,7 +100,7 @@ def renderizar_tarjeta_grupo(grupo, participantes):
 def mostrar_grupo_tv(nombre_grupo_url):
     """Vista para la TV: Estilo blanco corporativo sobre fondo rojo"""
     supabase = get_supabase()
-    LOGO_RFFM_URL = "https://www.rffm.es/_next/image?url=https%3A%2F%2Frffm-cms.s3.eu-west-1.amazonaws.com%2Ffavicon_87ea61909c.png&w=48&q=75"
+    LOGO_RFFM_URL = "https://www.rffm.es/_next/image?url=https%3A%2F%2Frffm-cms.s3.eu-west-1.amazonaws.com%2FSPONSORS_RFEF_54306a519c.png&w=96&q=75"
     try:
         # 1. Buscar el grupo actual
         res_grupo = supabase.table("grupos").select("id, nombre, tipo_grupo, fase_id").eq("nombre", nombre_grupo_url).execute()
@@ -124,7 +124,7 @@ def mostrar_grupo_tv(nombre_grupo_url):
                 justify-content: center; /* ESTO CENTRA EL CONTENIDO HORIZONTALMENTE */
                 width: 100%;
             ">
-                <img src="{LOGO_RFFM_URL}" style="width: 200px;"> <h1 style="
+                <img src="{LOGO_RFFM_URL}" style="width: 100px;"> <h1 style="
                     text-align: center; 
                     font-size: 5rem; 
                     margin: 20; 
@@ -134,7 +134,7 @@ def mostrar_grupo_tv(nombre_grupo_url):
                 ">
                     {nombre_display}
                 </h1>
-                <img src="{LOGO_RFFM_URL}" style="width: 200px;">
+                <img src="{LOGO_RFFM_URL}" style="width: 100px;">
             </div>
             """, 
             unsafe_allow_html=True
