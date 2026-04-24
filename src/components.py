@@ -59,7 +59,7 @@ def seccion_sorteo_manual(supabase):
         with c2:
             # El selector ahora solo muestra los grupos con sitio
             opciones_grupos = [""] + [f"{g['nombre']} ({g['plazas_libres']} huecos)" for g in grupos_disponibles]
-            grupo_sel_display = st.selectbox("Bola Grupo:", opciones_grupos)
+            grupo_sel_display = st.selectbox("Bola Grupo:", opciones_grupos, index=0)
         with c3:
             st.write("##")
             if st.button("CONFIRMAR 📥", use_container_width=True, type="primary"):
