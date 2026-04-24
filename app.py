@@ -204,6 +204,43 @@ if menu == "Configurador":
                 total_plazas = sum(g["tipo_grupo"] for g in grupos)
                 st.info(f"Capacidad total de la fase: {total_plazas} equipos.")
 
+            # ── Configurar siguiente_grupo_id (para el cuadro bracket) ──
+            fase_siguiente = next(
+                (f for f in fases if f["orden"] == fase_actual["orden"] + 1), None
+            )
+            if fase_siguiente:
+                grupos_sig = get_grupos_por_fase(fase_siguiente["id"])
+                if grupos and grupos_sig:
+                    st.write("---")
+                    st.write("### 🏆 Conexión al cuadro bracket")
+                    st.caption(
+                        f"Define a qué grupo de **{fase_siguiente['nombre']}** avanza "
+                        f"el ganador de cada grupo de **{fase_actual['nombre']}**."
+                    )
+                    opciones_sig = {g["nombre"]: g["id"] for g in grupos_sig}
+                    for g in grupos:
+                        actual_sig_id = g.get("siguiente_grupo_id")
+                        actual_sig_nombre = next(
+                            (gs["nombre"] for gs in grupos_sig if gs["id"] == actual_sig_id), None
+                        )
+                        idx = list(opciones_sig.keys()).index(actual_sig_nombre) + 1 if actual_sig_nombre else 0
+                        sel = st.selectbox(
+                            f"Ganador de **{g['nombre']}** → va a:",
+                            ["— sin asignar —"] + list(opciones_sig.keys()),
+                            index=idx,
+                            key=f"sig_{g['id']}",
+                        )
+                        nuevo_sig_id = opciones_sig.get(sel) if sel != "— sin asignar —" else None
+                        if nuevo_sig_id != actual_sig_id:
+                            try:
+                                supabase.table("grupos").update(
+                                    {"siguiente_grupo_id": nuevo_sig_id}
+                                ).eq("id", g["id"]).execute()
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error al guardar: {e}")
+
+
 
 # -------------------------------------------------------
 # CUADRO VISUAL
