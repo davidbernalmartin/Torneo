@@ -222,30 +222,30 @@ if menu == "Cuadro Visual":
         es_progresion = fase_actual["orden"] > 1
 
         grupos = get_grupos_por_fase(fase_id)
-
-        # --- CONSULTA 1: todos los participantes de la fase de una vez ---
         ids_grupos = [g["id"] for g in grupos]
+
+        # Participantes de la fase actual
         todos_participantes = []
         if ids_grupos:
             try:
-                res_todos_p = (
+                todos_participantes = (
                     supabase.table("participantes_grupo")
                     .select("*, equipos(id, nombre, escudo_url)")
                     .in_("grupo_id", ids_grupos)
                     .execute()
-                )
-                todos_participantes = res_todos_p.data
+                ).data
             except Exception as e:
                 st.error(f"Error cargando participantes: {e}")
 
-        # Indexamos por grupo_id para acceso O(1) dentro del bucle
         participantes_por_grupo: dict = {}
         for p in todos_participantes:
             participantes_por_grupo.setdefault(p["grupo_id"], []).append(p)
 
-        # --- CONSULTA 2: equipos libres (solo si hay plazas vacías en fase 1) ---
-        equipos_libres = []
+        from src.components import renderizar_tarjeta_grupo_minimalista, renderizar_cuadro_progresion
+
         if not es_progresion:
+            # Fase 1 — grid de 3 columnas normal
+            equipos_libres = []
             try:
                 res_eq = (
                     supabase.table("equipos")
@@ -258,25 +258,57 @@ if menu == "Cuadro Visual":
             except Exception as e:
                 st.error(f"Error cargando equipos libres: {e}")
 
-        from src.components import renderizar_tarjeta_grupo_minimalista
+            cols_grupos = st.columns(3)
+            for idx, grupo in enumerate(grupos):
+                participantes = participantes_por_grupo.get(grupo["id"], [])
+                with cols_grupos[idx % 3]:
+                    renderizar_tarjeta_grupo_minimalista(
+                        grupo=grupo,
+                        participantes=participantes,
+                        equipos_libres=equipos_libres,
+                        es_progresion=False,
+                        fases=fases,
+                        fase_actual=fase_actual,
+                        supabase=supabase,
+                    )
+        else:
+            # Fase de progresión — vista lado a lado
+            fase_anterior = next(
+                (f for f in fases if f["orden"] == fase_actual["orden"] - 1), None
+            )
+            grupos_fase_anterior = get_grupos_por_fase(fase_anterior["id"]) if fase_anterior else []
+            ids_grupos_ant = [g["id"] for g in grupos_fase_anterior]
 
-        cols_grupos = st.columns(3)
+            # Participantes de la fase anterior (para mostrar quién clasificó)
+            participantes_fase_ant = []
+            if ids_grupos_ant:
+                try:
+                    participantes_fase_ant = (
+                        supabase.table("participantes_grupo")
+                        .select("*, equipos(id, nombre, escudo_url)")
+                        .in_("grupo_id", ids_grupos_ant)
+                        .execute()
+                    ).data
+                except Exception as e:
+                    st.error(f"Error cargando fase anterior: {e}")
 
-        for idx, grupo in enumerate(grupos):
-            participantes = participantes_por_grupo.get(grupo["id"], [])
-            with cols_grupos[idx % 3]:
-                renderizar_tarjeta_grupo_minimalista(
-                    grupo=grupo,
-                    participantes=participantes,
-                    equipos_libres=equipos_libres,
-                    es_progresion=es_progresion,
-                    fases=fases,
-                    fase_actual=fase_actual,
-                    supabase=supabase,
-                )
+            participantes_ant_por_grupo: dict = {}
+            for p in participantes_fase_ant:
+                participantes_ant_por_grupo.setdefault(p["grupo_id"], []).append(p)
 
-# -------------------------------------------------------
-# SORTEO
-# -------------------------------------------------------
+            # IDs ya asignados en la nueva fase (para marcarlos en la columna izquierda)
+            ya_asignados_ids = {p["equipo_id"] for p in todos_participantes if p["equipo_id"]}
+
+            renderizar_cuadro_progresion(
+                grupos_destino=grupos,
+                grupos_origen=grupos_fase_anterior,
+                participantes_por_grupo_destino=participantes_por_grupo,
+                participantes_por_grupo_origen=participantes_ant_por_grupo,
+                ya_asignados_ids=ya_asignados_ids,
+                fases=fases,
+                fase_actual=fase_actual,
+                supabase=supabase,
+            )
+
 if menu == "Sorteo":
     seccion_sorteo_manual(supabase)
