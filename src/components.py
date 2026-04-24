@@ -208,8 +208,6 @@ def mostrar_grupo_tv(nombre_grupo_url):
             
             nombres_ordenados = sorted([g['nombre'] for g in res_hermanos.data], key=extraer_num)
             
-            st.markdown("<p style='text-align: center; color: white; opacity: 0.8; margin-bottom: 5px;'>CAMBIAR DE GRUPO</p>", unsafe_allow_html=True)
-            
             # --- LA CLAVE ESTÁ AQUÍ ---
             # Usamos un contenedor único para los botones para evitar duplicados
             nav_container = st.container()
@@ -227,7 +225,6 @@ def mostrar_grupo_tv(nombre_grupo_url):
                     
                     # Usamos una key muy específica para que Streamlit no se líe
                     if cols_nav[idx].button(label, key=f"btn_nav_tv_{nombre_btn}", use_container_width=True, type="primary" if es_actual else "secondary"):
-                        # Cambiamos el parámetro y forzamos reinicio inmediato
                         st.query_params["grupo"] = nombre_btn
                         st.rerun()
 
