@@ -19,15 +19,29 @@ def seccion_sorteo_manual(supabase):
     fase_id = fase_inicial['id']
     st.caption(f"Configurando sorteo para: **{fase_inicial['nombre']}**")
 
-    # 2. Cargar equipos libres (los que no están en ningún grupo de ESTA fase)
-    # Primero sacamos los grupos de esta fase
-    res_grupos = supabase.table("grupos").select("id, nombre").eq("fase_id", fase_id).execute()
-    grupos = res_grupos.data
-    ids_grupos = [g['id'] for g in grupos]
+    # 2. Cargar grupos y filtrar por capacidad
+    # Traemos el tipo_grupo para saber el límite de cada uno
+    res_grupos = supabase.table("grupos").select("id, nombre, tipo_grupo").eq("fase_id", fase_id).execute()
+    todos_los_grupos = res_grupos.data
+    ids_grupos = [g['id'] for g in todos_los_grupos]
 
-    # Ahora vemos qué equipos ya están metidos en esos grupos
-    res_p = supabase.table("participantes_grupo").select("equipo_id").in_("grupo_id", ids_grupos).execute()
+    # Contamos cuántos equipos hay ya asignados a CADA grupo
+    res_p = supabase.table("participantes_grupo").select("grupo_id, equipo_id").in_("grupo_id", ids_grupos).execute()
     asignados_ids = [p['equipo_id'] for p in res_p.data]
+    
+    # Creamos un contador de ocupación
+    from collections import Counter
+    ocupacion_actual = Counter([p['grupo_id'] for p in res_p.data])
+
+    # FILTRADO: Solo grupos que NO estén llenos
+    grupos_disponibles = []
+    for g in todos_los_grupos:
+        cupo = g['tipo_grupo']
+        actual = ocupacion_actual.get(g['id'], 0)
+        if actual < cupo:
+            # Guardamos cuántas plazas quedan para mostrarlo en el select
+            g['plazas_libres'] = cupo - actual
+            grupos_disponibles.append(g)
 
     # Equipos totales vs asignados
     res_e = supabase.table("equipos").select("id, nombre").execute()
@@ -43,13 +57,18 @@ def seccion_sorteo_manual(supabase):
         with c1:
             equipo_nombre = st.selectbox("Bola Equipo:", [""] + [e['nombre'] for e in equipos_libres])
         with c2:
-            grupo_nombre = st.selectbox("Bola Grupo:", [""] + [g['nombre'] for g in grupos])
+            # El selector ahora solo muestra los grupos con sitio
+            opciones_grupos = [""] + [f"{g['nombre']} ({g['plazas_libres']} huecos)" for g in grupos_disponibles]
+            grupo_sel_display = st.selectbox("Bola Grupo:", opciones_grupos)
         with c3:
             st.write("##")
             if st.button("CONFIRMAR 📥", use_container_width=True, type="primary"):
-                if equipo_nombre and grupo_nombre:
+                if equipo_nombre and grupo_sel_display:
+                    # Limpiamos el nombre del grupo para buscarlo en la lista original
+                    nombre_grupo_limpio = grupo_sel_display.split(" (")[0]
+                    
                     id_e = next(e['id'] for e in equipos_libres if e['nombre'] == equipo_nombre)
-                    id_g = next(g['id'] for g in grupos if g['nombre'] == grupo_nombre)
+                    id_g = next(g['id'] for g in grupos_disponibles if g['nombre'] == nombre_grupo_limpio)
                     
                     supabase.table("participantes_grupo").insert({
                         "grupo_id": id_g,
@@ -57,9 +76,12 @@ def seccion_sorteo_manual(supabase):
                         "puntos": 0, "goles": 0
                     }).execute()
                     
-                    st.toast(f"Asignado: {equipo_nombre} al {grupo_nombre}")
+                    st.toast(f"Asignado: {equipo_nombre} al {nombre_grupo_limpio}")
                     st.rerun()
 
+    if not grupos_disponibles:
+        st.warning("⚠️ No quedan grupos con plazas disponibles. Revisa la configuración de la fase.")
+    
     st.info(f"Faltan por asignar **{len(equipos_libres)}** equipos.")
 
 def renderizar_tarjeta_grupo(grupo, participantes):
