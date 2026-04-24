@@ -28,7 +28,6 @@ def aplicar_fondo_rffm_global():
             background-size: contain;
             background-repeat: no-repeat;
             background-position: center;
-            opacity: 0.07; /* Muy sutil para que sea elegante y no moleste */
             z-index: -1;
             pointer-events: none;
             filter: grayscale(20%); /* Opcional: para que no chillen mucho los colores */
