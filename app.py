@@ -102,7 +102,7 @@ if menu == "Configurador":
     st.subheader("Definición de Grupos por Fase")
     supabase = get_supabase()
     
-    # 1. Gestión de Fases
+    # 1. Gestión de Fases (Sin cambios)
     with st.expander("➕ Crear Nueva Fase"):
         nueva_fase_nombre = st.text_input("Nombre de la fase (ej: Fase de grupos)")
         orden_fase = st.number_input("Orden", min_value=1, value=1)
@@ -111,7 +111,6 @@ if menu == "Configurador":
             st.success("Fase creada")
             st.rerun()
 
-    # 2. Obtener fases existentes
     fases_res = supabase.table("fases").select("*").order("orden").execute()
     fases = fases_res.data
     
@@ -123,59 +122,84 @@ if menu == "Configurador":
         
         if fase_actual:
             fase_id = fase_actual["id"]
-            
+            es_fase_progresion = fase_actual["orden"] > 1
+
+            # 2. Creación de Grupos
             st.write("---")
             col1, col2, col3 = st.columns([2, 2, 1])
-            
             with col1:
-                num_grupos = st.number_input("Número de grupos", min_value=1, value=1)
+                num_grupos = st.number_input("Añadir N grupos", min_value=1, value=1)
             with col2:
                 tamano_grupo = st.number_input("Equipos por grupo", min_value=1, value=4)
             with col3:
                 st.write("Acción")
                 if st.button("➕ Añadir"):
-                    try:
-                        res_conteo = supabase.table("grupos").select("id", count="exact").eq("fase_id", fase_id).execute()
-                        total_existentes = res_conteo.count if res_conteo.count is not None else 0
-                        
-                        nuevos_grupos = []
-                        for i in range(num_grupos):
-                            siguiente_numero = total_existentes + i + 1
-                            nuevos_grupos.append({
-                                "fase_id": fase_id,
-                                "nombre": f"Grupo {siguiente_numero}",
-                                "tipo_grupo": tamano_grupo
-                            })
-                        
-                        if nuevos_grupos:
-                            supabase.table("grupos").insert(nuevos_grupos).execute()
-                            st.success(f"¡Añadidos!")
-                            st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
+                    res_conteo = supabase.table("grupos").select("id", count="exact").eq("fase_id", fase_id).execute()
+                    total_existentes = res_conteo.count if res_conteo.count is not None else 0
+                    nuevos_grupos = []
+                    for i in range(num_grupos):
+                        siguiente_numero = total_existentes + i + 1
+                        nuevos_grupos.append({
+                            "fase_id": fase_id,
+                            "nombre": f"Grupo {siguiente_numero}",
+                            "tipo_grupo": tamano_grupo
+                        })
+                    supabase.table("grupos").insert(nuevos_grupos).execute()
+                    st.rerun()
 
-            # 3. Visualización y Sorteo
-            st.write("### Estructura actual de la Fase")
+            # 3. Visualización y Configuración de Progresión
+            st.write("### Estructura y Origen de Plazas")
             grupos_res = supabase.table("grupos").select("*").eq("fase_id", fase_id).execute()
             
-            # Dentro de if menu == "Configurador" -> Visualización
             if grupos_res.data:
-                df_grupos = pd.DataFrame(grupos_res.data)
-                total_plazas = df_grupos['tipo_grupo'].sum()
-                
-                # Consultamos cuántos equipos hay cargados realmente
-                res_equipos = supabase.table("equipos").select("id", count="exact").eq("eliminado", False).execute()
-                total_equipos_bd = res_equipos.count if res_equipos.count is not None else 0
-                
-                # Mostramos la comparativa real
-                col_m1, col_m2 = st.columns(2)
-                col_m1.metric("Equipos en BD", total_equipos_bd)
-                col_m2.metric("Plazas en Grupos", f"{total_plazas} / {total_equipos_bd}")
-            
-                if total_plazas >= total_equipos_bd:
-                    st.success("✅ Tienes plazas suficientes para todos los equipos cargados.")
-                else:
-                    st.warning(f"⚠️ Faltan {total_equipos_bd - total_plazas} plazas por configurar.")
+                # Si es fase > 1, necesitamos saber qué grupos había en la fase anterior
+                fase_anterior = next((f for f in fases if f["orden"] == fase_actual["orden"] - 1), None)
+                grupos_anteriores = []
+                if fase_anterior:
+                    res_ant = supabase.table("grupos").select("nombre").eq("fase_id", fase_anterior["id"]).execute()
+                    grupos_anteriores = [g['nombre'] for g in res_ant.data]
+
+                for grupo in grupos_res.data:
+                    with st.expander(f"⚙️ Configurar {grupo['nombre']} ({grupo['tipo_grupo']} plazas)"):
+                        if not es_fase_progresion:
+                            st.write("✅ Fase 1: Las plazas se llenan por sorteo aleatorio.")
+                        else:
+                            st.write(f"Define de dónde viene cada equipo para el **{grupo['nombre']}**:")
+                            
+                            # Consultamos si ya existen plazas configuradas para este grupo
+                            res_plazas = supabase.table("participantes_grupo").select("*").eq("grupo_id", grupo['id']).execute()
+                            plazas_actuales = res_plazas.data
+                            
+                            for i in range(grupo['tipo_grupo']):
+                                col_p, col_o, col_pos = st.columns([1, 2, 2])
+                                col_p.write(f"Plaza {i+1}")
+                                
+                                # Buscar si esta plaza ya tiene configuración
+                                config_existente = plazas_actuales[i] if i < len(plazas_actuales) else None
+                                
+                                # Selectores para definir origen
+                                orig_g = col_o.selectbox(f"Grupo Origen", grupos_anteriores, key=f"g_{grupo['id']}_{i}")
+                                orig_pos = col_pos.selectbox(f"Clasificado", ["1º", "2º", "3º", "4º"], key=f"pos_{grupo['id']}_{i}")
+                                
+                                etiqueta_referencia = f"{orig_g} | {orig_pos}"
+                                
+                                if st.button(f"Vincular Plaza {i+1}", key=f"btn_{grupo['id']}_{i}"):
+                                    # Si la plaza existe, actualizamos. Si no, insertamos (sin equipo_id aún)
+                                    payload = {
+                                        "grupo_id": grupo['id'],
+                                        "referencia_origen": etiqueta_referencia,
+                                        "equipo_id": None # Se llenará después manualmente
+                                    }
+                                    if config_existente:
+                                        supabase.table("participantes_grupo").update(payload).eq("id", config_existente['id']).execute()
+                                    else:
+                                        supabase.table("participantes_grupo").insert(payload).execute()
+                                    st.success(f"Plaza {i+1} vinculada a {etiqueta_referencia}")
+                                    st.rerun()
+
+                # Métricas informativas
+                total_plazas = sum(g['tipo_grupo'] for g in grupos_res.data)
+                st.info(f"Capacidad total de la fase: {total_plazas} equipos.")
 
 if menu == "Cuadro Visual":
     st.subheader("Cuadro General del Torneo")
