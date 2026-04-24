@@ -30,7 +30,19 @@ if "view" in query_params and query_params["view"] == "tv":
 
 st.set_page_config(page_title="Gestor Torneo RFFM", layout="wide")
 
-st.title("🏆 Gestión de Campeonato RFFM")
+# URL del escudo oficial
+LOGO_RFFM_URL = "https://www.rffm.es/_next/image?url=https%3A%2F%2Frffm-cms.s3.eu-west-1.amazonaws.com%2Ffavicon_87ea61909c.png&w=48&q=75"
+
+# Título con el logo integrado
+st.markdown(
+    f"""
+    <div style="display: flex; align-items: center;">
+        <img src="{LOGO_RFFM_URL}" style="width: 50px; margin-right: 15px;">
+        <h1 style="margin: 0;">Gestión de Campeonato RFFM</h1>
+    </div>
+    """, 
+    unsafe_allow_html=True
+)
 
 # Sidebar para navegación
 menu = st.sidebar.selectbox("Menú", ["Dashboard", "Configurador", "Carga de Equipos", "Cuadro Visual", "Sorteo"])
