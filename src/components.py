@@ -295,6 +295,218 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase):
             st.markdown("<div style='margin-bottom:8px;'></div>", unsafe_allow_html=True)
 
 
+
+# -------------------------------------------------------
+# CUADRO VISUAL DE PROGRESIÓN — lado a lado
+# -------------------------------------------------------
+
+def renderizar_cuadro_progresion(
+    grupos_destino,
+    grupos_origen,
+    participantes_por_grupo_destino,
+    participantes_por_grupo_origen,
+    ya_asignados_ids,
+    fases,
+    fase_actual,
+    supabase,
+):
+    """
+    Vista lado a lado para fases de progresión:
+    - Izquierda: grupos de la fase anterior con sus equipos.
+      Los que ya han pasado a la nueva fase aparecen con opacidad reducida y un tick.
+    - Derecha: grupos destino con selectbox para asignar equipo a cada hueco.
+    """
+    CUALQUIER = "Cualquier grupo"
+
+    col_izq, col_sep, col_der = st.columns([5, 1, 5])
+
+    # ---- COLUMNA IZQUIERDA: fase anterior ----
+    with col_izq:
+        st.markdown(
+            "<p style='font-size:0.72rem;font-weight:700;text-transform:uppercase;"
+            "letter-spacing:0.07em;color:#888;margin-bottom:10px;'>Fase anterior</p>",
+            unsafe_allow_html=True,
+        )
+        for g_orig in grupos_origen:
+            participantes = participantes_por_grupo_origen.get(g_orig["id"], [])
+            filas_html = ""
+            for p in participantes:
+                if not p.get("equipo_id") or not p.get("equipos"):
+                    continue
+                nombre = p["equipos"]["nombre"]
+                escudo = p["equipos"]["escudo_url"] or ""
+                ya_paso = p["equipo_id"] in ya_asignados_ids
+                opacidad = "0.35" if ya_paso else "1"
+                tick = (
+                    "<span style='margin-left:auto;font-size:10px;color:#3B6D11;"
+                    "font-weight:700;flex-shrink:0;'>✓</span>"
+                    if ya_paso else ""
+                )
+                img = (
+                    f'<img src="{escudo}" style="width:20px;height:20px;object-fit:contain;'
+                    f'margin-right:8px;border-radius:3px;">'
+                    if escudo else
+                    '<div style="width:20px;margin-right:8px;"></div>'
+                )
+                filas_html += f"""
+                    <div style="display:flex;align-items:center;
+                                background:{'rgba(255,255,255,0.04)' if ya_paso else 'white'};
+                                border-radius:5px;padding:5px 8px;margin-bottom:4px;
+                                opacity:{opacidad};">
+                        {img}
+                        <span style="font-size:0.72rem;font-weight:700;
+                                     color:{'#aaa' if ya_paso else '#1a1a1a'};
+                                     text-transform:uppercase;letter-spacing:0.02em;
+                                     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                            {nombre}
+                        </span>
+                        {tick}
+                    </div>
+                """
+            st.markdown(f"""
+                <div style="background:#8b0000;border-radius:10px;overflow:hidden;margin-bottom:8px;">
+                    <div style="background:#cc0000;padding:8px 12px;display:flex;align-items:center;gap:6px;">
+                        <div style="width:6px;height:6px;border-radius:50%;
+                                    background:rgba(255,255,255,0.4);flex-shrink:0;"></div>
+                        <span style="font-size:0.7rem;font-weight:700;color:white;
+                                     text-transform:uppercase;letter-spacing:0.06em;">
+                            {g_orig['nombre']}
+                        </span>
+                    </div>
+                    <div style="padding:6px 10px 8px;">
+                        {filas_html if filas_html else
+                         '<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);'
+                         'font-style:italic;padding:4px 0;">Sin equipos asignados</div>'}
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+    # ---- SEPARADOR ----
+    with col_sep:
+        st.markdown(
+            "<div style='display:flex;align-items:center;justify-content:center;"
+            "height:100%;padding-top:60px;font-size:1.4rem;color:#888;'>→</div>",
+            unsafe_allow_html=True,
+        )
+
+    # ---- COLUMNA DERECHA: fase actual con selectboxes ----
+    with col_der:
+        st.markdown(
+            "<p style='font-size:0.72rem;font-weight:700;text-transform:uppercase;"
+            "letter-spacing:0.07em;color:#888;margin-bottom:10px;'>Fase actual</p>",
+            unsafe_allow_html=True,
+        )
+        for g_dest in grupos_destino:
+            g_id = g_dest["id"]
+            capacidad = g_dest["tipo_grupo"]
+            participantes = participantes_por_grupo_destino.get(g_id, [])
+            grupo_lleno = sum(1 for p in participantes if p.get("equipo_id")) >= capacidad
+
+            # Cabecera tarjeta destino
+            st.markdown(f"""
+                <div style="background:#8b0000;border-radius:10px;overflow:hidden;margin-bottom:4px;">
+                    <div style="background:#cc0000;padding:8px 12px;
+                                display:flex;align-items:center;gap:6px;">
+                        <div style="width:6px;height:6px;border-radius:50%;
+                                    background:rgba(255,255,255,0.4);flex-shrink:0;"></div>
+                        <span style="font-size:0.7rem;font-weight:700;color:white;
+                                     text-transform:uppercase;letter-spacing:0.06em;">
+                            {g_dest['nombre']}
+                        </span>
+                    </div>
+                    <div style="padding:6px 10px 8px;">
+                        {"".join([
+                            f'<div style="display:flex;align-items:center;background:white;'
+                            f'border-radius:5px;padding:5px 8px;margin-bottom:4px;">'
+                            f'{"<img src=" + repr(p["equipos"]["escudo_url"]) + " style=width:20px;height:20px;object-fit:contain;margin-right:8px;border-radius:3px;> " if p.get("equipos") and p["equipos"].get("escudo_url") else "<div style=width:20px;margin-right:8px;></div>"}'
+                            f'<span style="font-size:0.72rem;font-weight:700;color:#1a1a1a;'
+                            f'text-transform:uppercase;">{p["equipos"]["nombre"] if p.get("equipos") else ""}</span>'
+                            f'</div>'
+                            for p in participantes if p.get("equipo_id") and p.get("equipos")
+                        ])}
+                        {"".join([
+                            '<div style="border:1px dashed rgba(255,255,255,0.3);border-radius:5px;'
+                            'background:rgba(0,0,0,0.15);height:30px;margin-bottom:4px;"></div>'
+                            for _ in range(capacidad - sum(1 for p in participantes if p.get("equipo_id")))
+                        ])}
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+            # Botón vaciar o selectbox para asignar
+            if grupo_lleno:
+                if st.button("⊘  Vaciar grupo", key=f"vaciar_{g_id}", use_container_width=True):
+                    st.session_state[f"confirmar_vaciar_{g_id}"] = True
+                if st.session_state.get(f"confirmar_vaciar_{g_id}", False):
+                    st.warning(f"¿Borrar equipos de {g_dest['nombre']}?")
+                    col_si, col_no = st.columns(2)
+                    if col_si.button("Sí, vaciar", key=f"si_vaciar_{g_id}", type="primary"):
+                        try:
+                            supabase.table("participantes_grupo").update(
+                                {"equipo_id": None}
+                            ).eq("grupo_id", g_id).execute()
+                            st.session_state.pop(f"confirmar_vaciar_{g_id}", None)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al vaciar: {e}")
+                    if col_no.button("Cancelar", key=f"no_vaciar_{g_id}"):
+                        st.session_state.pop(f"confirmar_vaciar_{g_id}", None)
+                        st.rerun()
+            else:
+                # Buscar la próxima plaza vacía y su referencia_origen
+                plazas_vacias = [
+                    p for p in participantes if not p.get("equipo_id")
+                ]
+                # Si hay plazas sin fila en BD (grupo recién creado), las ignoramos
+                if not plazas_vacias:
+                    st.caption("Sin plazas configuradas. Ve al Configurador.")
+                else:
+                    p_actual = plazas_vacias[0]
+                    ref = p_actual.get("referencia_origen", CUALQUIER)
+
+                    # Construir lista de candidatos según referencia
+                    try:
+                        f_ant = next(f for f in fases if f["orden"] == fase_actual["orden"] - 1)
+                        if ref == CUALQUIER:
+                            todos_ant = [
+                                p for plist in participantes_por_grupo_origen.values()
+                                for p in plist
+                                if p.get("equipos") and p.get("equipo_id")
+                                and p["equipo_id"] not in ya_asignados_ids
+                            ]
+                            candidatos = [p["equipos"] for p in todos_ant]
+                        else:
+                            g_orig_match = next(
+                                (g for g in grupos_origen if g["nombre"] == ref), None
+                            )
+                            if g_orig_match:
+                                candidatos = [
+                                    p["equipos"]
+                                    for p in participantes_por_grupo_origen.get(g_orig_match["id"], [])
+                                    if p.get("equipos") and p.get("equipo_id")
+                                    and p["equipo_id"] not in ya_asignados_ids
+                                ]
+                            else:
+                                candidatos = []
+
+                        opciones = ["— añadir equipo —"] + [c["nombre"] for c in candidatos]
+                        seleccion = st.selectbox(
+                            f"sel_{g_id}",
+                            opciones,
+                            key=f"sel_prog_cv_{g_id}",
+                            label_visibility="collapsed",
+                        )
+                        if seleccion != opciones[0]:
+                            e_id = next(c["id"] for c in candidatos if c["nombre"] == seleccion)
+                            supabase.table("participantes_grupo").update(
+                                {"equipo_id": e_id}
+                            ).eq("id", p_actual["id"]).execute()
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Error cargando candidatos: {e}")
+
+            st.markdown("<div style='margin-bottom:6px;'></div>", unsafe_allow_html=True)
+
 # -------------------------------------------------------
 # -------------------------------------------------------
 # TARJETA DE GRUPO — dark/deportiva, un botón por grupo
