@@ -205,7 +205,6 @@ if menu == "Cuadro Visual":
     st.subheader("Gestión de Equipos por Grupo")
     supabase = get_supabase()
 
-    # 1. Obtener fases para el selector
     fases_res = supabase.table("fases").select("*").order("orden").execute()
     fases = fases_res.data
     
@@ -217,74 +216,62 @@ if menu == "Cuadro Visual":
         fase_id = fase_actual["id"]
         es_progresion = fase_actual["orden"] > 1
         
-        # 2. Obtener grupos de la fase
         grupos_res = supabase.table("grupos").select("*").eq("fase_id", fase_id).execute()
         
-        # Grid de 2 columnas para las tarjetas
         cols_grupos = st.columns(2)
         
         for idx, grupo in enumerate(grupos_res.data):
             with cols_grupos[idx % 2]:
-                # --- CABECERA DEL GRUPO (ESTILO TV) ---
                 st.markdown(f"""
-                    <div style="display: flex; align-items: center; justify-content: center; margin-top: 30px; margin-bottom: 15px;">
-                        <img src="https://www.rffm.es/_next/image?url=https%3A%2F%2Frffm-cms.s3.eu-west-1.amazonaws.com%2Ffavicon_87ea61909c.png&w=48&q=75" style="width: 35px; margin-right: 12px;">
-                        <h2 style="color: white; margin: 0; font-size: 2rem; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); text-transform: uppercase;">
+                    <div style="display: flex; align-items: center; justify-content: center; margin-top: 25px; margin-bottom: 10px;">
+                        <img src="https://www.rffm.es/_next/image?url=https%3A%2F%2Frffm-cms.s3.eu-west-1.amazonaws.com%2Ffavicon_87ea61909c.png&w=48&q=75" style="width: 25px; margin-right: 10px;">
+                        <h2 style="color: white; margin: 0; font-size: 1.6rem; font-weight: bold; text-transform: uppercase;">
                             {grupo['nombre']}
                         </h2>
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # Obtener participantes y sus equipos
                 res_p = supabase.table("participantes_grupo").select("*, equipos(id, nombre, escudo_url)").eq("grupo_id", grupo['id']).execute()
                 participantes = res_p.data
                 
-                # Iteramos por cada plaza disponible en el grupo
                 for i in range(grupo['tipo_grupo']):
                     p_actual = participantes[i] if i < len(participantes) else None
                     
-                    # CASO A: LA PLAZA TIENE UN EQUIPO ASIGNADO
                     if p_actual and p_actual['equipo_id']:
                         nombre_equipo = p_actual['equipos']['nombre']
-                        escudo = p_actual['equipo_id'] and p_actual['equipos']['escudo_url']
+                        escudo = p_actual['equipos']['escudo_url']
                         
+                        # AJUSTE DE ALTURA: Reducimos padding (4px arriba/abajo) y font-size
+                        # La altura estándar de un selectbox de Streamlit es de aprox 45px
                         st.markdown(f"""
-                            <div style="background-color: white; border-radius: 12px; padding: 10px 20px; margin-bottom: 8px; 
-                                        display: flex; align-items: center; box-shadow: 0 4px 8px rgba(0,0,0,0.2); border-left: 5px solid #e60000;">
-                                <img src="{escudo if escudo else ''}" style="width: 40px; height: 40px; object-fit: contain; margin-right: 15px; display: {'block' if escudo else 'none'};">
-                                <span style="color: #1a1a1a; font-size: 1.4rem; font-weight: 800; text-transform: uppercase; flex-grow: 1;">
+                            <div style="background-color: white; border-radius: 8px; padding: 4px 15px; margin-bottom: 8px; 
+                                        display: flex; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 5px solid #e60000;
+                                        height: 45px; box-sizing: border-box;">
+                                <img src="{escudo if escudo else ''}" style="width: 28px; height: 28px; object-fit: contain; margin-right: 12px; display: {'block' if escudo else 'none'};">
+                                <span style="color: #1a1a1a; font-size: 1.1rem; font-weight: 800; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                     {nombre_equipo}
                                 </span>
                             </div>
                         """, unsafe_allow_html=True)
 
-                    # CASO B: LA PLAZA ESTÁ VACÍA (SOLO EL SELECTOR)
                     else:
-                        # Si no hay registro de plaza pero es progresión, avisamos sutilmente
-                        if es_progresion and not p_actual:
-                            st.caption(f"⚠️ Plaza {i+1} no configurada en el Configurador")
-                        
-                        # --- SELECTOR DE ASIGNACIÓN DIRECTO ---
+                        # Espacio para el selector (Streamlit mide aprox 45px de alto)
                         if not es_progresion:
-                            # Fase 1: Equipos libres
                             res_todos = supabase.table("equipos").select("id, nombre").eq("eliminado", False).execute()
                             res_ocupados = supabase.table("participantes_grupo").select("equipo_id").execute()
                             ocupados_ids = [o['equipo_id'] for o in res_ocupados.data if o['equipo_id']]
                             equipos_libres = [e for e in res_todos.data if e['id'] not in ocupados_ids]
                             
-                            opciones = [f"➕ Asignar Equipo a Plaza {i+1}"] + [e['nombre'] for e in equipos_libres]
-                            sel = st.selectbox("Asignar", opciones, key=f"sel_{grupo['id']}_{i}", label_visibility="collapsed")
+                            opciones = [f"➕ Plaza {i+1}"] + [e['nombre'] for e in equipos_libres]
+                            sel = st.selectbox(f"P{i+1}_{grupo['id']}", opciones, key=f"sel_{grupo['id']}_{i}", label_visibility="collapsed")
                             
                             if sel != opciones[0]:
                                 e_id = next(e['id'] for e in equipos_libres if e['nombre'] == sel)
                                 supabase.table("participantes_grupo").insert({
-                                    "grupo_id": grupo['id'], 
-                                    "equipo_id": e_id, 
-                                    "referencia_origen": "Sorteo"
+                                    "grupo_id": grupo['id'], "equipo_id": e_id, "referencia_origen": "Sorteo"
                                 }).execute()
                                 st.rerun()
                         else:
-                            # Fase Progresión: Basado en referencia_origen
                             if p_actual and p_actual['referencia_origen']:
                                 ref = p_actual['referencia_origen']
                                 nombre_g_orig = ref.split(" | ")[0] if " | " in ref else None
@@ -298,8 +285,8 @@ if menu == "Cuadro Visual":
                                         res_cand = supabase.table("participantes_grupo").select("equipos(id, nombre)").eq("grupo_id", id_g_orig).execute()
                                         candidatos = [p['equipos'] for p in res_cand.data if p['equipos']]
                                         
-                                        opciones = [f"🏆 Clasifica de {ref}"] + [c['nombre'] for c in candidatos]
-                                        sel = st.selectbox("Clasifica", opciones, key=f"sel_prog_{grupo['id']}_{i}", label_visibility="collapsed")
+                                        opciones = [f"🏆 Clasifica {ref}"] + [c['nombre'] for c in candidatos]
+                                        sel = st.selectbox(f"C{i+1}_{grupo['id']}", opciones, key=f"sel_prog_{grupo['id']}_{i}", label_visibility="collapsed")
                                         
                                         if sel != opciones[0]:
                                             e_id = next(c['id'] for c in candidatos if c['nombre'] == sel)
