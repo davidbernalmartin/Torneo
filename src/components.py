@@ -102,8 +102,8 @@ def mostrar_grupo_tv(nombre_grupo_url):
     supabase = get_supabase()
     
     try:
-        # 1. Buscar el grupo
-        res_grupo = supabase.table("grupos").select("id, nombre, tipo_grupo").eq("nombre", nombre_grupo_url).execute()
+        # 1. Buscar el grupo actual
+        res_grupo = supabase.table("grupos").select("id, nombre, tipo_grupo, fase_id").eq("nombre", nombre_grupo_url).execute()
         
         if not res_grupo.data:
             st.error(f"Grupo '{nombre_grupo_url}' no encontrado.")
@@ -111,10 +111,11 @@ def mostrar_grupo_tv(nombre_grupo_url):
 
         datos_grupo = res_grupo.data[0]
         grupo_id = datos_grupo['id']
+        fase_id = datos_grupo['fase_id'] # Lo necesitamos para buscar los hermanos
         nombre_display = datos_grupo['nombre']
         tipo_grupo = datos_grupo['tipo_grupo']
 
-        # Título en blanco para que resalte sobre el fondo rojo de la app
+        # Título principal
         st.markdown(f"""
             <h1 style='text-align: center; font-size: 5rem; margin-top: -20px; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);'>
                 {nombre_display}
@@ -130,22 +131,13 @@ def mostrar_grupo_tv(nombre_grupo_url):
         # 3. Dibujar las "Fichas Blancas"
         for i in range(tipo_grupo):
             if i < len(participantes):
-                # EQUIPO ASIGNADO (Blanco puro con letras negras)
                 nombre_equipo = participantes[i]['equipos']['nombre']
                 escudo = participantes[i]['equipos']['escudo_url']
                 
                 st.markdown(f"""
-                    <div style="
-                        background-color: white; 
-                        padding: 15px 40px; 
-                        border-radius: 15px; 
-                        margin-bottom: 15px; 
-                        display: flex; 
-                        align-items: center; 
-                        justify-content: flex-start;
-                        box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
-                        border: 1px solid #eee;
-                    ">
+                    <div style="background-color: white; padding: 15px 40px; border-radius: 15px; margin-bottom: 15px; 
+                                display: flex; align-items: center; justify-content: flex-start;
+                                box-shadow: 0px 4px 15px rgba(0,0,0,0.2); border: 1px solid #eee;">
                         {f'<img src="{escudo}" style="height: 70px; width: 70px; object-fit: contain; margin-right: 30px;">' if escudo else ''}
                         <span style="font-size: 3.5rem; font-weight: 900; color: #1a1c24; text-transform: uppercase;">
                             {nombre_equipo}
@@ -153,25 +145,50 @@ def mostrar_grupo_tv(nombre_grupo_url):
                     </div>
                 """, unsafe_allow_html=True)
             else:
-                # HUECO VACÍO (Dashed pero sobre fondo blanco tenue para que no sea transparente)
                 st.markdown(f"""
-                    <div style="
-                        background-color: rgba(255,255,255,0.1); 
-                        padding: 20px; 
-                        border: 3px dashed rgba(255,255,255,0.4); 
-                        border-radius: 15px; 
-                        margin-bottom: 15px; 
-                        text-align: center;
-                    ">
+                    <div style="background-color: rgba(255,255,255,0.1); padding: 20px; border: 3px dashed rgba(255,255,255,0.4); 
+                                border-radius: 15px; margin-bottom: 15px; text-align: center;">
                         <span style="font-size: 2.2rem; color: rgba(255,255,255,0.6); font-style: italic; font-weight: bold;">
                             ESPERANDO SORTEO...
                         </span>
                     </div>
                 """, unsafe_allow_html=True)
 
-        # 4. Refresco automático
+        # --- 4. NAVEGADOR DE GRUPOS (Minitarjetas inferiores) ---
+        st.write("---")
+        # Buscamos todos los grupos de la misma fase para el menú
+        res_hermanos = supabase.table("grupos").select("nombre").eq("fase_id", fase_id).execute()
+        
+        if res_hermanos.data:
+            import re
+            def extraer_num(n):
+                nums = re.findall(r'\d+', n)
+                return int(nums[0]) if nums else 0
+            
+            # Ordenamos los nombres (Grupo 1, Grupo 2...)
+            nombres_ordenados = sorted([g['nombre'] for g in res_hermanos.data], key=extraer_num)
+            
+            st.markdown("<p style='text-align: center; color: white; opacity: 0.8;'>CAMBIAR DE GRUPO</p>", unsafe_allow_html=True)
+            
+            # Creamos una fila de columnas (máximo 10 o 12 por fila)
+            cols_nav = st.columns(len(nombres_ordenados))
+            
+            for idx, nombre_btn in enumerate(nombres_ordenados):
+                # Extraemos solo el número o inicial para la minitarjeta (ej: "G1", "G2")
+                num_solo = re.findall(r'\d+', nombre_btn)
+                label = f"G{num_solo[0]}" if num_solo else nombre_btn[:2]
+                
+                # Si es el grupo actual, le damos un estilo diferente (primario)
+                es_actual = (nombre_btn == nombre_grupo_url)
+                
+                if cols_nav[idx].button(label, key=f"nav_{nombre_btn}", use_container_width=True, type="primary" if es_actual else "secondary"):
+                    # Al pulsar, cambiamos el parámetro de la URL (query_params)
+                    st.query_params["grupo"] = nombre_btn
+                    st.rerun()
+
+        # 5. Refresco automático (Ojo: bajamos el tiempo si quieres que el cambio sea rápido)
         import time
-        time.sleep(5)
+        time.sleep(10) # 10 segundos es más razonable para que dé tiempo a leer
         st.rerun()
 
     except Exception as e:
