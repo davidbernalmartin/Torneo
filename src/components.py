@@ -125,7 +125,7 @@ def mostrar_grupo_tv(nombre_grupo_url):
                 gap: 20px;
                 width: 100%;
             ">
-                <img src="{LOGO_RFFM_URL}" style="width: 100px;"> <h1 style="
+                <img src="{LOGO_RFFM_URL}" style="width: 80px;"> <h1 style="
                     text-align: center; 
                     font-size: 5rem; 
                     margin: 20; 
