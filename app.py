@@ -4,6 +4,9 @@ from src.database import *
 from src.logic import *
 from src.components import *
 
+# URL del escudo oficial
+LOGO_RFFM_URL = "https://www.rffm.es/_next/image?url=https%3A%2F%2Frffm-cms.s3.eu-west-1.amazonaws.com%2Ffavicon_87ea61909c.png&w=48&q=75"
+
 st.set_page_config(layout="wide")
 query_params = st.query_params
 
@@ -30,9 +33,6 @@ if "view" in query_params and query_params["view"] == "tv":
 
 st.set_page_config(page_title="Gestor Torneo RFFM", layout="wide")
 
-# URL del escudo oficial
-LOGO_RFFM_URL = "https://www.rffm.es/_next/image?url=https%3A%2F%2Frffm-cms.s3.eu-west-1.amazonaws.com%2Ffavicon_87ea61909c.png&w=48&q=75"
-
 # Título con el logo integrado
 st.markdown(
     f"""
@@ -49,8 +49,6 @@ menu = st.sidebar.selectbox("Menú", ["Dashboard", "Configurador", "Carga de Equ
 
 if menu == "Dashboard":
     equipos = get_equipos()
-    st.subheader(f"📊 Resumen del Campeonato")
-    
     col_e1, col_e2 = st.columns(2)
     col_e1.metric("Total Equipos", len(equipos))
     col_e2.metric("En Competición", len([e for e in equipos if not e['eliminado']]))
@@ -62,7 +60,7 @@ if menu == "Dashboard":
     renderizar_tarjetas_equipos(equipos)
 
 if menu == "Carga de Equipos":
-    st.subheader("🚀 Importación Masiva de Equipos")
+    st.subheader("Importación Masiva de Equipos")
     
     archivo = st.file_uploader("Sube tu Excel o CSV", type=['xlsx', 'csv'])
     
@@ -97,11 +95,11 @@ if menu == "Carga de Equipos":
     
         # --- AÑADE ESTO AL FINAL DE LA SECCIÓN DE CARGA ---
         st.write("---")
-        st.subheader("👀 Equipos actualmente en la Base de Datos")
+        st.subheader("Equipos actualmente en la Base de Datos")
         renderizar_tarjetas_equipos(get_equipos())
 
 if menu == "Configurador":
-    st.subheader("⚙️ Definición de Grupos por Fase")
+    st.subheader("Definición de Grupos por Fase")
     supabase = get_supabase()
     
     # 1. Gestión de Fases
@@ -180,7 +178,7 @@ if menu == "Configurador":
                     st.warning(f"⚠️ Faltan {total_equipos_bd - total_plazas} plazas por configurar.")
 
 if menu == "Cuadro Visual":
-    st.subheader("🖼️ Cuadro General del Torneo")
+    st.subheader("Cuadro General del Torneo")
     supabase = get_supabase()
     
     fases = supabase.table("fases").select("*").order("orden").execute().data
