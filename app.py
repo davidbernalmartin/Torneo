@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
-from src.database import *
-from src.logic import *
-from src.components import *
+from src.database import ()
+from src.logic import ()
+from src.components import ()
 
 # URL del escudo oficial
 LOGO_RFFM_URL = "https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png"
@@ -30,8 +30,6 @@ if "view" in query_params and query_params["view"] == "tv":
         st.warning("⚠️ No se ha especificado ningún ID de grupo en la URL.")
     
     st.stop()
-
-st.set_page_config(page_title="Gestor Torneo RFFM", layout="wide")
 
 # Título con el logo integrado
 st.markdown(
