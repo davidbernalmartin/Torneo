@@ -100,7 +100,7 @@ def renderizar_tarjeta_grupo(grupo, participantes):
 def mostrar_grupo_tv(nombre_grupo_url):
     """Vista para la TV: Estilo blanco corporativo sobre fondo rojo"""
     supabase = get_supabase()
-    LOGO_RFFM_URL = "https://scontent-mad1-1.cdninstagram.com/v/t51.82787-19/649589667_18429015436139490_4358269622257891377_n.jpg?stp=dst-jpg_s150x150_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDgwLmMyIn0&_nc_ht=scontent-mad1-1.cdninstagram.com&_nc_cat=106&_nc_oc=Q6cZ2gGXcZRXyX9ChlNrtSH_B8cz_rJUOHKKppD7pg4mPy6Z0bVten8y4bltDhp4YB1Ym-w&_nc_ohc=-F60AIguMA0Q7kNvwHzV1pl&_nc_gid=g5ZXQfbg0Fp9g0B2mK3dZQ&edm=AOQ1c0wBAAAA&ccb=7-5&oh=00_Af1bIl8Ubo7d26zr0pxIp0OBwzxPUu29owas0GeaBcRnfA&oe=69F11917&_nc_sid=8b3546"
+    LOGO_RFFM_URL = "https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png"
     try:
         # 1. Buscar el grupo actual
         res_grupo = supabase.table("grupos").select("id, nombre, tipo_grupo, fase_id").eq("nombre", nombre_grupo_url).execute()
@@ -134,7 +134,6 @@ def mostrar_grupo_tv(nombre_grupo_url):
                 ">
                     {nombre_display}
                 </h1>
-                <img src="{LOGO_RFFM_URL}" style="width: 100px;">
             </div>
             """, 
             unsafe_allow_html=True
