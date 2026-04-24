@@ -171,6 +171,7 @@ def mostrar_grupo_tv(nombre_grupo_url):
 
 
 # -------------------------------------------------------
+# -------------------------------------------------------
 # TARJETA DE GRUPO — dark/deportiva, un botón por grupo
 # -------------------------------------------------------
 
@@ -178,9 +179,10 @@ def renderizar_tarjeta_grupo_minimalista(
     grupo, participantes, equipos_libres, es_progresion, fases, fase_actual, supabase
 ):
     """
-    Tarjeta dark/deportiva con un único botón por grupo:
-    - Grupo incompleto → "＋ Asignar equipos" abre selectboxes para cada plaza vacía.
-    - Grupo completo   → "Vaciar grupo" borra todos los participantes del grupo.
+    Tarjeta dark/deportiva.
+    - Grupo incompleto → botón "＋ Asignar equipos" + un único selectbox que inserta
+      de uno en uno hasta llenar el grupo.
+    - Grupo completo   → botón "Vaciar grupo" con confirmación.
     """
     grupo_id = grupo["id"]
     capacidad = grupo["tipo_grupo"]
@@ -188,7 +190,7 @@ def renderizar_tarjeta_grupo_minimalista(
     grupo_lleno = len(asignados) >= capacidad
     key_open = f"asignando_{grupo_id}"
 
-    # --- Tarjeta HTML: cabecera + filas ---
+    # --- Tarjeta HTML ---
     st.markdown(f"""
         <div style="background:#8b0000;border-radius:12px;overflow:hidden;margin-bottom:4px;">
             <div style="background:#cc0000;padding:10px 14px;display:flex;align-items:center;gap:8px;">
@@ -222,15 +224,14 @@ def renderizar_tarjeta_grupo_minimalista(
             """, unsafe_allow_html=True)
         else:
             st.markdown("""
-                <div style="border:1px dashed rgba(255,255,255,0.3);border-radius:6px;background:rgba(0,0,0,0.15);
-                            height:34px;margin-bottom:5px;"></div>
+                <div style="border:1px dashed rgba(255,255,255,0.3);border-radius:6px;
+                            background:rgba(0,0,0,0.15);height:34px;margin-bottom:5px;"></div>
             """, unsafe_allow_html=True)
 
     st.markdown("</div></div>", unsafe_allow_html=True)
 
-    # --- Botón único por grupo ---
+    # --- Botón único ---
     if grupo_lleno:
-        # Grupo completo → botón para vaciar
         if st.button("⊘  Vaciar grupo", key=f"vaciar_{grupo_id}", use_container_width=True):
             st.session_state[f"confirmar_vaciar_{grupo_id}"] = True
 
@@ -248,38 +249,40 @@ def renderizar_tarjeta_grupo_minimalista(
                 st.session_state.pop(f"confirmar_vaciar_{grupo_id}", None)
                 st.rerun()
     else:
-        # Grupo incompleto → botón para abrir asignación
         if not st.session_state.get(key_open, False):
             if st.button("＋  Asignar equipos", key=f"btn_asignar_{grupo_id}", use_container_width=True):
                 st.session_state[key_open] = True
                 st.rerun()
         else:
-            # Selectboxes para cada plaza vacía
-            plazas_vacias = [
-                (i, participantes[i] if i < len(participantes) else None)
-                for i in range(capacidad)
-                if not (i < len(participantes) and participantes[i] and participantes[i].get("equipo_id"))
-            ]
-            for i, p_actual in plazas_vacias:
-                if not es_progresion:
-                    opciones = ["— elige equipo —"] + [e["nombre"] for e in equipos_libres]
-                    seleccion = st.selectbox(
-                        f"Plaza {i + 1}",
-                        opciones,
-                        key=f"sel_{grupo_id}_{i}",
-                    )
-                    if seleccion != opciones[0]:
-                        try:
-                            e_id = next(e["id"] for e in equipos_libres if e["nombre"] == seleccion)
-                            supabase.table("participantes_grupo").insert({
-                                "grupo_id": grupo_id,
-                                "equipo_id": e_id,
-                                "referencia_origen": "Sorteo",
-                            }).execute()
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Error al asignar: {e}")
-                else:
+            # Un único selectbox — inserta el equipo elegido y se queda abierto
+            # hasta que el grupo se llene o el usuario cierre
+            if not es_progresion:
+                plazas_libres = capacidad - len(asignados)
+                opciones = ["— elige equipo —"] + [e["nombre"] for e in equipos_libres]
+                seleccion = st.selectbox(
+                    f"Añadir a {grupo['nombre']} ({plazas_libres} plaza{'s' if plazas_libres != 1 else ''} libre{'s' if plazas_libres != 1 else ''})",
+                    opciones,
+                    key=f"sel_{grupo_id}",
+                )
+                if seleccion != opciones[0]:
+                    try:
+                        e_id = next(e["id"] for e in equipos_libres if e["nombre"] == seleccion)
+                        supabase.table("participantes_grupo").insert({
+                            "grupo_id": grupo_id,
+                            "equipo_id": e_id,
+                            "referencia_origen": "Sorteo",
+                        }).execute()
+                        st.rerun()  # refresca la tarjeta; el selectbox vuelve al placeholder
+                    except Exception as e:
+                        st.error(f"Error al asignar: {e}")
+            else:
+                # Progresión: un selectbox por cada plaza con referencia configurada
+                plazas_vacias = [
+                    (i, participantes[i] if i < len(participantes) else None)
+                    for i in range(capacidad)
+                    if not (i < len(participantes) and participantes[i] and participantes[i].get("equipo_id"))
+                ]
+                for i, p_actual in plazas_vacias:
                     if p_actual and p_actual.get("referencia_origen"):
                         ref = p_actual["referencia_origen"]
                         nombre_g_orig = ref.split(" | ")[0] if " | " in ref else None
