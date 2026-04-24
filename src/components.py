@@ -364,7 +364,7 @@ def renderizar_tarjeta_grupo_minimalista(
             col_si, col_no = st.columns(2)
             if col_si.button("Sí, vaciar", key=f"si_vaciar_{grupo_id}", type="primary"):
                 try:
-                    supabase.table("participantes_grupo").delete().eq("grupo_id", grupo_id).execute()
+                    supabase.table("participantes_grupo").update({"equipo_id": None}).eq("grupo_id", grupo_id).execute()
                     st.session_state.pop(f"confirmar_vaciar_{grupo_id}", None)
                     st.rerun()
                 except Exception as e:
