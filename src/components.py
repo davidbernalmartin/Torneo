@@ -232,23 +232,46 @@ def renderizar_tarjeta_grupo_minimalista(
     # Cierre del div oscuro
     st.markdown("</div></div>", unsafe_allow_html=True)
 
-    # Plazas vacías — widgets de Streamlit fuera del HTML
+    # CSS para que los selectboxes de plazas vacías encajen con la tarjeta oscura
+    grupo_id = grupo["id"]
+    st.markdown(f"""
+        <style>
+        [data-testid="stSelectbox"][data-key^="sel_{grupo_id}_"] > div > div,
+        [data-testid="stSelectbox"][data-key^="sel_prog_{grupo_id}_"] > div > div {{
+            background-color: rgba(255,255,255,0.07) !important;
+            border: 1px solid rgba(255,255,255,0.12) !important;
+            border-radius: 6px !important;
+            color: rgba(255,255,255,0.5) !important;
+            font-size: 0.78rem !important;
+            font-weight: 600 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.03em !important;
+            min-height: 36px !important;
+        }}
+        [data-testid="stSelectbox"][data-key^="sel_{grupo_id}_"] svg,
+        [data-testid="stSelectbox"][data-key^="sel_prog_{grupo_id}_"] svg {{
+            fill: rgba(255,255,255,0.4) !important;
+        }}
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Plazas vacías — widgets de Streamlit
     for i in range(grupo["tipo_grupo"]):
         p_actual = participantes[i] if i < len(participantes) else None
         if not (p_actual and p_actual["equipo_id"]):
             if not es_progresion:
                 opciones = [f"— Plaza {i+1}"] + [e["nombre"] for e in equipos_libres]
                 seleccion = st.selectbox(
-                    f"plaza_{grupo['id']}_{i}",
+                    f"plaza_{grupo_id}_{i}",
                     opciones,
-                    key=f"sel_{grupo['id']}_{i}",
+                    key=f"sel_{grupo_id}_{i}",
                     label_visibility="collapsed",
                 )
                 if seleccion != opciones[0]:
                     try:
                         e_id = next(e["id"] for e in equipos_libres if e["nombre"] == seleccion)
                         supabase.table("participantes_grupo").insert({
-                            "grupo_id": grupo["id"],
+                            "grupo_id": grupo_id,
                             "equipo_id": e_id,
                             "referencia_origen": "Sorteo",
                         }).execute()
@@ -281,9 +304,9 @@ def renderizar_tarjeta_grupo_minimalista(
                                 candidatos = [p["equipos"] for p in res_cand.data if p["equipos"]]
                                 opciones = [f"🏆 {ref}"] + [c["nombre"] for c in candidatos]
                                 sel = st.selectbox(
-                                    f"prog_{grupo['id']}_{i}",
+                                    f"prog_{grupo_id}_{i}",
                                     opciones,
-                                    key=f"sel_prog_{grupo['id']}_{i}",
+                                    key=f"sel_prog_{grupo_id}_{i}",
                                     label_visibility="collapsed",
                                 )
                                 if sel != opciones[0]:
