@@ -260,144 +260,58 @@ if menu == "Cuadro Visual":
         es_progresion = fase_actual["orden"] > 1
 
         grupos = get_grupos_por_fase(fase_id)
+
+        # --- CONSULTA 1: todos los participantes de la fase de una vez ---
+        ids_grupos = [g["id"] for g in grupos]
+        todos_participantes = []
+        if ids_grupos:
+            try:
+                res_todos_p = (
+                    supabase.table("participantes_grupo")
+                    .select("*, equipos(id, nombre, escudo_url)")
+                    .in_("grupo_id", ids_grupos)
+                    .execute()
+                )
+                todos_participantes = res_todos_p.data
+            except Exception as e:
+                st.error(f"Error cargando participantes: {e}")
+
+        # Indexamos por grupo_id para acceso O(1) dentro del bucle
+        participantes_por_grupo: dict = {}
+        for p in todos_participantes:
+            participantes_por_grupo.setdefault(p["grupo_id"], []).append(p)
+
+        # --- CONSULTA 2: equipos libres (solo si hay plazas vacías en fase 1) ---
+        equipos_libres = []
+        if not es_progresion:
+            try:
+                res_eq = (
+                    supabase.table("equipos")
+                    .select("id, nombre")
+                    .eq("eliminado", False)
+                    .execute()
+                )
+                ocupados_ids = {p["equipo_id"] for p in todos_participantes if p["equipo_id"]}
+                equipos_libres = [e for e in res_eq.data if e["id"] not in ocupados_ids]
+            except Exception as e:
+                st.error(f"Error cargando equipos libres: {e}")
+
+        from src.components import renderizar_tarjeta_grupo_minimalista
+
         cols_grupos = st.columns(3)
 
         for idx, grupo in enumerate(grupos):
+            participantes = participantes_por_grupo.get(grupo["id"], [])
             with cols_grupos[idx % 3]:
-                st.markdown(
-                    f"""
-                    <div style="display: flex; align-items: center; justify-content: center;
-                                margin-top: 25px; margin-bottom: 10px;">
-                        <img src="{LOGO_RFFM_URL}" style="width: 22px; margin-right: 8px;">
-                        <h2 style="color: white; margin: 0; font-size: 1.2rem;
-                                   font-weight: bold; text-transform: uppercase;">
-                            {grupo['nombre']}
-                        </h2>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
+                renderizar_tarjeta_grupo_minimalista(
+                    grupo=grupo,
+                    participantes=participantes,
+                    equipos_libres=equipos_libres,
+                    es_progresion=es_progresion,
+                    fases=fases,
+                    fase_actual=fase_actual,
+                    supabase=supabase,
                 )
-
-                participantes = get_participantes_grupo(grupo["id"])
-
-                for i in range(grupo["tipo_grupo"]):
-                    p_actual = participantes[i] if i < len(participantes) else None
-
-                    if p_actual and p_actual["equipo_id"]:
-                        nombre_equipo = p_actual["equipos"]["nombre"]
-                        escudo = p_actual["equipos"]["escudo_url"]
-                        st.markdown(
-                            f"""
-                            <div style="background-color: white; border-radius: 8px;
-                                        padding: 0 12px; margin-bottom: 8px;
-                                        display: flex; align-items: center;
-                                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                        border-left: 5px solid #e60000;
-                                        height: 45px; box-sizing: border-box;">
-                                <img src="{escudo if escudo else ''}"
-                                     style="width: 26px; height: 26px; object-fit: contain;
-                                            margin-right: 10px;
-                                            display: {'block' if escudo else 'none'};">
-                                <span style="color: #1a1a1a; font-size: 0.9rem; font-weight: 800;
-                                             text-transform: uppercase; white-space: nowrap;
-                                             overflow: hidden; text-overflow: ellipsis;">
-                                    {nombre_equipo}
-                                </span>
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
-                    else:
-                        if not es_progresion:
-                            try:
-                                res_todos = (
-                                    supabase.table("equipos")
-                                    .select("id, nombre")
-                                    .eq("eliminado", False)
-                                    .execute()
-                                )
-                                res_ocupados = (
-                                    supabase.table("participantes_grupo")
-                                    .select("equipo_id")
-                                    .execute()
-                                )
-                                ocupados_ids = [
-                                    o["equipo_id"]
-                                    for o in res_ocupados.data
-                                    if o["equipo_id"]
-                                ]
-                                equipos_libres = [
-                                    e for e in res_todos.data if e["id"] not in ocupados_ids
-                                ]
-                                opciones = [f"➕ Plaza {i+1}"] + [e["nombre"] for e in equipos_libres]
-                                seleccion = st.selectbox(
-                                    f"P{i+1}_{grupo['id']}",
-                                    opciones,
-                                    key=f"sel_{grupo['id']}_{i}",
-                                    label_visibility="collapsed",
-                                )
-                                if seleccion != opciones[0]:
-                                    e_id = next(
-                                        e["id"] for e in equipos_libres if e["nombre"] == seleccion
-                                    )
-                                    supabase.table("participantes_grupo").insert(
-                                        {
-                                            "grupo_id": grupo["id"],
-                                            "equipo_id": e_id,
-                                            "referencia_origen": "Sorteo",
-                                        }
-                                    ).execute()
-                                    st.rerun()
-                            except Exception as e:
-                                st.error(f"Error al asignar equipo: {e}")
-                        else:
-                            if p_actual and p_actual["referencia_origen"]:
-                                ref = p_actual["referencia_origen"]
-                                nombre_g_orig = ref.split(" | ")[0] if " | " in ref else None
-                                if nombre_g_orig:
-                                    try:
-                                        f_ant = next(
-                                            f for f in fases if f["orden"] == fase_actual["orden"] - 1
-                                        )
-                                        res_g_orig = (
-                                            supabase.table("grupos")
-                                            .select("id")
-                                            .eq("nombre", nombre_g_orig)
-                                            .eq("fase_id", f_ant["id"])
-                                            .execute()
-                                        )
-                                        if res_g_orig.data:
-                                            id_g_orig = res_g_orig.data[0]["id"]
-                                            res_cand = (
-                                                supabase.table("participantes_grupo")
-                                                .select("equipos(id, nombre)")
-                                                .eq("grupo_id", id_g_orig)
-                                                .execute()
-                                            )
-                                            candidatos = [
-                                                p["equipos"]
-                                                for p in res_cand.data
-                                                if p["equipos"]
-                                            ]
-                                            opciones = [f"🏆 {ref}"] + [c["nombre"] for c in candidatos]
-                                            seleccion_prog = st.selectbox(
-                                                f"C{i+1}_{grupo['id']}",
-                                                opciones,
-                                                key=f"sel_prog_{grupo['id']}_{i}",
-                                                label_visibility="collapsed",
-                                            )
-                                            if seleccion_prog != opciones[0]:
-                                                e_id = next(
-                                                    c["id"]
-                                                    for c in candidatos
-                                                    if c["nombre"] == seleccion_prog
-                                                )
-                                                supabase.table("participantes_grupo").update(
-                                                    {"equipo_id": e_id}
-                                                ).eq("id", p_actual["id"]).execute()
-                                                st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Error al asignar progresión: {e}")
 
 # -------------------------------------------------------
 # SORTEO
