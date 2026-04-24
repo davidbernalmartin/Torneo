@@ -6,7 +6,7 @@ def seccion_sorteo_manual(supabase):
     """
     Gestiona el sorteo automático buscando la fase de orden 1.
     """
-    st.subheader("🔮 Mesa de Sorteo (Fase Inicial)")
+    st.subheader("Mesa de Sorteo (Fase Inicial)")
 
     # 1. Localizar automáticamente la fase de orden 1
     res_fase = supabase.table("fases").select("id, nombre").eq("orden", 1).execute()
@@ -34,7 +34,7 @@ def seccion_sorteo_manual(supabase):
     equipos_libres = [e for e in res_e.data if e['id'] not in asignados_ids]
 
     if not equipos_libres:
-        st.success("🏁 ¡Sorteo completado! Todos los equipos están en sus grupos.")
+        st.success("¡Sorteo completado! Todos los equipos están en sus grupos.")
         return
 
     # 3. Interfaz de asignación
@@ -76,7 +76,7 @@ def renderizar_tarjeta_grupo(grupo, participantes):
 
     with st.container(border=True):
         # Texto negro para que resalte dentro del blanco
-        st.markdown(f"<h3 style='color: black;'>📋 {grupo['nombre']}</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h6 style='color: black;'>{grupo['nombre']}</h6>", unsafe_allow_html=True)
         
         for i in range(grupo['tipo_grupo']):
             if i < len(participantes):
@@ -100,7 +100,7 @@ def renderizar_tarjeta_grupo(grupo, participantes):
 def mostrar_grupo_tv(nombre_grupo_url):
     """Vista para la TV: Estilo blanco corporativo sobre fondo rojo"""
     supabase = get_supabase()
-    
+    LOGO_RFFM_URL = "https://www.rffm.es/_next/image?url=https%3A%2F%2Frffm-cms.s3.eu-west-1.amazonaws.com%2Ffavicon_87ea61909c.png&w=48&q=75"
     try:
         # 1. Buscar el grupo actual
         res_grupo = supabase.table("grupos").select("id, nombre, tipo_grupo, fase_id").eq("nombre", nombre_grupo_url).execute()
@@ -116,11 +116,20 @@ def mostrar_grupo_tv(nombre_grupo_url):
         tipo_grupo = datos_grupo['tipo_grupo']
 
         # Título principal
-        st.markdown(f"""
-            <h1 style='text-align: center; font-size: 5rem; margin-top: -20px; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);'>
-                {nombre_display}
-            </h1>
-        """, unsafe_allow_html=True)
+        # Título con el logo integrado
+        st.markdown(
+            f"""
+            <div style="display: flex; align-items: center;">
+                <img src="{LOGO_RFFM_URL}" style="width: 50px; margin-right: 15px;">
+                <h1 style='text-align: center; font-size: 5rem; margin-top: -20px; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);'>
+                    {nombre_display}
+                </h1>
+                <img src="{LOGO_RFFM_URL}" style="width: 50px; margin-right: 15px;">
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+
         
         st.write("")
 
