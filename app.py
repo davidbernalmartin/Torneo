@@ -7,39 +7,6 @@ from src.components import *
 st.set_page_config(layout="wide")
 query_params = st.query_params
 
-def configurar_apariencia():
-    # 1. Configuración básica (lo que sí permite Streamlit)
-    st.set_page_config(page_title="Gestión RFFM", layout="wide")
-
-    # 2. Inyección de estilo para el fondo (lo que no permite el config.toml)
-    fondo_url = "https://rfef.es/sites/default/files/styles/territoriales/public/territoriales/territorialesweb_1200x1200_madrid_0.png.webp?itok=eM1uPhEa"
-    
-    st.markdown(f"""
-        <style>
-        .stApp {{
-            background-color: #f8f9fa;
-        }}
-        .stApp::before {{
-            content: "";
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            height: 80%;
-            background-image: url("{fondo_url}");
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            opacity: 0.4; /* Muy sutil para que no moleste al leer */
-            z-index: -1;
-        }}
-        </style>
-    """, unsafe_allow_html=True)
-
-# Al principio de tu main()
-configurar_apariencia()
-
 if "view" in query_params and query_params["view"] == "tv":
     # Obtenemos el ID del grupo de la URL (si existe)
     # Ejemplo de URL: https://tu-app.app/?view=tv&grupo=5
