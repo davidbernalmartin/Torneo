@@ -124,7 +124,7 @@ def mostrar_grupo_tv(nombre_grupo_url):
                 justify-content: center; /* ESTO CENTRA EL CONTENIDO HORIZONTALMENTE */
                 width: 100%;
             ">
-                <img src="{LOGO_RFFM_URL}" style="width: 100px;"> <h1 style="
+                <img src="{LOGO_RFFM_URL}" style="width: 200px;"> <h1 style="
                     text-align: center; 
                     font-size: 5rem; 
                     margin: 20; 
@@ -134,7 +134,7 @@ def mostrar_grupo_tv(nombre_grupo_url):
                 ">
                     {nombre_display}
                 </h1>
-                <img src="{LOGO_RFFM_URL}" style="width: 100px;">
+                <img src="{LOGO_RFFM_URL}" style="width: 200px;">
             </div>
             """, 
             unsafe_allow_html=True
