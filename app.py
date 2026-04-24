@@ -243,35 +243,28 @@ if menu == "Cuadro Visual":
                 for i in range(grupo['tipo_grupo']):
                     p_actual = participantes[i] if i < len(participantes) else None
                     
-                    # CASO A: LA PLAZA TIENE UN EQUIPO ASIGNADO (TARJETA BLANCA LIMPIA)
+                    # CASO A: LA PLAZA TIENE UN EQUIPO ASIGNADO
                     if p_actual and p_actual['equipo_id']:
                         nombre_equipo = p_actual['equipos']['nombre']
-                        escudo = p_actual['equipos']['escudo_url'] if p_actual['equipos']['escudo_url'] else ""
+                        escudo = p_actual['equipo_id'] and p_actual['equipos']['escudo_url']
                         
                         st.markdown(f"""
                             <div style="background-color: white; border-radius: 12px; padding: 10px 20px; margin-bottom: 8px; 
                                         display: flex; align-items: center; box-shadow: 0 4px 8px rgba(0,0,0,0.2); border-left: 5px solid #e60000;">
-                                <img src="{escudo}" style="width: 40px; height: 40px; object-fit: contain; margin-right: 15px;">
+                                <img src="{escudo if escudo else ''}" style="width: 40px; height: 40px; object-fit: contain; margin-right: 15px; display: {'block' if escudo else 'none'};">
                                 <span style="color: #1a1a1a; font-size: 1.4rem; font-weight: 800; text-transform: uppercase; flex-grow: 1;">
                                     {nombre_equipo}
                                 </span>
                             </div>
                         """, unsafe_allow_html=True)
 
-                    # CASO B: LA PLAZA ESTÁ VACÍA (DIBUJO PUNTEADO + SELECTOR)
+                    # CASO B: LA PLAZA ESTÁ VACÍA (SOLO EL SELECTOR)
                     else:
-                        ref_display = p_actual['referencia_origen'] if p_actual and p_actual['referencia_origen'] else "ESPERANDO..."
+                        # Si no hay registro de plaza pero es progresión, avisamos sutilmente
+                        if es_progresion and not p_actual:
+                            st.caption(f"⚠️ Plaza {i+1} no configurada en el Configurador")
                         
-                        st.markdown(f"""
-                            <div style="border: 2px dashed rgba(255,255,255,0.4); border-radius: 12px; padding: 12px; 
-                                        margin-bottom: 8px; display: flex; align-items: center; justify-content: center;">
-                                <span style="color: rgba(255,255,255,0.6); font-size: 1rem; font-weight: bold; font-style: italic; letter-spacing: 1px;">
-                                    {ref_display.upper()}
-                                </span>
-                            </div>
-                        """, unsafe_allow_html=True)
-
-                        # --- SELECTOR DE ASIGNACIÓN (Solo aparece si el hueco está vacío) ---
+                        # --- SELECTOR DE ASIGNACIÓN DIRECTO ---
                         if not es_progresion:
                             # Fase 1: Equipos libres
                             res_todos = supabase.table("equipos").select("id, nombre").eq("eliminado", False).execute()
@@ -279,10 +272,10 @@ if menu == "Cuadro Visual":
                             ocupados_ids = [o['equipo_id'] for o in res_ocupados.data if o['equipo_id']]
                             equipos_libres = [e for e in res_todos.data if e['id'] not in ocupados_ids]
                             
-                            opciones = ["- Seleccionar Equipo -"] + [e['nombre'] for e in equipos_libres]
-                            sel = st.selectbox(f"Asignar a {grupo['nombre']} P{i+1}", opciones, key=f"sel_{grupo['id']}_{i}", label_visibility="collapsed")
+                            opciones = [f"➕ Asignar Equipo a Plaza {i+1}"] + [e['nombre'] for e in equipos_libres]
+                            sel = st.selectbox("Asignar", opciones, key=f"sel_{grupo['id']}_{i}", label_visibility="collapsed")
                             
-                            if sel != "- Seleccionar Equipo -":
+                            if sel != opciones[0]:
                                 e_id = next(e['id'] for e in equipos_libres if e['nombre'] == sel)
                                 supabase.table("participantes_grupo").insert({
                                     "grupo_id": grupo['id'], 
@@ -305,8 +298,8 @@ if menu == "Cuadro Visual":
                                         res_cand = supabase.table("participantes_grupo").select("equipos(id, nombre)").eq("grupo_id", id_g_orig).execute()
                                         candidatos = [p['equipos'] for p in res_cand.data if p['equipos']]
                                         
-                                        opciones = [f"- Clasifica de {nombre_g_orig} -"] + [c['nombre'] for c in candidatos]
-                                        sel = st.selectbox(f"Clasifica {i+1}", opciones, key=f"sel_prog_{grupo['id']}_{i}", label_visibility="collapsed")
+                                        opciones = [f"🏆 Clasifica de {ref}"] + [c['nombre'] for c in candidatos]
+                                        sel = st.selectbox("Clasifica", opciones, key=f"sel_prog_{grupo['id']}_{i}", label_visibility="collapsed")
                                         
                                         if sel != opciones[0]:
                                             e_id = next(c['id'] for c in candidatos if c['nombre'] == sel)
