@@ -4,8 +4,47 @@ from src.database import *
 from src.logic import *
 from src.components import *
 
+def aplicar_fondo_rffm_global():
+    # Nueva URL del logo que has pasado
+    fondo_url = "https://rffm-cms.s3.eu-west-1.amazonaws.com/LOGO_RFFM_NUEVO_0779d6b917.jpg"
+    
+    st.markdown(f"""
+        <style>
+        /* Aplicamos a toda la app */
+        .stApp {{
+            background-color: #fcfcfc; /* Un blanco roto muy limpio */
+        }}
+
+        /* Capa de fondo persistente */
+        .stApp::before {{
+            content: "";
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60%;  /* Tamaño de la marca de agua */
+            height: 60%;
+            background-image: url("{fondo_url}");
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.07; /* Muy sutil para que sea elegante y no moleste */
+            z-index: -1;
+            pointer-events: none;
+            filter: grayscale(20%); /* Opcional: para que no chillen mucho los colores */
+        }}
+
+        /* Aseguramos que el contenido sea legible sobre el fondo */
+        .stAppViewContainer {{
+            background: transparent !important;
+        }}
+        </style>
+    """, unsafe_allow_html=True)
+
+aplicar_fondo_rffm_global()
+
 # URL del escudo oficial
-LOGO_RFFM_URL = "https://www.rffm.es/_next/image?url=https%3A%2F%2Frffm-cms.s3.eu-west-1.amazonaws.com%2Ffavicon_87ea61909c.png&w=48&q=75"
+LOGO_RFFM_URL = "https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png"
 
 st.set_page_config(layout="wide")
 query_params = st.query_params
