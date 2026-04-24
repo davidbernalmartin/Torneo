@@ -202,43 +202,95 @@ if menu == "Configurador":
                 st.info(f"Capacidad total de la fase: {total_plazas} equipos.")
 
 if menu == "Cuadro Visual":
-    st.subheader("Cuadro General del Torneo")
+    st.subheader("Gestión de Equipos por Grupo")
     supabase = get_supabase()
+
+    # 1. Selección de Fase
+    fases_res = supabase.table("fases").select("*").order("orden").execute()
+    fases = fases_res.data
     
-    fases = supabase.table("fases").select("*").order("orden").execute().data
     if not fases:
-        st.info("Crea una fase primero.")
+        st.info("No hay fases configuradas.")
     else:
-        fase_sel = st.selectbox("Selecciona Fase", [f["nombre"] for f in fases])
-        f_actual = next(f for f in fases if f["nombre"] == fase_sel)
+        fase_sel = st.selectbox("Seleccionar Fase", [f["nombre"] for f in fases])
+        fase_actual = next(f for f in fases if f["nombre"] == fase_sel)
         
-        grupos = supabase.table("grupos").select("*").eq("fase_id", f_actual['id']).execute().data
+        # 2. Obtener grupos y participantes
+        grupos_res = supabase.table("grupos").select("*").eq("fase_id", fase_actual["id"]).execute()
         
-        if grupos:
-            # 1. Ordenación natural
-            import re
-            def extraer_numero(nombre_grupo):
-                numeros = re.findall(r'\d+', nombre_grupo)
-                return int(numeros[0]) if numeros else 0
+        for grupo in grupos_res.data:
+            st.write(f"### {grupo['nombre']}")
             
-            grupos_ordenados = sorted(grupos, key=lambda x: extraer_numero(x['nombre']))
+            # Traemos los participantes actuales (incluyendo los que solo tienen referencia_origen)
+            res_p = supabase.table("participantes_grupo").select("*, equipos(nombre, escudo_url)").eq("grupo_id", grupo['id']).execute()
+            participantes = res_p.data
             
-            # 2. CARGA EFICIENTE: Traemos todos los participantes de la fase de una sola vez
-            ids_g = [g['id'] for g in grupos_ordenados]
-            todos_p = supabase.table("participantes_grupo").select("*, equipos(nombre, escudo_url)").in_("grupo_id", ids_g).execute().data
-            
-            # 3. DIBUJO: Un solo bucle y las columnas fuera
+            # Dibujamos las plazas (tantas como diga tipo_grupo)
+            for i in range(grupo['tipo_grupo']):
+                # Buscamos si hay un dato para esta posición (index i)
+                p_actual = participantes[i] if i < len(participantes) else None
+                
+                col_info, col_accion = st.columns([3, 2])
+                
+                if p_actual and p_actual['equipo_id']:
+                    # --- PLAZA OCUPADA ---
+                    nombre = p_actual['equipos']['nombre']
+                    escudo = p_actual['equipos']['escudo_url']
+                    col_info.markdown(f"**{i+1}.** {f'![escudo]({escudo})' if escudo else '🛡️'} {nombre}")
+                    if col_accion.button("❌ Quitar", key=f"del_{p_actual['id']}"):
+                        supabase.table("participantes_grupo").update({"equipo_id": None}).eq("id", p_actual['id']).execute()
+                        st.rerun()
+                else:
+                    # --- PLAZA VACÍA / POR RELLENAR ---
+                    ref = p_actual['referencia_origen'] if p_actual else "Sorteo"
+                    col_info.info(f"Plaza {i+1} vacía ({ref})")
+                    
+                    # LÓGICA DE SELECCIÓN SEGÚN FASE
+                    if fase_actual["orden"] == 1:
+                        # Fase 1: Todos los equipos libres
+                        res_todos = supabase.table("equipos").select("id, nombre").eq("eliminado", False).execute()
+                        res_ocupados = supabase.table("participantes_grupo").select("equipo_id").execute()
+                        ocupados_ids = [o['equipo_id'] for o in res_ocupados.data if o['equipo_id']]
+                        
+                        equipos_libres = [e for e in res_todos.data if e['id'] not in ocupados_ids]
+                        
+                        with col_accion:
+                            equipo_sel = st.selectbox("Elegir equipo", ["-"] + [e['nombre'] for e in equipos_libres], key=f"sel_{grupo['id']}_{i}")
+                            if equipo_sel != "-":
+                                e_id = next(e['id'] for e in equipos_libres if e['nombre'] == equipo_sel)
+                                # Si ya existía el registro de plaza (de la configuración), actualizamos
+                                if p_actual:
+                                    supabase.table("participantes_grupo").update({"equipo_id": e_id}).eq("id", p_actual['id']).execute()
+                                else:
+                                    supabase.table("participantes_grupo").insert({"grupo_id": grupo['id'], "equipo_id": e_id, "referencia_origen": "Sorteo"}).execute()
+                                st.rerun()
+                    
+                    else:
+                        # Fase > 1: Solo equipos del grupo origen configurado
+                        # ref suele ser "Grupo 1 | 1º"
+                        nombre_grupo_orig = ref.split(" | ")[0] if " | " in ref else None
+                        
+                        if nombre_grupo_orig:
+                            # 1. Buscar ID del grupo origen en la fase anterior
+                            f_ant_id = next(f['id'] for f in fases if f['orden'] == fase_actual['orden'] - 1)
+                            res_g_orig = supabase.table("grupos").select("id").eq("nombre", nombre_grupo_orig).eq("fase_id", f_ant_id).execute()
+                            
+                            if res_g_orig.data:
+                                g_orig_id = res_g_orig.data[0]['id']
+                                # 2. Buscar equipos que jugaron en ese grupo
+                                res_e_orig = supabase.table("participantes_grupo").select("equipos(id, nombre)").eq("grupo_id", g_orig_id).execute()
+                                candidatos = [p['equipos'] for p in res_e_orig.data if p['equipos']]
+                                
+                                with col_accion:
+                                    e_sel = st.selectbox(f"Clasifica de {nombre_grupo_orig}", ["-"] + [e['nombre'] for e in candidatos], key=f"sel_prog_{grupo['id']}_{i}")
+                                    if e_sel != "-":
+                                        e_id = next(e['id'] for e in candidatos if e['nombre'] == e_sel)
+                                        supabase.table("participantes_grupo").update({"equipo_id": e_id}).eq("id", p_actual['id']).execute()
+                                        st.rerun()
+                        else:
+                            col_accion.warning("⚠️ Configura el origen en el Configurador.")
+
             st.write("---")
-            cols = st.columns(3) # Definimos las 3 columnas
-            
-            for idx, g in enumerate(grupos_ordenados):
-                # Usamos el operador módulo % para repartir los grupos en las 3 columnas
-                with cols[idx % 3]:
-                    # Filtramos en memoria los participantes de este grupo concreto
-                    p_grupo = [p for p in todos_p if p['grupo_id'] == g['id']]
-                    renderizar_tarjeta_grupo(g, p_grupo)
-        else:
-            st.warning("No hay grupos configurados para esta fase.")
 
 if menu == "Sorteo":
     supabase = get_supabase()
