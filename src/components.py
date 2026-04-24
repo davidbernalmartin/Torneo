@@ -190,7 +190,7 @@ def renderizar_tarjeta_grupo_minimalista(
 
     # --- Tarjeta HTML: cabecera + filas ---
     st.markdown(f"""
-        <div style="background:#1a1c24;border-radius:12px;overflow:hidden;margin-bottom:4px;">
+        <div style="background:#8b0000;border-radius:12px;overflow:hidden;margin-bottom:4px;">
             <div style="background:#cc0000;padding:10px 14px;display:flex;align-items:center;gap:8px;">
                 <div style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.35);flex-shrink:0;"></div>
                 <span style="font-size:0.72rem;font-weight:700;color:white;text-transform:uppercase;letter-spacing:0.07em;">
@@ -211,10 +211,10 @@ def renderizar_tarjeta_grupo_minimalista(
                 '<div style="width:22px;margin-right:10px;"></div>'
             )
             st.markdown(f"""
-                <div style="display:flex;align-items:center;background:rgba(255,255,255,0.07);
+                <div style="display:flex;align-items:center;background:white;
                             border-radius:6px;padding:6px 10px;margin-bottom:5px;">
                     {img_tag}
-                    <span style="font-size:0.78rem;font-weight:700;color:#fff;text-transform:uppercase;
+                    <span style="font-size:0.78rem;font-weight:700;color:#1a1a1a;text-transform:uppercase;
                                  letter-spacing:0.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                         {nombre_equipo}
                     </span>
@@ -222,7 +222,7 @@ def renderizar_tarjeta_grupo_minimalista(
             """, unsafe_allow_html=True)
         else:
             st.markdown("""
-                <div style="border:1px dashed rgba(255,255,255,0.15);border-radius:6px;
+                <div style="border:1px dashed rgba(255,255,255,0.3);border-radius:6px;background:rgba(0,0,0,0.15);
                             height:34px;margin-bottom:5px;"></div>
             """, unsafe_allow_html=True)
 
