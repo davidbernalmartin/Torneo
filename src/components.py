@@ -121,7 +121,8 @@ def mostrar_grupo_tv(nombre_grupo_url):
             <div style="
                 display: flex; 
                 align-items: center; 
-                justify-content: center; /* ESTO CENTRA EL CONTENIDO HORIZONTALMENTE */
+                justify-content: center;
+                gap: 20px;
                 width: 100%;
             ">
                 <img src="{LOGO_RFFM_URL}" style="width: 100px;"> <h1 style="
