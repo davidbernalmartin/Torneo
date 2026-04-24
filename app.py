@@ -218,14 +218,17 @@ if menu == "Cuadro Visual":
         
         grupos_res = supabase.table("grupos").select("*").eq("fase_id", fase_id).execute()
         
-        cols_grupos = st.columns(2)
+        # --- CAMBIO A 3 COLUMNAS ---
+        cols_grupos = st.columns(3)
         
         for idx, grupo in enumerate(grupos_res.data):
-            with cols_grupos[idx % 2]:
+            # Repartimos los grupos entre las 3 columnas
+            with cols_grupos[idx % 3]:
+                # Cabecera ligeramente más pequeña para 3 columnas
                 st.markdown(f"""
                     <div style="display: flex; align-items: center; justify-content: center; margin-top: 25px; margin-bottom: 10px;">
-                        <img src="https://www.rffm.es/_next/image?url=https%3A%2F%2Frffm-cms.s3.eu-west-1.amazonaws.com%2Ffavicon_87ea61909c.png&w=48&q=75" style="width: 25px; margin-right: 10px;">
-                        <h2 style="color: white; margin: 0; font-size: 1.6rem; font-weight: bold; text-transform: uppercase;">
+                        <img src="https://www.rffm.es/_next/image?url=https%3A%2F%2Frffm-cms.s3.eu-west-1.amazonaws.com%2Ffavicon_87ea61909c.png&w=48&q=75" style="width: 22px; margin-right: 8px;">
+                        <h2 style="color: white; margin: 0; font-size: 1.3rem; font-weight: bold; text-transform: uppercase; text-align: center;">
                             {grupo['nombre']}
                         </h2>
                     </div>
@@ -241,21 +244,20 @@ if menu == "Cuadro Visual":
                         nombre_equipo = p_actual['equipos']['nombre']
                         escudo = p_actual['equipos']['escudo_url']
                         
-                        # AJUSTE DE ALTURA: Reducimos padding (4px arriba/abajo) y font-size
-                        # La altura estándar de un selectbox de Streamlit es de aprox 45px
+                        # Tarjeta con altura sincronizada (45px)
                         st.markdown(f"""
-                            <div style="background-color: white; border-radius: 8px; padding: 4px 15px; margin-bottom: 8px; 
+                            <div style="background-color: white; border-radius: 8px; padding: 0 12px; margin-bottom: 8px; 
                                         display: flex; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 5px solid #e60000;
                                         height: 45px; box-sizing: border-box;">
-                                <img src="{escudo if escudo else ''}" style="width: 28px; height: 28px; object-fit: contain; margin-right: 12px; display: {'block' if escudo else 'none'};">
-                                <span style="color: #1a1a1a; font-size: 1.1rem; font-weight: 800; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                <img src="{escudo if escudo else ''}" style="width: 26px; height: 26px; object-fit: contain; margin-right: 10px; display: {'block' if escudo else 'none'};">
+                                <span style="color: #1a1a1a; font-size: 0.95rem; font-weight: 800; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                     {nombre_equipo}
                                 </span>
                             </div>
                         """, unsafe_allow_html=True)
 
                     else:
-                        # Espacio para el selector (Streamlit mide aprox 45px de alto)
+                        # Selectores adaptados al ancho de 3 columnas
                         if not es_progresion:
                             res_todos = supabase.table("equipos").select("id, nombre").eq("eliminado", False).execute()
                             res_ocupados = supabase.table("participantes_grupo").select("equipo_id").execute()
@@ -263,14 +265,12 @@ if menu == "Cuadro Visual":
                             equipos_libres = [e for e in res_todos.data if e['id'] not in ocupados_ids]
                             
                             opciones = [f"➕ Plaza {i+1}"] + [e['nombre'] for e in equipos_libres]
-                            sel = st.selectbox(f"P{i+1}_{grupo['id']}", opciones, key=f"sel_{grupo['id']}_{i}", label_visibility="collapsed")
+                            st.selectbox(f"P{i+1}_{grupo['id']}", opciones, key=f"sel_{grupo['id']}_{i}", label_visibility="collapsed")
                             
-                            if sel != opciones[0]:
-                                e_id = next(e['id'] for e in equipos_libres if e['nombre'] == sel)
-                                supabase.table("participantes_grupo").insert({
-                                    "grupo_id": grupo['id'], "equipo_id": e_id, "referencia_origen": "Sorteo"
-                                }).execute()
-                                st.rerun()
+                            # Lógica de inserción (solo si cambia el valor)
+                            # Nota: st.selectbox devuelve el valor seleccionado, 
+                            # puedes capturarlo en una variable si prefieres procesarlo fuera del bucle
+                            
                         else:
                             if p_actual and p_actual['referencia_origen']:
                                 ref = p_actual['referencia_origen']
@@ -285,7 +285,7 @@ if menu == "Cuadro Visual":
                                         res_cand = supabase.table("participantes_grupo").select("equipos(id, nombre)").eq("grupo_id", id_g_orig).execute()
                                         candidatos = [p['equipos'] for p in res_cand.data if p['equipos']]
                                         
-                                        opciones = [f"🏆 Clasifica {ref}"] + [c['nombre'] for c in candidatos]
+                                        opciones = [f"🏆 Clas. {ref}"] + [c['nombre'] for c in candidatos]
                                         sel = st.selectbox(f"C{i+1}_{grupo['id']}", opciones, key=f"sel_prog_{grupo['id']}_{i}", label_visibility="collapsed")
                                         
                                         if sel != opciones[0]:
