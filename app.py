@@ -205,7 +205,6 @@ if menu == "Cuadro Visual":
     st.subheader("Gestión de Equipos por Grupo")
     supabase = get_supabase()
 
-    # 1. Selección de Fase
     fases_res = supabase.table("fases").select("*").order("orden").execute()
     fases = fases_res.data
     
@@ -215,82 +214,93 @@ if menu == "Cuadro Visual":
         fase_sel = st.selectbox("Seleccionar Fase", [f["nombre"] for f in fases])
         fase_actual = next(f for f in fases if f["nombre"] == fase_sel)
         
-        # 2. Obtener grupos y participantes
         grupos_res = supabase.table("grupos").select("*").eq("fase_id", fase_actual["id"]).execute()
         
-        for grupo in grupos_res.data:
-            st.write(f"### {grupo['nombre']}")
-            
-            # Traemos los participantes actuales (incluyendo los que solo tienen referencia_origen)
-            res_p = supabase.table("participantes_grupo").select("*, equipos(nombre, escudo_url)").eq("grupo_id", grupo['id']).execute()
-            participantes = res_p.data
-            
-            # Dibujamos las plazas (tantas como diga tipo_grupo)
-            for i in range(grupo['tipo_grupo']):
-                # Buscamos si hay un dato para esta posición (index i)
-                p_actual = participantes[i] if i < len(participantes) else None
+        # Grid de Streamlit para mostrar tarjetas (2 por fila por ejemplo)
+        cols_grupos = st.columns(2)
+        
+        for idx, grupo in enumerate(grupos_res.data):
+            # Seleccionamos la columna del grid (0 o 1)
+            with cols_grupos[idx % 2]:
+                # --- CABECERA DE LA TARJETA ---
+                st.markdown(f"""
+                    <div style="background-color: #1e1e1e; padding: 15px; border-radius: 10px 10px 0 0; border-bottom: 3px solid #e60000; margin-top: 20px;">
+                        <h3 style="color: white; margin: 0; text-align: center; font-size: 1.5rem;">{grupo['nombre']}</h3>
+                    </div>
+                    <div style="background-color: rgba(255,255,255,0.9); padding: 10px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px;">
+                """, unsafe_allow_html=True)
                 
-                col_info, col_accion = st.columns([3, 2])
+                # Traemos participantes
+                res_p = supabase.table("participantes_grupo").select("*, equipos(nombre, escudo_url)").eq("grupo_id", grupo['id']).execute()
+                participantes = res_p.data
                 
-                if p_actual and p_actual['equipo_id']:
-                    # --- PLAZA OCUPADA ---
-                    nombre = p_actual['equipos']['nombre']
-                    escudo = p_actual['equipos']['escudo_url']
-                    col_info.markdown(f"**{i+1}.** {f'![escudo]({escudo})' if escudo else '🛡️'} {nombre}")
-                    if col_accion.button("❌ Quitar", key=f"del_{p_actual['id']}"):
-                        supabase.table("participantes_grupo").update({"equipo_id": None}).eq("id", p_actual['id']).execute()
-                        st.rerun()
-                else:
-                    # --- PLAZA VACÍA / POR RELLENAR ---
-                    ref = p_actual['referencia_origen'] if p_actual else "Sorteo"
-                    col_info.info(f"Plaza {i+1} vacía ({ref})")
+                for i in range(grupo['tipo_grupo']):
+                    p_actual = participantes[i] if i < len(participantes) else None
                     
-                    # LÓGICA DE SELECCIÓN SEGÚN FASE
-                    if fase_actual["orden"] == 1:
-                        # Fase 1: Todos los equipos libres
-                        res_todos = supabase.table("equipos").select("id, nombre").eq("eliminado", False).execute()
-                        res_ocupados = supabase.table("participantes_grupo").select("equipo_id").execute()
-                        ocupados_ids = [o['equipo_id'] for o in res_ocupados.data if o['equipo_id']]
+                    # Contenedor de fila de equipo
+                    if p_actual and p_actual['equipo_id']:
+                        # --- FILA EQUIPO ASIGNADO ---
+                        nombre = p_actual['equipos']['nombre']
+                        escudo = p_actual['equipos']['escudo_url'] if p_actual['equipos']['escudo_url'] else "https://via.placeholder.com/50"
                         
-                        equipos_libres = [e for e in res_todos.data if e['id'] not in ocupados_ids]
+                        st.markdown(f"""
+                            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee;">
+                                <div style="display: flex; align-items: center;">
+                                    <span style="font-weight: bold; color: #333; margin-right: 10px;">{i+1}</span>
+                                    <img src="{escudo}" style="width: 30px; height: 30px; object-fit: contain; margin-right: 10px;">
+                                    <span style="color: #222; font-weight: 500;">{nombre}</span>
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
                         
-                        with col_accion:
-                            equipo_sel = st.selectbox("Elegir equipo", ["-"] + [e['nombre'] for e in equipos_libres], key=f"sel_{grupo['id']}_{i}")
+                        # Botón de quitar (Streamlit nativo debajo del HTML)
+                        if st.button(f"🗑️ Quitar", key=f"del_{p_actual['id']}_{i}", use_container_width=True):
+                            supabase.table("participantes_grupo").update({"equipo_id": None}).eq("id", p_actual['id']).execute()
+                            st.rerun()
+                    else:
+                        # --- FILA HUECO VACÍO ---
+                        ref = p_actual['referencia_origen'] if p_actual else "Sorteo"
+                        st.markdown(f"""
+                            <div style="display: flex; align-items: center; padding: 8px; background-color: #f9f9f9; border: 1px dashed #ccc; border-radius: 5px; margin: 5px 0;">
+                                <span style="font-weight: bold; color: #999; margin-right: 10px;">{i+1}</span>
+                                <span style="color: #888; font-style: italic; font-size: 0.9rem;">Esperando: {ref}</span>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Selector de asignación
+                        if fase_actual["orden"] == 1:
+                            # Lógica Fase 1 (Equipos libres)
+                            res_todos = supabase.table("equipos").select("id, nombre").eq("eliminado", False).execute()
+                            res_ocupados = supabase.table("participantes_grupo").select("equipo_id").execute()
+                            ocupados_ids = [o['equipo_id'] for o in res_ocupados.data if o['equipo_id']]
+                            equipos_libres = [e for e in res_todos.data if e['id'] not in ocupados_ids]
+                            
+                            equipo_sel = st.selectbox(f"Asignar Plaza {i+1}", ["-"] + [e['nombre'] for e in equipos_libres], key=f"sel_{grupo['id']}_{i}")
                             if equipo_sel != "-":
                                 e_id = next(e['id'] for e in equipos_libres if e['nombre'] == equipo_sel)
-                                # Si ya existía el registro de plaza (de la configuración), actualizamos
                                 if p_actual:
                                     supabase.table("participantes_grupo").update({"equipo_id": e_id}).eq("id", p_actual['id']).execute()
                                 else:
                                     supabase.table("participantes_grupo").insert({"grupo_id": grupo['id'], "equipo_id": e_id, "referencia_origen": "Sorteo"}).execute()
                                 st.rerun()
-                    
-                    else:
-                        # Fase > 1: Solo equipos del grupo origen configurado
-                        # ref suele ser "Grupo 1 | 1º"
-                        nombre_grupo_orig = ref.split(" | ")[0] if " | " in ref else None
-                        
-                        if nombre_grupo_orig:
-                            # 1. Buscar ID del grupo origen en la fase anterior
-                            f_ant_id = next(f['id'] for f in fases if f['orden'] == fase_actual['orden'] - 1)
-                            res_g_orig = supabase.table("grupos").select("id").eq("nombre", nombre_grupo_orig).eq("fase_id", f_ant_id).execute()
-                            
-                            if res_g_orig.data:
-                                g_orig_id = res_g_orig.data[0]['id']
-                                # 2. Buscar equipos que jugaron en ese grupo
-                                res_e_orig = supabase.table("participantes_grupo").select("equipos(id, nombre)").eq("grupo_id", g_orig_id).execute()
-                                candidatos = [p['equipos'] for p in res_e_orig.data if p['equipos']]
-                                
-                                with col_accion:
+                        else:
+                            # Lógica Fase > 1 (Equipos del grupo origen)
+                            nombre_grupo_orig = ref.split(" | ")[0] if " | " in ref else None
+                            if nombre_grupo_orig:
+                                f_ant_id = next(f['id'] for f in fases if f['orden'] == fase_actual['orden'] - 1)
+                                res_g_orig = supabase.table("grupos").select("id").eq("nombre", nombre_grupo_orig).eq("fase_id", f_ant_id).execute()
+                                if res_g_orig.data:
+                                    g_orig_id = res_g_orig.data[0]['id']
+                                    res_e_orig = supabase.table("participantes_grupo").select("equipos(id, nombre)").eq("grupo_id", g_orig_id).execute()
+                                    candidatos = [p['equipos'] for p in res_e_orig.data if p['equipos']]
+                                    
                                     e_sel = st.selectbox(f"Clasifica de {nombre_grupo_orig}", ["-"] + [e['nombre'] for e in candidatos], key=f"sel_prog_{grupo['id']}_{i}")
                                     if e_sel != "-":
                                         e_id = next(e['id'] for e in candidatos if e['nombre'] == e_sel)
                                         supabase.table("participantes_grupo").update({"equipo_id": e_id}).eq("id", p_actual['id']).execute()
                                         st.rerun()
-                        else:
-                            col_accion.warning("⚠️ Configura el origen en el Configurador.")
-
-            st.write("---")
+                
+                st.markdown("</div>", unsafe_allow_html=True) # Cierre de la tarjeta blanca
 
 if menu == "Sorteo":
     supabase = get_supabase()
