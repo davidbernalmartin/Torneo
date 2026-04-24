@@ -243,7 +243,7 @@ if menu == "Cuadro Visual":
                 for i in range(grupo['tipo_grupo']):
                     p_actual = participantes[i] if i < len(participantes) else None
                     
-                    # CASO A: LA PLAZA TIENE UN EQUIPO ASIGNADO
+                    # CASO A: LA PLAZA TIENE UN EQUIPO ASIGNADO (TARJETA BLANCA LIMPIA)
                     if p_actual and p_actual['equipo_id']:
                         nombre_equipo = p_actual['equipos']['nombre']
                         escudo = p_actual['equipos']['escudo_url'] if p_actual['equipos']['escudo_url'] else ""
@@ -257,17 +257,8 @@ if menu == "Cuadro Visual":
                                 </span>
                             </div>
                         """, unsafe_allow_html=True)
-                        
-                        # Botón para liberar la plaza
-                        if st.button(f"Borrar", key=f"del_{grupo['id']}_{i}", use_container_width=True):
-                            # Si es fase 1, borramos el registro. Si es progresión, quitamos el equipo_id pero dejamos la referencia
-                            if not es_progresion:
-                                supabase.table("participantes_grupo").delete().eq("id", p_actual['id']).execute()
-                            else:
-                                supabase.table("participantes_grupo").update({"equipo_id": None}).eq("id", p_actual['id']).execute()
-                            st.rerun()
 
-                    # CASO B: LA PLAZA ESTÁ VACÍA (DIBUJO PUNTEADO)
+                    # CASO B: LA PLAZA ESTÁ VACÍA (DIBUJO PUNTEADO + SELECTOR)
                     else:
                         ref_display = p_actual['referencia_origen'] if p_actual and p_actual['referencia_origen'] else "ESPERANDO..."
                         
@@ -280,9 +271,9 @@ if menu == "Cuadro Visual":
                             </div>
                         """, unsafe_allow_html=True)
 
-                        # --- SELECTOR DE ASIGNACIÓN ---
+                        # --- SELECTOR DE ASIGNACIÓN (Solo aparece si el hueco está vacío) ---
                         if not es_progresion:
-                            # Lógica Fase 1: Equipos que no estén en ningún grupo de esta fase
+                            # Fase 1: Equipos libres
                             res_todos = supabase.table("equipos").select("id, nombre").eq("eliminado", False).execute()
                             res_ocupados = supabase.table("participantes_grupo").select("equipo_id").execute()
                             ocupados_ids = [o['equipo_id'] for o in res_ocupados.data if o['equipo_id']]
@@ -300,13 +291,12 @@ if menu == "Cuadro Visual":
                                 }).execute()
                                 st.rerun()
                         else:
-                            # Lógica Fase Progresión: Equipos del grupo origen configurado
+                            # Fase Progresión: Basado en referencia_origen
                             if p_actual and p_actual['referencia_origen']:
                                 ref = p_actual['referencia_origen']
                                 nombre_g_orig = ref.split(" | ")[0] if " | " in ref else None
                                 
                                 if nombre_g_orig:
-                                    # Buscar fase anterior e ID del grupo
                                     f_ant = next(f for f in fases if f['orden'] == fase_actual['orden'] - 1)
                                     res_g_orig = supabase.table("grupos").select("id").eq("nombre", nombre_g_orig).eq("fase_id", f_ant['id']).execute()
                                     
@@ -315,7 +305,7 @@ if menu == "Cuadro Visual":
                                         res_cand = supabase.table("participantes_grupo").select("equipos(id, nombre)").eq("grupo_id", id_g_orig).execute()
                                         candidatos = [p['equipos'] for p in res_cand.data if p['equipos']]
                                         
-                                        opciones = ["- Clasifica de " + nombre_g_orig + " -"] + [c['nombre'] for c in candidatos]
+                                        opciones = [f"- Clasifica de {nombre_g_orig} -"] + [c['nombre'] for c in candidatos]
                                         sel = st.selectbox(f"Clasifica {i+1}", opciones, key=f"sel_prog_{grupo['id']}_{i}", label_visibility="collapsed")
                                         
                                         if sel != opciones[0]:
