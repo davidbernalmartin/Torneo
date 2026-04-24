@@ -40,8 +40,6 @@ def aplicar_fondo_rffm_global():
         </style>
     """, unsafe_allow_html=True)
 
-aplicar_fondo_rffm_global()
-
 # URL del escudo oficial
 LOGO_RFFM_URL = "https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png"
 
@@ -70,6 +68,8 @@ if "view" in query_params and query_params["view"] == "tv":
     st.stop()
 
 st.set_page_config(page_title="Gestor Torneo RFFM", layout="wide")
+
+aplicar_fondo_rffm_global()
 
 # Título con el logo integrado
 st.markdown(
