@@ -171,20 +171,24 @@ def mostrar_grupo_tv(nombre_grupo_url):
 
 
 # -------------------------------------------------------
-# TARJETA DE GRUPO — dark/deportiva con botón de asignación
+# TARJETA DE GRUPO — dark/deportiva, un botón por grupo
 # -------------------------------------------------------
 
 def renderizar_tarjeta_grupo_minimalista(
     grupo, participantes, equipos_libres, es_progresion, fases, fase_actual, supabase
 ):
     """
-    Tarjeta dark/deportiva. Las plazas vacías muestran un botón '+ Añadir'.
-    Al pulsarlo se activa un selectbox solo para esa plaza, evitando
-    el problema de estilizar selectboxes nativos de Streamlit.
+    Tarjeta dark/deportiva con un único botón por grupo:
+    - Grupo incompleto → "＋ Asignar equipos" abre selectboxes para cada plaza vacía.
+    - Grupo completo   → "Vaciar grupo" borra todos los participantes del grupo.
     """
     grupo_id = grupo["id"]
+    capacidad = grupo["tipo_grupo"]
+    asignados = [p for p in participantes if p and p.get("equipo_id")]
+    grupo_lleno = len(asignados) >= capacidad
+    key_open = f"asignando_{grupo_id}"
 
-    # --- Cabecera roja + filas de equipos asignados ---
+    # --- Tarjeta HTML: cabecera + filas ---
     st.markdown(f"""
         <div style="background:#1a1c24;border-radius:12px;overflow:hidden;margin-bottom:4px;">
             <div style="background:#cc0000;padding:10px 14px;display:flex;align-items:center;gap:8px;">
@@ -196,9 +200,9 @@ def renderizar_tarjeta_grupo_minimalista(
             <div style="padding:8px 14px 8px;">
     """, unsafe_allow_html=True)
 
-    for i in range(grupo["tipo_grupo"]):
+    for i in range(capacidad):
         p_actual = participantes[i] if i < len(participantes) else None
-        if p_actual and p_actual["equipo_id"]:
+        if p_actual and p_actual.get("equipo_id"):
             nombre_equipo = p_actual["equipos"]["nombre"]
             escudo = p_actual["equipos"]["escudo_url"] or ""
             img_tag = (
@@ -217,7 +221,6 @@ def renderizar_tarjeta_grupo_minimalista(
                 </div>
             """, unsafe_allow_html=True)
         else:
-            # Plaza vacía — línea punteada dentro del HTML
             st.markdown("""
                 <div style="border:1px dashed rgba(255,255,255,0.15);border-radius:6px;
                             height:34px;margin-bottom:5px;"></div>
@@ -225,43 +228,46 @@ def renderizar_tarjeta_grupo_minimalista(
 
     st.markdown("</div></div>", unsafe_allow_html=True)
 
-    # --- Plazas vacías: botón → selectbox ---
-    plazas_vacias = [
-        (i, participantes[i] if i < len(participantes) else None)
-        for i in range(grupo["tipo_grupo"])
-        if not (
-            i < len(participantes)
-            and participantes[i]
-            and participantes[i]["equipo_id"]
-        )
-    ]
+    # --- Botón único por grupo ---
+    if grupo_lleno:
+        # Grupo completo → botón para vaciar
+        if st.button("⊘  Vaciar grupo", key=f"vaciar_{grupo_id}", use_container_width=True):
+            st.session_state[f"confirmar_vaciar_{grupo_id}"] = True
 
-    if not plazas_vacias:
-        return  # grupo completo, nada más que renderizar
-
-    for i, p_actual in plazas_vacias:
-        key_open = f"open_{grupo_id}_{i}"
-
+        if st.session_state.get(f"confirmar_vaciar_{grupo_id}", False):
+            st.warning(f"¿Borrar todos los equipos de {grupo['nombre']}?")
+            col_si, col_no = st.columns(2)
+            if col_si.button("Sí, vaciar", key=f"si_vaciar_{grupo_id}", type="primary"):
+                try:
+                    supabase.table("participantes_grupo").delete().eq("grupo_id", grupo_id).execute()
+                    st.session_state.pop(f"confirmar_vaciar_{grupo_id}", None)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al vaciar: {e}")
+            if col_no.button("Cancelar", key=f"no_vaciar_{grupo_id}"):
+                st.session_state.pop(f"confirmar_vaciar_{grupo_id}", None)
+                st.rerun()
+    else:
+        # Grupo incompleto → botón para abrir asignación
         if not st.session_state.get(key_open, False):
-            # Botón compacto alineado con la tarjeta
-            if st.button(
-                f"＋  Plaza {i + 1}",
-                key=f"btn_{grupo_id}_{i}",
-                use_container_width=True,
-            ):
+            if st.button("＋  Asignar equipos", key=f"btn_asignar_{grupo_id}", use_container_width=True):
                 st.session_state[key_open] = True
                 st.rerun()
         else:
-            # Selectbox activo para esta plaza
-            if not es_progresion:
-                opciones = ["— elige equipo —"] + [e["nombre"] for e in equipos_libres]
-                seleccion = st.selectbox(
-                    f"Plaza {i + 1}",
-                    opciones,
-                    key=f"sel_{grupo_id}_{i}",
-                )
-                col_ok, col_cancel = st.columns([1, 1])
-                if col_ok.button("Confirmar", key=f"ok_{grupo_id}_{i}", type="primary"):
+            # Selectboxes para cada plaza vacía
+            plazas_vacias = [
+                (i, participantes[i] if i < len(participantes) else None)
+                for i in range(capacidad)
+                if not (i < len(participantes) and participantes[i] and participantes[i].get("equipo_id"))
+            ]
+            for i, p_actual in plazas_vacias:
+                if not es_progresion:
+                    opciones = ["— elige equipo —"] + [e["nombre"] for e in equipos_libres]
+                    seleccion = st.selectbox(
+                        f"Plaza {i + 1}",
+                        opciones,
+                        key=f"sel_{grupo_id}_{i}",
+                    )
                     if seleccion != opciones[0]:
                         try:
                             e_id = next(e["id"] for e in equipos_libres if e["nombre"] == seleccion)
@@ -270,58 +276,52 @@ def renderizar_tarjeta_grupo_minimalista(
                                 "equipo_id": e_id,
                                 "referencia_origen": "Sorteo",
                             }).execute()
-                            st.session_state.pop(key_open, None)
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al asignar: {e}")
-                if col_cancel.button("Cancelar", key=f"cancel_{grupo_id}_{i}"):
-                    st.session_state.pop(key_open, None)
-                    st.rerun()
-            else:
-                if p_actual and p_actual.get("referencia_origen"):
-                    ref = p_actual["referencia_origen"]
-                    nombre_g_orig = ref.split(" | ")[0] if " | " in ref else None
-                    if nombre_g_orig:
-                        try:
-                            f_ant = next(f for f in fases if f["orden"] == fase_actual["orden"] - 1)
-                            res_g = (
-                                supabase.table("grupos")
-                                .select("id")
-                                .eq("nombre", nombre_g_orig)
-                                .eq("fase_id", f_ant["id"])
-                                .execute()
-                            )
-                            if res_g.data:
-                                res_cand = (
-                                    supabase.table("participantes_grupo")
-                                    .select("equipos(id, nombre)")
-                                    .eq("grupo_id", res_g.data[0]["id"])
+                else:
+                    if p_actual and p_actual.get("referencia_origen"):
+                        ref = p_actual["referencia_origen"]
+                        nombre_g_orig = ref.split(" | ")[0] if " | " in ref else None
+                        if nombre_g_orig:
+                            try:
+                                f_ant = next(f for f in fases if f["orden"] == fase_actual["orden"] - 1)
+                                res_g = (
+                                    supabase.table("grupos")
+                                    .select("id")
+                                    .eq("nombre", nombre_g_orig)
+                                    .eq("fase_id", f_ant["id"])
                                     .execute()
                                 )
-                                candidatos = [p["equipos"] for p in res_cand.data if p["equipos"]]
-                                opciones = ["— elige clasificado —"] + [c["nombre"] for c in candidatos]
-                                sel = st.selectbox(
-                                    f"Plaza {i + 1} — {ref}",
-                                    opciones,
-                                    key=f"sel_prog_{grupo_id}_{i}",
-                                )
-                                col_ok, col_cancel = st.columns([1, 1])
-                                if col_ok.button("Confirmar", key=f"ok_prog_{grupo_id}_{i}", type="primary"):
+                                if res_g.data:
+                                    res_cand = (
+                                        supabase.table("participantes_grupo")
+                                        .select("equipos(id, nombre)")
+                                        .eq("grupo_id", res_g.data[0]["id"])
+                                        .execute()
+                                    )
+                                    candidatos = [p["equipos"] for p in res_cand.data if p["equipos"]]
+                                    opciones = ["— elige clasificado —"] + [c["nombre"] for c in candidatos]
+                                    sel = st.selectbox(
+                                        f"Plaza {i + 1} — {ref}",
+                                        opciones,
+                                        key=f"sel_prog_{grupo_id}_{i}",
+                                    )
                                     if sel != opciones[0]:
                                         try:
                                             e_id = next(c["id"] for c in candidatos if c["nombre"] == sel)
                                             supabase.table("participantes_grupo").update(
                                                 {"equipo_id": e_id}
                                             ).eq("id", p_actual["id"]).execute()
-                                            st.session_state.pop(key_open, None)
                                             st.rerun()
                                         except Exception as e:
                                             st.error(f"Error al asignar progresión: {e}")
-                                if col_cancel.button("Cancelar", key=f"cancel_prog_{grupo_id}_{i}"):
-                                    st.session_state.pop(key_open, None)
-                                    st.rerun()
-                        except Exception as e:
-                            st.error(f"Error cargando candidatos: {e}")
+                            except Exception as e:
+                                st.error(f"Error cargando candidatos: {e}")
+
+            if st.button("Cerrar", key=f"cerrar_{grupo_id}", use_container_width=True):
+                st.session_state.pop(key_open, None)
+                st.rerun()
 
 # -------------------------------------------------------
 # TARJETAS DE EQUIPOS (vista escritorio)
