@@ -10,7 +10,7 @@ from src.database import get_supabase, get_fases, get_grupos_por_fase
 # SORTEO AUTOMÁTICO
 # -------------------------------------------------------
 
-def realizar_sorteo(fase_id, lista_grupos):
+def realizar_sorteo(fase_id, lista_grupos, torneo_id):
     """
     Reparte aleatoriamente los equipos no eliminados entre los grupos de la fase.
     Borra primero los participantes existentes en esos grupos (limpieza de seguridad).
@@ -21,6 +21,7 @@ def realizar_sorteo(fase_id, lista_grupos):
         supabase.table("equipos")
         .select("id")
         .eq("eliminado", False)
+        .eq("torneo_id", torneo_id)
         .execute()
         .data
     )
@@ -78,9 +79,8 @@ def seccion_sorteo_manual(supabase, torneo_id=None):
         .eq("fase_id", fase_id)
         .execute()
     )
-    import re as _re
     def _num(n):
-        m = _re.search(r"\d+", n)
+        m = re.search(r"\d+", n)
         return int(m.group()) if m else 0
     todos_los_grupos = sorted(res_grupos.data, key=lambda g: _num(g["nombre"]))
     ids_grupos = [g["id"] for g in todos_los_grupos]

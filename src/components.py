@@ -10,47 +10,6 @@ LOGO_TV_URL = "https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea619
 
 
 # -------------------------------------------------------
-# TARJETA DE GRUPO (vista escritorio)
-# -------------------------------------------------------
-
-def renderizar_tarjeta_grupo(grupo, participantes):
-    """Tarjeta blanca minimalista con los equipos de un grupo."""
-    st.markdown("""
-        <style>
-        div[data-testid="stVerticalBlockBorderWrapper"] {
-            background-color: white !important;
-            border: none !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-    with st.container(border=True):
-        st.markdown(f"<h6 style='color: black;'>{grupo['nombre']}</h6>", unsafe_allow_html=True)
-
-        for i in range(grupo["tipo_grupo"]):
-            if i < len(participantes):
-                p = participantes[i]
-                escudo = p["equipos"]["escudo_url"] or ""
-                nombre = p["equipos"]["nombre"]
-                st.markdown(f"""
-                    <div style="background-color: #f8f9fa; padding: 8px; border-radius: 5px;
-                                margin-bottom: 5px; display: flex; align-items: center;
-                                border: 1px solid #eee;">
-                        <img src="{escudo}" style="width: 20px; margin-right: 10px;">
-                        <span style="color: black; font-weight: 500;">{nombre}</span>
-                    </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                    <div style="padding: 8px; border: 1px dashed #ddd; border-radius: 5px;
-                                margin-bottom: 5px; text-align: center; color: #aaa;
-                                font-size: 0.8rem;">
-                        Esperando equipo...
-                    </div>
-                """, unsafe_allow_html=True)
-
-
-# -------------------------------------------------------
 # VISTA TV
 # -------------------------------------------------------
 

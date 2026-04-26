@@ -11,6 +11,9 @@ from src.database import (
     get_fases,
     get_grupos_por_fase,
     get_participantes_grupo,
+    crear_fase,
+    crear_grupos,
+    contar_grupos_fase,
 )
 from src.logic import seccion_sorteo_manual
 
@@ -270,7 +273,7 @@ if menu == "Torneos":
                 if fases_torneo:
                     grupos_tv = sorted(
                         supabase.table("grupos").select("nombre").eq("fase_id", fases_torneo[0]["id"]).execute().data,
-                        key=lambda g: int(__import__("re").search(r"\d+", g["nombre"]).group()) if __import__("re").search(r"\d+", g["nombre"]) else 0
+                        key=lambda g: int(m.group()) if (m := _re.search(r"\d+", g["nombre"])) else 0
                     )
                 if grupos_tv:
                     primer_grupo = grupos_tv[0]["nombre"]
@@ -295,17 +298,17 @@ if menu == "Torneos":
                     qr_url  = url_vista if qr_mode == "view" else url_gestion
                     qr_label = "Vista pública" if qr_mode == "view" else "Gestión"
                     try:
-                        qr_buf = generar_qr(qr_url)
+                        qr_bytes = generar_qr(qr_url).getvalue()
                         col_img, col_txt = st.columns([1, 2])
                         with col_img:
-                            st.image(qr_buf, width=160)
+                            st.image(qr_bytes, width=160)
                         with col_txt:
                             st.markdown(f"**{t['nombre']}**")
                             st.caption(f"{qr_label}")
                             st.caption(qr_url)
                             st.download_button(
                                 "Descargar QR",
-                                data=generar_qr(qr_url),
+                                data=qr_bytes,
                                 file_name=f"qr_{t['nombre'].replace(' ','_')}_{qr_mode}.png",
                                 mime="image/png",
                                 key=f"dl_qr_{tid}_{qr_mode}",
@@ -403,11 +406,7 @@ if menu == "Configurador":
         orden_fase = st.number_input("Orden", min_value=1, value=1)
         if st.button("Guardar Fase"):
             try:
-                supabase.table("fases").insert({
-                    "nombre": nueva_fase_nombre,
-                    "orden": orden_fase,
-                    "torneo_id": torneo_id,
-                }).execute()
+                crear_fase(nueva_fase_nombre, orden_fase, torneo_id)
                 st.success("Fase creada")
                 st.rerun()
             except Exception as e:
@@ -434,13 +433,7 @@ if menu == "Configurador":
             with col3:
                 if st.button("Añadir", use_container_width=True):
                     try:
-                        res_conteo = (
-                            supabase.table("grupos")
-                            .select("id", count="exact")
-                            .eq("fase_id", fase_id)
-                            .execute()
-                        )
-                        total_existentes = res_conteo.count or 0
+                        total_existentes = contar_grupos_fase(fase_id)
                         nuevos_grupos = [
                             {
                                 "fase_id": fase_id,
@@ -449,7 +442,7 @@ if menu == "Configurador":
                             }
                             for i in range(num_grupos)
                         ]
-                        supabase.table("grupos").insert(nuevos_grupos).execute()
+                        crear_grupos(nuevos_grupos)
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al añadir grupos: {e}")
