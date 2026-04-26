@@ -123,7 +123,7 @@
     font-family: var(--font-body);
     font-size: 11px; font-weight: 400;
     font-style: italic;
-    color: rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.6);
     text-transform: none;
   }
   .team-name.winner-name { color: var(--win-green); }
@@ -217,22 +217,30 @@ async function init() {
     const fasesParams  = torneoId ? "select=*&order=orden&torneo_id=eq." + torneoId : "select=*&order=orden";
     const equiposParams = torneoId ? "select=id,nombre,escudo_url&eliminado=eq.false&torneo_id=eq." + torneoId : "select=id,nombre,escudo_url&eliminado=eq.false";
 
-    const [f, g, p, e, t] = await Promise.all([
+    const [f, e, t] = await Promise.all([
       sbGet("fases", fasesParams),
-      sbGet("grupos", "select=*"),
-      sbGet("participantes_grupo", "select=*"),
       sbGet("equipos", equiposParams),
       torneoId ? sbGet("torneos", "select=id,nombre,campeon_id&id=eq." + torneoId) : Promise.resolve([]),
     ]);
-    fases = f; grupos = g; equipos = e;
+    fases = f; equipos = e;
     torneoData = (t && t.length) ? t[0] : null;
     if (torneoData?.nombre) {
       document.getElementById("bracket-title").textContent = torneoData.nombre;
       document.title = torneoData.nombre;
     }
-    const eqMap = {};
-    equipos.forEach(eq => eqMap[eq.id] = eq);
-    participantes = p.map(part => ({ ...part, equipos: part.equipo_id ? (eqMap[part.equipo_id] || null) : null }));
+    if (fases.length) {
+      const faseIds = fases.map(f => f.id).join(",");
+      const [g, p] = await Promise.all([
+        sbGet("grupos", "select=*&fase_id=in.(" + faseIds + ")"),
+        sbGet("participantes_grupo", "select=*"),
+      ]);
+      grupos = g;
+      const grupoIdSet = new Set(g.map(gr => gr.id));
+      const pFiltered = p.filter(part => grupoIdSet.has(part.grupo_id));
+      const eqMap = {};
+      equipos.forEach(eq => eqMap[eq.id] = eq);
+      participantes = pFiltered.map(part => ({ ...part, equipos: part.equipo_id ? (eqMap[part.equipo_id] || null) : null }));
+    }
     document.getElementById("loading").style.display = "none";
     if (!fases.length) { showError("No hay fases configuradas."); return; }
     render();
@@ -266,6 +274,26 @@ function isClassified(equipoId, grupoId) {
   });
 }
 
+// ── SLOT LABEL HELPER ───────────────────────────────────────
+let _cualquierCount = {};
+
+function resetCualquierCount() { _cualquierCount = {}; }
+
+function slotLabel(partId) {
+  const part = participantes.find(p => p.id === partId);
+  if (!part || !part.referencia_origen) return "plaza vacía";
+  const CUALQUIER = "Cualquier grupo";
+  if (part.referencia_origen !== CUALQUIER) {
+    return "Ganador " + part.referencia_origen;
+  } else {
+    const grupo = grupos.find(g => g.id === part.grupo_id);
+    const faseKey = grupo ? grupo.fase_id : "?";
+    if (!_cualquierCount[faseKey]) _cualquierCount[faseKey] = 0;
+    _cualquierCount[faseKey]++;
+    return "Mejor 2º #" + _cualquierCount[faseKey];
+  }
+}
+
 function escudoEl(url, nombre) {
   if (url) return `<img src="${url}" class="escudo" alt="${nombre || ''}">`;
   return `<div class="escudo-placeholder">
@@ -283,19 +311,39 @@ function renderMatchHTML(g) {
     if (!part) return "";
     const eq = part.equipos;
     if (!eq) {
+      const emptyLabel = part.id ? slotLabel(part.id) : "plaza vacía";
       return `<div class="slot empty-slot">
-        <span class="team-name empty">—</span>
+        <span class="team-name empty">${emptyLabel}</span>
       </div>`;
     }
     const classified = isClassified(eq.id, g.id) && !isWin && !isLose;
-    const cls = ["slot", isWin ? "winner" : isLose ? "loser" : "", classified ? "classified" : ""].filter(Boolean).join(" ");
-    const nameClass = ["team-name", isWin ? "winner-name" : ""].filter(Boolean).join(" ");
-    const scoreCls = ["score", isWin ? "win" : isLose ? "lose" : ""].filter(Boolean).join(" ");
-    const badge = classified ? `<span style="font-size:10px;font-weight:800;color:#16a34a;margin-left:auto;">✓</span>` : "";
+
+    // Resolve penalties from BD
+    const hasPen = g.penaltis || false;
+    let penWin = "";
+    if (hasPen && g.penaltis_ganador_id) {
+      const lpart = parts.find(p => p.es_local);
+      const vpart = parts.find(p => !p.es_local);
+      if (lpart?.equipo_id === g.penaltis_ganador_id) penWin = "local";
+      else if (vpart?.equipo_id === g.penaltis_ganador_id) penWin = "visitante";
+    }
+    const isPenWinner = hasPen && local && visit && local.goles === visit.goles &&
+      ((part.es_local && penWin === "local") || (!part.es_local && penWin === "visitante"));
+    const isPenLoser = hasPen && local && visit && local.goles === visit.goles && !isPenWinner && (part.es_local || !part.es_local);
+    const effectiveWin  = isWin || isPenWinner;
+    const effectiveLose = isLose || isPenLoser;
+
+    const isWhite = effectiveWin || classified;
+    const cls = ["slot", effectiveLose ? "loser" : "", isWhite ? "classified" : ""].filter(Boolean).join(" ");
+    const badge = classified && !effectiveWin
+      ? `<span style="font-size:10px;font-weight:800;color:#16a34a;margin-left:auto;">✓</span>`
+      : effectiveWin && hasPen
+      ? `<span style="font-size:10px;font-weight:800;color:#16a34a;margin-left:auto;">P</span>`
+      : "";
     return `<div class="${cls}">
       ${escudoEl(eq.escudo_url, eq.nombre)}
-      <span class="${nameClass}">${eq.nombre}</span>
-      ${(isWin || isLose) ? `<span class="${scoreCls}">${part.goles}</span>` : ""}
+      <span class="team-name" style="color:${isWhite ? '#1a1a1a' : 'white'};font-weight:800;">${eq.nombre}</span>
+      ${(effectiveWin || effectiveLose || isWin || isLose) ? `<span class="score" style="color:${effectiveWin ? '#16a34a' : 'rgba(255,255,255,0.35)'};font-size:14px;font-weight:800;margin-left:auto;">${part.goles}</span>` : ""}
       ${badge}
     </div>`;
   }
@@ -344,6 +392,7 @@ function buildCols(seeds) {
 }
 
 function render() {
+  resetCualquierCount();
   const bracket = document.getElementById("bracket");
   bracket.innerHTML = "";
 
@@ -377,7 +426,7 @@ function render() {
   const CARD_GAP = 16;
   const LABEL_H  = 0;
   const LOGO_H   = 280;
-  const LOGO_PAD = LOGO_H + 32;
+  const LOGO_PAD = LOGO_H + 80;
   const Y_OFFSET = LOGO_PAD;
 
   const totalCols = leftCols.length + 1 + rightCols.length;
@@ -472,7 +521,7 @@ function render() {
       const yCenter = centerY[gi] || totalH / 2;
       placeCard(g, x, yCenter, cardH);
       const cardTopAbs = yCenter - cardH / 2 + Y_OFFSET;
-      logoDiv.style.left = x + "px"; logoDiv.style.top = (cardTopAbs - LOGO_H - 16) + "px";
+      logoDiv.style.left = x + "px"; logoDiv.style.top = (cardTopAbs - LOGO_H - 60) + "px";
       logoDiv.style.width = MATCH_W + "px"; logoDiv.style.height = LOGO_H + "px";
 
       // Champion display (read-only — mirrors bracket.html visually, no editing)
