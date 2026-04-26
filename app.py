@@ -122,6 +122,12 @@ if menu == "Torneos":
             col_n, col_d, col_b = st.columns([3, 4, 1])
             col_n.markdown(f"**{t['nombre']}**")
             col_d.caption(t.get("descripcion") or "—")
+            with st.expander(f"🔗 Enlaces — {t['nombre']}"):
+                tid = t["id"]
+                st.markdown("**Bracket dinámico** (gestión):")
+                st.code(f"bracket.html?torneo={tid}", language=None)
+                st.markdown("**Bracket de consulta** (solo lectura):")
+                st.code(f"bracket-view.html?torneo={tid}", language=None)
             if col_b.button("🗑️", key=f"del_{t['id']}", help="Eliminar torneo y todos sus datos"):
                 st.session_state[f"confirm_del_{t['id']}"] = True
 
