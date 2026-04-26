@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuadro RFFM</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ── CONFIG ─────────────────────────────────────────── */
+  :root {
+    --red:       #cc0000;
+    --red-dark:  #8b0000;
+    --red-deep:  #3d0000;
+    --white:     #ffffff;
+    --off:       #f5f0eb;
+    --gray:      #888;
+    --light:     rgba(255,255,255,0.07);
+    --lighter:   rgba(255,255,255,0.13);
+    --border:    rgba(255,255,255,0.12);
+    --win-green: #86efac;
+    --win-bg:    rgba(134,239,172,0.08);
+    --font-display: 'Barlow Condensed', sans-serif;
+    --font-body:    'Barlow', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a0000;
+    color: var(--white);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: auto;
+  }
+
+  /* ── HEADER ─────────────────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.4);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(6px);
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--red); flex-shrink: 0;
+    box-shadow: 0 0 8px var(--red);
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-size: 22px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--white);
+  }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .save-indicator {
+    font-size: 11px; font-weight: 500;
+    color: rgba(255,255,255,0.4);
+    display: flex; align-items: center; gap: 6px;
+    transition: color 0.3s;
+  }
+  .save-indicator.saving { color: #fbbf24; }
+  .save-indicator.saved  { color: #86efac; }
+  .save-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+  }
+
+  /* ── BRACKET CONTAINER ──────────────────────────────── */
+  .bracket-outer {
+    padding: 40px 32px;
+    overflow: auto;
+    min-height: calc(100vh - 65px);
+  }
+  .bracket {
+    position: relative;
+    min-width: max-content;
+  }
+  .phase-label {
+    font-family: var(--font-display);
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--red);
+    border-bottom: 1px solid rgba(204,0,0,0.3);
+    padding-bottom: 6px;
+    margin-bottom: 0;
+  }
+
+  /* ── PHASE COLUMN ───────────────────────────────────── */
+  .phase-col { display: flex; flex-direction: column; width: 200px; }
+  .phase-label {
+    font-family: var(--font-display);
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--red);
+    text-align: center;
+    padding: 0 12px 16px;
+    border-bottom: 1px solid rgba(204,0,0,0.3);
+    margin-bottom: 16px;
+  }
+  .matches { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+
+  /* ── MATCH CARD ─────────────────────────────────────── */
+  .match {
+    background: var(--red-dark);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(204,0,0,0.3);
+    transition: border-color 0.2s;
+  }
+  .match:hover { border-color: rgba(204,0,0,0.6); }
+  .match-header {
+    background: var(--red);
+    padding: 5px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .match-name {
+    font-family: var(--font-display);
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: white;
+  }
+  .score-btn {
+    font-size: 9px; font-weight: 600;
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 2px 5px;
+    border-radius: 3px;
+    transition: background 0.15s, color 0.15s;
+    border: none; background: none;
+  }
+  .score-btn:hover { background: rgba(255,255,255,0.15); color: white; }
+
+  /* ── SLOT ───────────────────────────────────────────── */
+  .slot {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    min-height: 34px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    transition: background 0.15s;
+    cursor: default;
+    gap: 8px;
+  }
+  .slot:last-of-type { border-bottom: none; }
+  .slot.has-team { cursor: grab; }
+  .slot.has-team:active { cursor: grabbing; }
+  .slot.empty-slot {
+    border: 1.5px dashed rgba(255,255,255,0.15);
+    background: rgba(0,0,0,0.15);
+    min-height: 34px;
+  }
+  .slot.empty-slot:hover {
+    border-color: rgba(204,0,0,0.5);
+    background: rgba(204,0,0,0.08);
+  }
+  .slot.drag-over {
+    background: rgba(204,0,0,0.3) !important;
+    border: 1.5px dashed rgba(255,255,255,0.5) !important;
+  }
+  .slot.winner { background: var(--win-bg); }
+  .slot.loser  { opacity: 0.45; }
+  .slot.classified {
+    background: white;
+    border-left: 3px solid #86efac;
+  }
+  .slot.classified .team-name { color: #1a1a1a !important; font-weight: 800; }
+  .slot.classified .escudo { filter: none; }
+  .drop-hint {
+    display: flex; align-items: center; gap: 7px; width: 100%;
+  }
+
+  .escudo {
+    width: 20px; height: 20px;
+    object-fit: contain;
+    border-radius: 2px; flex-shrink: 0;
+  }
+  .escudo-placeholder {
+    width: 20px; height: 20px;
+    border-radius: 2px; flex-shrink: 0;
+    background: rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .escudo-placeholder svg { opacity: 0.3; }
+
+  .team-name {
+    font-family: var(--font-display);
+    font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.03em;
+    color: white;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex: 1;
+  }
+  .team-name.empty {
+    font-family: var(--font-body);
+    font-size: 11px; font-weight: 400;
+    font-style: italic;
+    color: rgba(255,255,255,0.25);
+    text-transform: none;
+  }
+  .team-name.winner-name { color: var(--win-green); }
+
+  .score {
+    font-family: var(--font-display);
+    font-size: 14px; font-weight: 800;
+    min-width: 18px; text-align: center;
+    color: white;
+  }
+  .score.win  { color: var(--win-green); }
+  .score.lose { color: rgba(255,255,255,0.3); }
+
+  /* ── CONNECTORS ─────────────────────────────────────── */
+  .connector-col {
+    width: 32px; flex-shrink: 0;
+    display: flex; flex-direction: column;
+  }
+
+  /* ── LOADING ────────────────────────────────────────── */
+  #loading {
+    position: fixed; inset: 0;
+    background: #1a0000;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px; z-index: 200;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(204,0,0,0.2);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading p {
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.4);
+  }
+
+  /* ── MODAL ──────────────────────────────────────────── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    animation: fadein 0.15s ease;
+  }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: #1f0000;
+    border: 1px solid rgba(204,0,0,0.4);
+    border-radius: 14px;
+    padding: 24px;
+    width: 300px;
+    animation: slidein 0.15s ease;
+  }
+  @keyframes slidein { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .modal h3 {
+    font-family: var(--font-display);
+    font-size: 16px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: white; margin-bottom: 20px;
+  }
+  .modal-teams { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .modal-team {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px; padding: 8px 12px;
+  }
+  .modal-team-name {
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 700;
+    text-transform: uppercase; color: white; flex: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .modal-team input {
+    width: 56px; text-align: center;
+    font-family: var(--font-display);
+    font-size: 18px; font-weight: 800;
+    background: rgba(204,0,0,0.2);
+    border: 1px solid rgba(204,0,0,0.4);
+    border-radius: 6px; color: white; padding: 4px;
+    outline: none;
+  }
+  .modal-team input:focus { border-color: var(--red); background: rgba(204,0,0,0.3); }
+  .vs-divider {
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.2);
+  }
+  .modal-btns { display: flex; gap: 8px; }
+  .btn {
+    flex: 1; padding: 10px;
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    border: none; border-radius: 8px; cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--red); color: white; }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-secondary { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); }
+  .btn-secondary:hover { background: rgba(255,255,255,0.13); }
+
+  /* ── TOAST ──────────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    background: #0f3d1a; border: 1px solid #2d7a3a;
+    color: var(--win-green);
+    font-family: var(--font-display);
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 8px 18px; border-radius: 8px;
+    opacity: 0; transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none; white-space: nowrap; z-index: 300;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── ERROR ──────────────────────────────────────────── */
+  #config-warning {
+    margin: 32px; padding: 20px 24px;
+    background: rgba(204,0,0,0.15);
+    border: 1px solid rgba(204,0,0,0.4);
+    border-radius: 10px;
+    font-family: var(--font-display);
+    font-size: 14px; line-height: 1.6;
+    color: rgba(255,255,255,0.7);
+    display: none;
+  }
+  #config-warning strong { color: white; display: block; margin-bottom: 6px; font-size: 16px; }
+  code {
+    background: rgba(255,255,255,0.1); padding: 2px 6px;
+    border-radius: 4px; font-size: 13px;
+    font-family: 'Courier New', monospace;
+    color: #fcd34d;
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Cargando cuadro...</p>
+</div>
+
+<!-- CONFIG WARNING -->
+<div id="config-warning">
+  <strong>Configura tus credenciales de Supabase</strong>
+  Abre este fichero en un editor de texto y rellena las dos constantes al inicio del script:<br><br>
+  <code>SUPABASE_URL</code> — la URL de tu proyecto (ej: https://xxxx.supabase.co)<br>
+  <code>SUPABASE_ANON_KEY</code> — la clave anon/public de tu proyecto
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="header-left">
+    <div class="logo-dot"></div>
+    <h1 id="bracket-title">Cuadro RFFM</h1>
+  </div>
+  <div class="header-right">
+    <div class="save-indicator saved" id="save-indicator">
+      <div class="save-dot"></div>
+      <span id="save-text">Todo guardado</span>
+    </div>
+  </div>
+</header>
+
+<!-- BRACKET -->
+<div class="bracket-outer">
+  <div class="bracket" id="bracket"></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────
+//  CONFIGURA AQUÍ TUS CREDENCIALES
+// ─────────────────────────────────────────────────────────
+const SUPABASE_URL      = "https://bdqoapdnokydfwykitww.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcW9hcGRub2t5ZGZ3eWtpdHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDc1NTMsImV4cCI6MjA5MjM4MzU1M30.TioDgG3xHadZS1wvttTgnB_LxcdK5L_rqhEDk9okMLw";
+// ─────────────────────────────────────────────────────────
+
+// ── STATE ────────────────────────────────────────────────
+let fases = [], grupos = [], participantes = [], equipos = [], torneoData = null;
+let dragState = null;
+
+// ── INIT ─────────────────────────────────────────────────
+// ── REST API (sin SDK) ───────────────────────────────────
+function sbHeaders() {
+  return {
+    "apikey": SUPABASE_ANON_KEY,
+    "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+    "Content-Type": "application/json",
+    "Prefer": "return=minimal"
+  };
+}
+
+async function sbGet(table, params) {
+  const qs = params ? "?" + params : "";
+  const url = SUPABASE_URL + "/rest/v1/" + table + qs;
+  const res = await fetch(url, {
+    headers: { ...sbHeaders(), "Accept": "application/json" }
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(table + " (" + res.status + "): " + txt);
+  }
+  return res.json();
+}
+
+async function sbPatch(table, id, payload) {
+  const res = await fetch(SUPABASE_URL + "/rest/v1/" + table + "?id=eq." + id, {
+    method: "PATCH",
+    headers: sbHeaders(),
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error(table + " PATCH: " + await res.text());
+}
+
+async function sbPost(table, payload) {
+  const headers = { ...sbHeaders(), "Prefer": "return=representation" };
+  const res = await fetch(SUPABASE_URL + "/rest/v1/" + table, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error(table + " POST: " + await res.text());
+  const data = await res.json();
+  return Array.isArray(data) ? data[0] : data;
+}
+
+function showError(msg) {
+  const el = document.getElementById("config-warning");
+  el.innerHTML = "<strong>Error de carga</strong> " + msg;
+  el.style.display = "block";
+}
+
+async function init() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("config-warning").style.display = "block";
+    return;
+  }
+  try {
+    await loadData();
+    document.getElementById("loading").style.display = "none";
+    if (!fases.length) {
+      showError("Conexión OK pero no hay fases en la BD. Crea al menos una fase desde Streamlit.");
+      return;
+    }
+    render();
+  } catch(err) {
+    document.getElementById("loading").style.display = "none";
+    showError(err.message);
+    console.error(err);
+  }
+}
+
+// ── DATA LOADING ─────────────────────────────────────────
+async function loadData() {
+  const torneoId = new URLSearchParams(window.location.search).get("torneo");
+  const fasesParams = torneoId
+    ? "select=*&order=orden&torneo_id=eq." + torneoId
+    : "select=*&order=orden";
+  const equiposParams = torneoId
+    ? "select=id,nombre,escudo_url&eliminado=eq.false&torneo_id=eq." + torneoId
+    : "select=id,nombre,escudo_url&eliminado=eq.false";
+  const [f, g, p, e, t] = await Promise.all([
+    sbGet("fases", fasesParams),
+    sbGet("grupos", "select=*"),
+    sbGet("participantes_grupo", "select=*"),
+    sbGet("equipos", equiposParams),
+    torneoId ? sbGet("torneos", "select=id,nombre,campeon_id&id=eq." + torneoId) : Promise.resolve([]),
+  ]);
+  fases         = f;
+  grupos        = g;
+  equipos       = e;
+  torneoData    = (t && t.length) ? t[0] : null;
+  if (torneoData?.nombre) {
+    const el = document.getElementById("bracket-title");
+    if (el) { el.textContent = torneoData.nombre; }
+    document.title = torneoData.nombre;
+  }
+  const equipoMap = {};
+  equipos.forEach(eq => equipoMap[eq.id] = eq);
+  participantes = p.map(part => ({
+    ...part,
+    equipos: part.equipo_id ? (equipoMap[part.equipo_id] || null) : null
+  }));
+}
+
+// ── HELPERS ──────────────────────────────────────────────
+const byGrupo = (gid) => participantes.filter(p => p.grupo_id === gid);
+const getGrupo = (id)  => grupos.find(g => g.id === id);
+
+function setSaveState(state) {
+  const el = document.getElementById("save-indicator");
+  const tx = document.getElementById("save-text");
+  if (el) el.className = "save-indicator " + state;
+  if (tx) tx.textContent = state === "saving" ? "Guardando..." : state === "saved" ? "Todo guardado" : "Error al guardar";
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+// ── SUPABASE WRITES ───────────────────────────────────────
+async function updateParticipant(id, payload) {
+  setSaveState("saving");
+  try {
+    await sbPatch("participantes_grupo", id, payload);
+    setSaveState("saved");
+    return true;
+  } catch(err) {
+    setSaveState("error");
+    console.error(err);
+    return false;
+  }
+}
+
+// ── DRAG & DROP ───────────────────────────────────────────
+function onDragStart(e, partId, equipoId) {
+  dragState = { partId, equipoId };
+  e.dataTransfer.effectAllowed = "move";
+  e.currentTarget.style.opacity = "0.5";
+}
+function onDragEnd(e) {
+  e.currentTarget.style.opacity = "";
+  dragState = null;
+}
+function onDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add("drag-over");
+}
+function onDragLeave(e) {
+  e.currentTarget.classList.remove("drag-over");
+}
+function getFaseIdForPart(partId) {
+  if (!partId) return null;
+  if (partId.startsWith("vslot__")) {
+    const grupoId = partId.split("__")[1];
+    const grupo = grupos.find(g => g.id === grupoId);
+    return grupo?.fase_id || null;
+  }
+  const part  = participantes.find(p => p.id === partId);
+  if (!part) return null;
+  const grupo = grupos.find(g => g.id === part.grupo_id);
+  return grupo?.fase_id || null;
+}
+
+function getGrupoIdFromVirtualSlot(virtualId) {
+  // format: vslot__<grupo_id>__<index>
+  const parts = virtualId.split("__");
+  return parts[1]; // grupo_id is always the middle segment
+}
+
+async function onDrop(e, targetPartId) {
+  e.preventDefault();
+  e.currentTarget.classList.remove("drag-over");
+  if (!dragState || dragState.partId === targetPartId) return;
+
+  const src = participantes.find(p => p.id === dragState.partId);
+  if (!src || !src.equipo_id) { dragState = null; return; }
+
+  const eqMap = {};
+  equipos.forEach(eq => eqMap[eq.id] = eq);
+
+  const isVirtual = targetPartId.startsWith("vslot__");
+  const tgt = isVirtual ? null : participantes.find(p => p.id === targetPartId);
+
+  // Determine phases
+  const srcGrupo = grupos.find(g => g.id === src.grupo_id);
+  const srcFaseId = srcGrupo?.fase_id;
+
+  let tgtFaseId = null;
+  if (isVirtual) {
+    const tgtGrupoId = getGrupoIdFromVirtualSlot(targetPartId);
+    const tgtGrupo = grupos.find(g => g.id === tgtGrupoId);
+    tgtFaseId = tgtGrupo?.fase_id;
+  } else if (tgt) {
+    const tgtGrupo = grupos.find(g => g.id === tgt.grupo_id);
+    tgtFaseId = tgtGrupo?.fase_id;
+  }
+
+  const sameFase = srcFaseId === tgtFaseId;
+  dragState = null;
+
+  if (sameFase && !isVirtual && tgt) {
+    // ── SWAP within same phase ────────────────────────────
+    const srcEq = src.equipo_id;
+    const tgtEq = tgt.equipo_id;
+    src.equipo_id = tgtEq; src.equipos = tgtEq ? (eqMap[tgtEq] || null) : null;
+    tgt.equipo_id = srcEq; tgt.equipos = srcEq ? (eqMap[srcEq] || null) : null;
+    render();
+    setSaveState("saving");
+    try {
+      await Promise.all([
+        sbPatch("participantes_grupo", src.id, { equipo_id: tgtEq || null }),
+        sbPatch("participantes_grupo", tgt.id, { equipo_id: srcEq || null }),
+      ]);
+      setSaveState("saved");
+      showToast("Equipos intercambiados");
+    } catch(err) { setSaveState("error"); console.error(err); }
+
+  } else if (!sameFase) {
+    // ── COPY to different phase ───────────────────────────
+    const srcEqId   = src.equipo_id;
+    const srcEqData = eqMap[srcEqId] || null;
+
+    if (isVirtual) {
+      // Target slot has no BD row yet — INSERT
+      const tgtGrupoId = getGrupoIdFromVirtualSlot(targetPartId);
+      setSaveState("saving");
+      try {
+        // Determine es_local based on existing parts in target group
+        const existingInTarget = participantes.filter(p => p.grupo_id === tgtGrupoId);
+        const hasLocal = existingInTarget.some(p => p.es_local);
+        const esLocal  = !hasLocal; // first one is local, second is visitante
+
+        const newPart = await sbPost("participantes_grupo", {
+          grupo_id:  tgtGrupoId,
+          equipo_id: srcEqId,
+          es_local:  esLocal,
+          goles:     0,
+          puntos:    0,
+        });
+        // Add to local state with equipo data hydrated
+        participantes.push({ ...newPart, equipos: srcEqData });
+        render();
+        setSaveState("saved");
+        showToast("Clasificado a la siguiente fase ✓");
+      } catch(err) { setSaveState("error"); console.error(err); }
+    } else if (tgt) {
+      // Target slot exists — PATCH equipo_id
+      tgt.equipo_id = srcEqId;
+      tgt.equipos   = srcEqData;
+      render();
+      setSaveState("saving");
+      try {
+        await sbPatch("participantes_grupo", tgt.id, { equipo_id: srcEqId });
+        setSaveState("saved");
+        showToast("Clasificado a la siguiente fase ✓");
+      } catch(err) { setSaveState("error"); console.error(err); }
+    }
+  }
+}
+
+// ── SCORE MODAL ────────────────────────────────────────────
+function openScoreModal(grupoId) {
+  const g = getGrupo(grupoId);
+  const parts = byGrupo(grupoId);
+  const local = parts.find(p => p.es_local);
+  const visit = parts.find(p => !p.es_local);
+  if (!local || !visit) return;
+  const eqL = local.equipos;
+  const eqV = visit.equipos;
+
+  const old = document.getElementById("score-modal");
+  if (old) old.remove();
+
+  const div = document.createElement("div");
+  div.className = "modal-backdrop";
+  div.id = "score-modal";
+  div.innerHTML = `
+    <div class="modal">
+      <h3>${g.nombre}</h3>
+      <div class="modal-teams">
+        <div class="modal-team">
+          <span class="modal-team-name">${eqL?.nombre || "— local —"}</span>
+          <input type="number" id="g-local" min="0" value="${local.goles ?? 0}">
+        </div>
+        <div class="vs-divider">VS</div>
+        <div class="modal-team">
+          <span class="modal-team-name">${eqV?.nombre || "— visitante —"}</span>
+          <input type="number" id="g-visit" min="0" value="${visit.goles ?? 0}">
+        </div>
+      </div>
+      <div class="modal-btns">
+        <button class="btn btn-primary" onclick="saveScore('${grupoId}','${local.id}','${visit.id}')">Guardar</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('score-modal').remove()">Cancelar</button>
+      </div>
+    </div>`;
+  div.addEventListener("click", e => { if (e.target === div) div.remove(); });
+  document.body.appendChild(div);
+  document.getElementById("g-local").focus();
+}
+
+async function saveScore(grupoId, localId, visitId) {
+  const gL = parseInt(document.getElementById("g-local").value) || 0;
+  const gV = parseInt(document.getElementById("g-visit").value) || 0;
+  const lp = participantes.find(p => p.id === localId);
+  const vp = participantes.find(p => p.id === visitId);
+  if (lp) lp.goles = gL;
+  if (vp) vp.goles = gV;
+  document.getElementById("score-modal").remove();
+  render();
+
+  setSaveState("saving");
+  try {
+    await Promise.all([
+      sbPatch("participantes_grupo", localId, { goles: gL }),
+      sbPatch("participantes_grupo", visitId, { goles: gV }),
+    ]);
+    setSaveState("saved");
+    showToast("Resultado guardado");
+  } catch(err) {
+    setSaveState("error");
+    console.error(err);
+  }
+}
+
+// ── RENDER HELPERS ─────────────────────────────────────────
+
+function escudoEl(url, nombre) {
+  if (url) return `<img src="${url}" class="escudo" alt="${nombre}">`;
+  return `<div class="escudo-placeholder">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <circle cx="6" cy="4" r="2.5" fill="white"/>
+      <path d="M1 11c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="white" stroke-width="1.2" fill="none"/>
+    </svg>
+  </div>`;
+}
+
+function isClassified(equipoId, grupoId) {
+  // Returns true if this equipo appears in a group of a LATER phase than grupoId's phase
+  if (!equipoId || !grupoId) return false;
+  const srcGrupo = grupos.find(g => g.id === grupoId);
+  if (!srcGrupo) return false;
+  const srcFase = fases.find(f => f.id === srcGrupo.fase_id);
+  if (!srcFase) return false;
+  return participantes.some(p => {
+    if (p.equipo_id !== equipoId) return false;
+    if (p.grupo_id === grupoId) return false; // same group, skip
+    const g = grupos.find(g => g.id === p.grupo_id);
+    if (!g) return false;
+    const f = fases.find(f => f.id === g.fase_id);
+    return f && f.orden > srcFase.orden;
+  });
+}
+
+function renderMatchHTML(g) {
+  const parts = byGrupo(g.id);
+  const es2 = g.tipo_grupo === 2;
+
+  // Always render tipo_grupo slots — fill missing ones with empty drop targets
+  function buildSlots(expectedCount, localFirst) {
+    let filled;
+    if (localFirst) {
+      const local = parts.find(p => p.es_local);
+      const visit = parts.find(p => !p.es_local);
+      // Fallback: if both have same es_local value, just use order
+      if (local && visit) {
+        filled = [local, visit];
+      } else if (parts.length >= 2) {
+        filled = [parts[0], parts[1]];
+      } else {
+        filled = parts;
+      }
+    } else {
+      filled = parts;
+    }
+
+    const slots = [];
+    for (let i = 0; i < expectedCount; i++) {
+      slots.push(filled[i] || { id: `vslot__${g.id}__${i}`, equipo_id: null, equipos: null, goles: 0, puntos: 0, _virtual: true, _grupoId: g.id });
+    }
+    return slots;
+  }
+
+  function slotEl(part, isWin, isLose) {
+    const eq = part.equipos;
+    const isVirtual = part._virtual;
+    const draggable = eq ? `draggable="true" ondragstart="onDragStart(event,'${part.id}','${eq.id}')" ondragend="onDragEnd(event)"` : "";
+    // All slots are droppable — virtual slots use their own id for INSERT logic
+    const dropAttrs = `ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${part.id}')"`;
+    const cls = ["slot",
+      eq ? "has-team" : "empty-slot",
+      isWin ? "winner" : isLose ? "loser" : ""
+    ].filter(Boolean).join(" ");
+
+    if (eq) {
+      const classified = isClassified(eq.id, g.id) && !isWin && !isLose;
+      const nameClass = ["team-name", isWin ? "winner-name" : classified ? "classified-name" : ""].filter(Boolean).join(" ");
+      const scoreCls  = ["score", isWin ? "win" : isLose ? "lose" : ""].filter(Boolean).join(" ");
+      const classifiedBadge = classified
+        ? `<span style="font-size:10px;font-weight:800;color:#16a34a;margin-left:auto;flex-shrink:0;">✓</span>`
+        : "";
+      return `<div class="${cls} ${classified ? 'classified' : ''}" ${draggable} ${dropAttrs}>
+        ${escudoEl(eq.escudo_url, eq.nombre)}
+        <span class="${nameClass}">${eq.nombre}</span>
+        ${(isWin || isLose) ? `<span class="${scoreCls}">${part.goles}</span>` : ""}
+        ${classifiedBadge}
+      </div>`;
+    } else {
+      return `<div class="${cls}" ${dropAttrs}>
+        <div class="drop-hint">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="opacity:0.3">
+            <circle cx="6" cy="6" r="5" stroke="white" stroke-width="1.2"/>
+            <path d="M6 3v6M3 6h6" stroke="white" stroke-width="1.2"/>
+          </svg>
+          <span class="team-name empty">arrastra aquí</span>
+        </div>
+      </div>`;
+    }
+  }
+
+  if (es2) {
+    const slots = buildSlots(2, true);
+    const local = slots[0]; const visit = slots[1];
+    const hasScore = !local._virtual && !visit._virtual && (local.goles + visit.goles) > 0;
+    const winL = hasScore && local.goles > visit.goles;
+    const winV = hasScore && visit.goles > local.goles;
+    return `<div class="match" ondblclick="openScoreModal('${g.id}')" style="cursor:pointer;" title="Doble click para editar resultado">
+      <div class="match-header">
+        <span class="match-name">${g.nombre}</span>
+      </div>
+      ${slotEl(local, winL, winV)}
+      ${slotEl(visit, winV, winL)}
+    </div>`;
+  } else {
+    const slots = buildSlots(g.tipo_grupo, false);
+    return `<div class="match">
+      <div class="match-header"><span class="match-name">${g.nombre}</span></div>
+      ${slots.map(s => slotEl(s, false, false)).join("")}
+    </div>`;
+  }
+}
+
+// ── BRACKET LAYOUT ENGINE ─────────────────────────────────
+//
+// Uses CSS Grid absolute positioning:
+// - Phase 1 groups in corners (top-left, bottom-left, top-right, bottom-right)
+// - Later phases centered vertically between their source groups
+// - Final in the absolute center
+// - SVG connectors drawn after layout
+
+function getPhasesSorted() {
+  return [...fases].sort((a, b) => a.orden - b.orden);
+}
+
+function buildParentMap() {
+  // parentMap[grupoId] = list of grupos that feed into it
+  const map = {};
+  grupos.forEach(g => {
+    if (g.siguiente_grupo_id) {
+      if (!map[g.siguiente_grupo_id]) map[g.siguiente_grupo_id] = [];
+      map[g.siguiente_grupo_id].push(g);
+    }
+  });
+  return map;
+}
+
+function render() {
+  const wrapper = document.getElementById("bracket");
+  wrapper.innerHTML = "";
+
+  const phasesSorted = getPhasesSorted();
+  if (!phasesSorted.length) return;
+
+  const firstPhase = phasesSorted[0];
+  const lastPhase  = phasesSorted[phasesSorted.length - 1];
+  // Sort phase1 groups by name numerically so Grupo 1,2,3... are in order
+  const phase1Groups = grupos
+    .filter(g => g.fase_id === firstPhase.id)
+    .sort((a, b) => {
+      const numA = parseInt(a.nombre.match(/\d+/)?.[0] ?? '0');
+      const numB = parseInt(b.nombre.match(/\d+/)?.[0] ?? '0');
+      return numA !== numB ? numA - numB : a.nombre.localeCompare(b.nombre);
+    });
+  const mid = Math.ceil(phase1Groups.length / 2);
+  const leftGroups  = phase1Groups.slice(0, mid);
+  const rightGroups = phase1Groups.slice(mid);
+
+  // Build phase columns for each side by following siguiente_grupo_id
+  function buildCols(seeds) {
+    const cols = [seeds];
+    let current = seeds;
+    for (let i = 0; i < phasesSorted.length; i++) {
+      const nextIds = [...new Set(current.map(g => g.siguiente_grupo_id).filter(Boolean))];
+      if (!nextIds.length) break;
+      const next = nextIds.map(id => grupos.find(g => g.id === id)).filter(Boolean);
+      const unique = [...new Map(next.map(g => [g.id, g])).values()];
+      if (!unique.length) break;
+      cols.push(unique);
+      current = unique;
+    }
+    return cols;
+  }
+
+  const leftCols  = buildCols(leftGroups);
+  const rightCols = buildCols(rightGroups);
+
+  // Find shared final (appears in both last cols)
+  const leftLast  = leftCols[leftCols.length - 1];
+  const rightLast = rightCols[rightCols.length - 1];
+  const leftLastIds = new Set(leftLast.map(g => g.id));
+  const sharedFinal = rightLast.filter(g => leftLastIds.has(g.id));
+
+  let centerGroups = [];
+  if (sharedFinal.length) {
+    centerGroups = leftCols.pop(); // same groups
+    rightCols.pop();
+  }
+
+  // ── CONSTANTS ─────────────────────────────────────────
+  const MATCH_W      = 220;   // card width px
+  const COL_GAP      = 48;    // horizontal gap between columns
+  const CARD_H       = 90;    // approximate card height (2 slots)
+  const GROUP_CARD_H = (n) => 28 + n * 34; // header + n slots
+  const CARD_GAP     = 16;    // vertical gap between cards in same column
+
+  // Total columns: leftCols + center(1) + rightCols reversed
+  const totalCols = leftCols.length + 1 + rightCols.length;
+  const totalW = totalCols * MATCH_W + (totalCols - 1) * COL_GAP;
+
+  // Calculate vertical positions for each column
+  // Phase 1: distribute groups evenly top to bottom
+  // Later phases: center between their source groups
+
+  function getGroupY(gid, colGroups, colY) {
+    const idx = colGroups.findIndex(g => g.id === gid);
+    return colY[idx] || 0;
+  }
+
+  // Build y-positions for phase1 groups (spread them out)
+  // Total height is driven by phase1 groups
+  const phase1H = leftGroups.reduce((s, g) => s + GROUP_CARD_H(g.tipo_grupo) + CARD_GAP, 0);
+  const totalH  = Math.max(phase1H, 400);
+
+  // Compute y centers accounting for actual card heights
+  // Each group gets space proportional to its card height, not equal spacing
+  function computeYCenters(groups, totalHeight) {
+    const totalCardsH = groups.reduce((s, g) => s + GROUP_CARD_H(g.tipo_grupo), 0);
+    const totalGaps   = (groups.length - 1) * CARD_GAP;
+    const extraSpace  = Math.max(0, totalHeight - totalCardsH - totalGaps);
+    const extraPerGroup = extraSpace / groups.length;
+
+    const centers = [];
+    let y = 0;
+    groups.forEach(g => {
+      const h = GROUP_CARD_H(g.tipo_grupo) + extraPerGroup;
+      centers.push(y + h / 2);
+      y += h + CARD_GAP;
+    });
+    return centers;
+  }
+
+  const leftYCenters  = computeYCenters(leftGroups, totalH);
+  const rightYCenters = computeYCenters(rightGroups, totalH);
+
+  // For later phase columns: y = average of source group y-centers
+  function computeColYCenters(col, prevCol, prevYCenters) {
+    return col.map(g => {
+      const sources = prevCol.filter(pg => pg.siguiente_grupo_id === g.id);
+      if (!sources.length) return totalH / 2;
+      const ys = sources.map(s => {
+        const idx = prevCol.findIndex(pg => pg.id === s.id);
+        return prevYCenters[idx] ?? totalH / 2;
+      });
+      return ys.reduce((a, b) => a + b, 0) / ys.length;
+    });
+  }
+
+  // Build all y-centers per column
+  const leftColYCenters  = [leftYCenters];
+  const rightColYCenters = [rightYCenters];
+
+  for (let i = 1; i < leftCols.length; i++) {
+    leftColYCenters.push(computeColYCenters(leftCols[i], leftCols[i-1], leftColYCenters[i-1]));
+  }
+  // rightCols[0] = phase1 (far right), rightCols[last] = closest to center
+  // y-centers: phase1 spreads top-to-bottom, later phases converge toward center
+  for (let i = 1; i < rightCols.length; i++) {
+    rightColYCenters.push(computeColYCenters(rightCols[i], rightCols[i-1], rightColYCenters[i-1]));
+  }
+  // When rendering reversed (center→right), invert the y-center arrays accordingly
+  // reversedRight[0] = rightCols[last], reversedRight[last] = rightCols[0]
+  // reversedRightYCenters computed above already matches reversedRight order via [...].reverse()
+
+  // Center column y
+  const centerY = [totalH / 2];
+
+  // ── BUILD DOM ─────────────────────────────────────────
+  // Use a positioned container
+  const LOGO_H   = 160;
+  const LOGO_PAD = LOGO_H + 32;
+  const Y_OFFSET = LOGO_PAD;
+
+  const container = document.createElement("div");
+  container.style.cssText = `position:relative;width:${totalW}px;height:${totalH + 60 + LOGO_PAD}px;margin:0 auto;`;
+
+  // ── LOGO — lives inside container, positioned above final card ──
+  const logoDiv = document.createElement("div");
+  logoDiv.id = "bracket-logo";
+  logoDiv.style.cssText = `position:absolute;display:flex;justify-content:center;align-items:center;pointer-events:none;z-index:10;`;
+  logoDiv.innerHTML = `<img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png"
+    style="height:${LOGO_H}px;object-fit:contain;filter:drop-shadow(0 0 16px rgba(204,0,0,0.6));">`;
+  container.appendChild(logoDiv);
+
+  const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svgEl.setAttribute("width", totalW);
+  svgEl.setAttribute("height", totalH + 60);
+  svgEl.style.cssText = "position:absolute;top:0;left:0;pointer-events:none;";
+  container.appendChild(svgEl);
+
+  function colX(colIndex) {
+    return colIndex * (MATCH_W + COL_GAP);
+  }
+
+  // Column indices:
+  // 0..leftCols.length-1 = left side
+  // leftCols.length = center
+  // leftCols.length+1 .. totalCols-1 = right side (reversed)
+
+  const LABEL_H = 0;
+
+  function placeCard(g, x, yCenter, cardH) {
+    const y = yCenter - cardH / 2 + LABEL_H + Y_OFFSET;
+    const div = document.createElement("div");
+    div.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:${MATCH_W}px;`;
+    div.innerHTML = renderMatchHTML(g);
+    container.appendChild(div);
+    return { x, y, yCenter: yCenter + Y_OFFSET, w: MATCH_W, h: cardH };
+  }
+
+  function placeLabel(text, x, colIdx) {
+    // Find topmost card in this column to place label above it
+    const div = document.createElement("div");
+    div.className = "phase-label";
+    div.style.cssText = `position:absolute;left:${x}px;top:8px;width:${MATCH_W}px;text-align:center;`;
+    div.textContent = text;
+    container.appendChild(div);
+  }
+
+  function drawConnector(x1, y1, x2, y2) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const cx = (x1 + x2) / 2;
+    path.setAttribute("d", `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`);
+    path.setAttribute("stroke", "#cc0000");
+    path.setAttribute("stroke-width", "1.5");
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke-opacity", "0.5");
+    svgEl.appendChild(path);
+  }
+
+
+
+  // ── PLACE LEFT COLUMNS ────────────────────────────────
+  const leftCardPositions = []; // [colIdx][groupIdx] = {x, yCenter}
+  for (let ci = 0; ci < leftCols.length; ci++) {
+    const col = leftCols[ci];
+    const yCenters = leftColYCenters[ci];
+    const x = colX(ci);
+    const phaseName = fases.find(f => f.id === col[0]?.fase_id)?.nombre || "";
+    
+    const positions = [];
+    col.forEach((g, gi) => {
+      const cardH = GROUP_CARD_H(g.tipo_grupo);
+      const pos = placeCard(g, x, yCenters[gi], cardH);
+      positions.push({ x: x + MATCH_W, yCenter: pos.yCenter });
+    });
+    leftCardPositions.push(positions);
+  }
+
+  // ── PLACE CENTER COLUMN ───────────────────────────────
+  const centerColIdx = leftCols.length;
+  if (centerGroups.length) {
+    const x = colX(centerColIdx);
+    centerGroups.forEach((g, gi) => {
+      const cardH = GROUP_CARD_H(g.tipo_grupo);
+      const yCenter = centerY[gi] || totalH / 2;
+      placeCard(g, x, yCenter, cardH);
+      // Position logo: centered horizontally over final card, just above it
+      const cardTopAbs = yCenter - cardH / 2 + Y_OFFSET;
+      logoDiv.style.left   = x + "px";
+      logoDiv.style.top    = (cardTopAbs - LOGO_H - 16) + "px";
+      logoDiv.style.width  = MATCH_W + "px";
+      logoDiv.style.height = LOGO_H + "px";
+
+      // ── CHAMPION SLOT below final card ──────────────────
+      const cardBottomAbs = yCenter + cardH / 2 + Y_OFFSET;
+      const champDiv = document.createElement("div");
+      champDiv.id = "champion-slot";
+      const champEq = torneoData?.campeon_id ? equipos.find(e => e.id === torneoData.campeon_id) : null;
+      champDiv.style.cssText = `
+        position:absolute;
+        left:${x - 20}px;
+        top:${cardBottomAbs + 20}px;
+        width:${MATCH_W + 40}px;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        gap:10px;
+      `;
+      if (champEq) {
+        champDiv.innerHTML = `
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
+                      text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);">
+            Campeón
+          </div>
+          <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;
+                      background:rgba(204,0,0,0.15);border:1px solid rgba(204,0,0,0.3);
+                      border-radius:16px;padding:20px 16px;width:100%;cursor:grab;"
+               draggable="true"
+               ondragstart="onDragStartChamp(event,'${champEq.id}')"
+               ondragend="onDragEnd(event)">
+            <img src="${champEq.escudo_url || ''}" style="width:90px;height:90px;object-fit:contain;
+                 filter:drop-shadow(0 0 12px rgba(255,200,0,0.4));">
+            <span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;
+                         text-transform:uppercase;letter-spacing:0.05em;color:white;text-align:center;
+                         line-height:1.2;">${champEq.nombre}</span>
+            <span onclick="clearChampion()" style="font-size:9px;color:rgba(255,255,255,0.25);
+                  cursor:pointer;text-transform:uppercase;letter-spacing:0.06em;margin-top:4px;">✕ quitar</span>
+          </div>`;
+      } else {
+        champDiv.innerHTML = `
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
+                      text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);">
+            Campeón
+          </div>
+          <div id="champ-drop-target"
+               ondragover="onDragOver(event)"
+               ondragleave="onDragLeave(event)"
+               ondrop="onDropChamp(event)"
+               style="width:100%;border:1.5px dashed rgba(255,200,0,0.3);border-radius:16px;
+                      padding:24px 16px;display:flex;flex-direction:column;align-items:center;gap:8px;
+                      background:rgba(255,200,0,0.04);cursor:default;transition:background 0.15s;">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style="opacity:0.3">
+              <path d="M16 4l3.09 6.26L26 11.27l-5 4.87 1.18 6.86L16 19.77l-6.18 3.23L11 16.14 6 11.27l6.91-1.01L16 4z"
+                    stroke="#ffd700" stroke-width="1.5" fill="none"/>
+            </svg>
+            <span style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;
+                         color:rgba(255,200,0,0.4);text-transform:uppercase;letter-spacing:0.06em;">
+              arrastra aquí al campeón
+            </span>
+          </div>`;
+      }
+      container.appendChild(champDiv);
+      // Extend container height to fit champion slot
+      const champH = champEq ? 200 : 140;
+      container.style.height = (parseInt(container.style.height) + champH + 40) + "px";
+    });
+  }
+
+  // ── PLACE RIGHT COLUMNS
+  // rightCols[0] = phase1 groups (far right), rightCols[last] = closest to center
+  // We render from center outward: rightCols reversed = [closest→center, ..., phase1]
+  // So column index: centerColIdx+1 = closest to center, centerColIdx+n = phase1 (far right)
+  const reversedRight     = [...rightCols].reverse();       // [closest-to-center ... phase1]
+  const reversedRightYCenters = [...rightColYCenters].reverse();
+  const rightCardPositions = []; // indexed same as reversedRight
+
+  for (let ci = 0; ci < reversedRight.length; ci++) {
+    const col     = reversedRight[ci];
+    const yCenters = reversedRightYCenters[ci];
+    const colIdx  = centerColIdx + 1 + ci;
+    const x       = colX(colIdx);
+    const phaseName = fases.find(f => f.id === col[0]?.fase_id)?.nombre || "";
+    
+    const positions = [];
+    col.forEach((g, gi) => {
+      const cardH = GROUP_CARD_H(g.tipo_grupo);
+      const pos   = placeCard(g, x, yCenters[gi], cardH);
+      positions.push({ x, yCenter: pos.yCenter });
+    });
+    rightCardPositions.push(positions);
+  }
+
+  // ── DRAW CONNECTORS ───────────────────────────────────
+
+  // Left side: each group → its siguiente_grupo_id in next col
+  for (let ci = 0; ci < leftCols.length - 1; ci++) {
+    leftCols[ci].forEach((g, gi) => {
+      if (!g.siguiente_grupo_id) return;
+      const toIdx = leftCols[ci + 1].findIndex(tg => tg.id === g.siguiente_grupo_id);
+      if (toIdx < 0) return;
+      drawConnector(
+        leftCardPositions[ci][gi].x, leftCardPositions[ci][gi].yCenter,
+        colX(ci + 1), leftCardPositions[ci + 1][toIdx].yCenter
+      );
+    });
+  }
+
+  // Left last col → center
+  if (centerGroups.length && leftCols.length) {
+    const lastLeftCol = leftCols[leftCols.length - 1];
+    const lastLeftPos = leftCardPositions[leftCols.length - 1];
+    lastLeftCol.forEach((g, gi) => {
+      if (!g.siguiente_grupo_id) return;
+      const toIdx = centerGroups.findIndex(cg => cg.id === g.siguiente_grupo_id);
+      if (toIdx < 0) return;
+      drawConnector(
+        lastLeftPos[gi].x, lastLeftPos[gi].yCenter,
+        colX(centerColIdx), totalH / 2 + Y_OFFSET
+      );
+    });
+  }
+
+  // Center → first right col (reversedRight[0] = closest to center)
+  // The right-side groups point TO the center via siguiente_grupo_id
+  if (centerGroups.length && reversedRight.length) {
+    reversedRight[0].forEach((g, gi) => {
+      // g.siguiente_grupo_id should point to a center group
+      const pointsToCenter = centerGroups.some(cg => cg.id === g.siguiente_grupo_id);
+      if (!pointsToCenter) return;
+      drawConnector(
+        colX(centerColIdx) + MATCH_W, totalH / 2 + Y_OFFSET,
+        colX(centerColIdx + 1), rightCardPositions[0][gi].yCenter
+      );
+    });
+  }
+
+  // Right cols: from closer-to-center outward (reversedRight[ci] → reversedRight[ci+1])
+  for (let ci = 0; ci < reversedRight.length - 1; ci++) {
+    reversedRight[ci].forEach((g, gi) => {
+      // g feeds into reversedRight[ci+1] groups that have siguiente_grupo_id === g.id
+      reversedRight[ci + 1].forEach((tg, tgi) => {
+        if (tg.siguiente_grupo_id === g.id) {
+          drawConnector(
+            colX(centerColIdx + 1 + ci) + MATCH_W, rightCardPositions[ci][gi].yCenter,
+            colX(centerColIdx + 1 + ci + 1), rightCardPositions[ci + 1][tgi].yCenter
+          );
+        }
+      });
+    });
+  }
+
+  wrapper.appendChild(container);
+}
+
+// ── CHAMPION FUNCTIONS ───────────────────────────────────
+function onDragStartChamp(e, equipoId) {
+  dragState = { partId: "champion", equipoId };
+  e.dataTransfer.effectAllowed = "move";
+  e.currentTarget.style.opacity = "0.5";
+}
+
+async function onDropChamp(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove("drag-over");
+  if (!dragState || !dragState.equipoId) return;
+  const equipoId = dragState.equipoId;
+  const champTorneoId = new URLSearchParams(window.location.search).get("torneo");
+  dragState = null;
+  if (!champTorneoId) { showToast("⚠️ Abre con ?torneo=UUID para guardar el campeón"); return; }
+  try {
+    await sbPatch("torneos", champTorneoId, { campeon_id: equipoId });
+    if (torneoData) torneoData.campeon_id = equipoId;
+    render();
+    showToast("🏆 ¡Campeón guardado!");
+  } catch(err) { console.error(err); }
+}
+
+async function clearChampion() {
+  const champTorneoId = new URLSearchParams(window.location.search).get("torneo");
+  if (!champTorneoId) return;
+  try {
+    await sbPatch("torneos", champTorneoId, { campeon_id: null });
+    if (torneoData) torneoData.campeon_id = null;
+    render();
+  } catch(err) { console.error(err); }
+}
+
+// ── START ─────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

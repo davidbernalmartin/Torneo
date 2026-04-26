@@ -1,26 +1,22 @@
-import re
 import random
 import streamlit as st
 from collections import Counter
 
-from src.database import get_supabase, get_fases, get_grupos_por_fase
+from src.database import get_supabase
 
 
 # -------------------------------------------------------
 # SORTEO AUTOMÁTICO
 # -------------------------------------------------------
 
-def realizar_sorteo(fase_id, lista_grupos):
-    """
-    Reparte aleatoriamente los equipos no eliminados entre los grupos de la fase.
-    Borra primero los participantes existentes en esos grupos (limpieza de seguridad).
-    """
+def realizar_sorteo(fase_id, lista_grupos, torneo_id):
     supabase = get_supabase()
 
     equipos = (
         supabase.table("equipos")
         .select("id")
         .eq("eliminado", False)
+        .eq("torneo_id", torneo_id)
         .execute()
         .data
     )
@@ -53,13 +49,17 @@ def realizar_sorteo(fase_id, lista_grupos):
 # SECCIÓN SORTEO MANUAL (componente de página)
 # -------------------------------------------------------
 
-def seccion_sorteo_manual(supabase, torneo_id=None):
-    """
-    Gestiona el sorteo manual buscando automáticamente la fase de orden 1.
-    """
+def seccion_sorteo_manual(torneo_id):
+    supabase = get_supabase()
     st.subheader("Mesa de Sorteo (Fase Inicial)")
 
-    res_fase = supabase.table("fases").select("id, nombre").eq("orden", 1).execute()
+    res_fase = (
+        supabase.table("fases")
+        .select("id, nombre")
+        .eq("orden", 1)
+        .eq("torneo_id", torneo_id)
+        .execute()
+    )
 
     if not res_fase.data:
         st.error("No se ha encontrado ninguna fase con orden 1 en la base de datos.")
@@ -69,13 +69,13 @@ def seccion_sorteo_manual(supabase, torneo_id=None):
     fase_id = fase_inicial["id"]
     st.caption(f"Configurando sorteo para: **{fase_inicial['nombre']}**")
 
-    res_grupos = (
+    todos_los_grupos = (
         supabase.table("grupos")
         .select("id, nombre, tipo_grupo")
         .eq("fase_id", fase_id)
         .execute()
+        .data
     )
-    todos_los_grupos = res_grupos.data
     ids_grupos = [g["id"] for g in todos_los_grupos]
 
     res_p = (
@@ -94,8 +94,14 @@ def seccion_sorteo_manual(supabase, torneo_id=None):
             g["plazas_libres"] = g["tipo_grupo"] - actual
             grupos_disponibles.append(g)
 
-    res_e = supabase.table("equipos").select("id, nombre").execute()
-    equipos_libres = [e for e in res_e.data if e["id"] not in asignados_ids]
+    todos_equipos = (
+        supabase.table("equipos")
+        .select("id, nombre")
+        .eq("torneo_id", torneo_id)
+        .execute()
+        .data
+    )
+    equipos_libres = [e for e in todos_equipos if e["id"] not in asignados_ids]
 
     if not equipos_libres:
         st.success("¡Sorteo completado! Todos los equipos están en sus grupos.")

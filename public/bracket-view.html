@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuadro RFFM — Consulta</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red:       #cc0000;
+    --red-dark:  #8b0000;
+    --white:     #ffffff;
+    --win-green: #86efac;
+    --win-bg:    rgba(134,239,172,0.08);
+    --font-display: 'Barlow Condensed', sans-serif;
+    --font-body:    'Barlow', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1a0000;
+    color: var(--white);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: auto;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.4);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(6px);
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--red); flex-shrink: 0;
+    box-shadow: 0 0 8px var(--red);
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-size: 22px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .view-badge {
+    font-family: var(--font-display);
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.35);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 3px 8px; border-radius: 4px;
+  }
+
+  .bracket-outer {
+    padding: 40px 32px;
+    overflow: auto;
+    min-height: calc(100vh - 65px);
+  }
+  .bracket { position: relative; min-width: max-content; }
+
+  .match {
+    background: var(--red-dark);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(204,0,0,0.3);
+  }
+  .match-header {
+    background: var(--red);
+    padding: 5px 10px;
+  }
+  .match-name {
+    font-family: var(--font-display);
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: white;
+  }
+  .slot {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    min-height: 34px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    gap: 8px;
+  }
+  .slot:last-of-type { border-bottom: none; }
+  .slot.winner { background: var(--win-bg); }
+  .slot.loser  { opacity: 0.45; }
+  .slot.classified {
+    background: white;
+    border-left: 3px solid #86efac;
+  }
+  .slot.classified .team-name { color: #1a1a1a !important; font-weight: 800; }
+  .slot.empty-slot {
+    border: 1.5px dashed rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.1);
+    min-height: 34px;
+    opacity: 0.4;
+  }
+  .escudo {
+    width: 20px; height: 20px;
+    object-fit: contain; border-radius: 2px; flex-shrink: 0;
+  }
+  .escudo-placeholder {
+    width: 20px; height: 20px;
+    border-radius: 2px; flex-shrink: 0;
+    background: rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .team-name {
+    font-family: var(--font-display);
+    font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.03em;
+    color: white;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex: 1;
+  }
+  .team-name.empty {
+    font-family: var(--font-body);
+    font-size: 11px; font-weight: 400;
+    font-style: italic;
+    color: rgba(255,255,255,0.2);
+    text-transform: none;
+  }
+  .team-name.winner-name { color: var(--win-green); }
+  .score {
+    font-family: var(--font-display);
+    font-size: 14px; font-weight: 800;
+    min-width: 18px; text-align: center; color: white;
+  }
+  .score.win  { color: var(--win-green); }
+  .score.lose { color: rgba(255,255,255,0.3); }
+
+  #loading {
+    position: fixed; inset: 0;
+    background: #1a0000;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px; z-index: 200;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(204,0,0,0.2);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading p {
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.4);
+  }
+  #error-msg {
+    margin: 32px; padding: 20px 24px;
+    background: rgba(204,0,0,0.15);
+    border: 1px solid rgba(204,0,0,0.4);
+    border-radius: 10px;
+    font-size: 14px; line-height: 1.6;
+    color: rgba(255,255,255,0.7);
+    display: none;
+  }
+  #error-msg strong { color: white; display: block; margin-bottom: 6px; font-size: 16px; }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Cargando cuadro...</p>
+</div>
+
+<div id="error-msg"></div>
+
+<header>
+  <div class="header-left">
+    <div class="logo-dot"></div>
+    <h1 id="bracket-title">Cuadro RFFM</h1>
+  </div>
+  <span class="view-badge">Solo lectura</span>
+</header>
+
+<div class="bracket-outer">
+  <div class="bracket" id="bracket"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────
+const SUPABASE_URL      = "https://bdqoapdnokydfwykitww.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcW9hcGRub2t5ZGZ3eWtpdHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDc1NTMsImV4cCI6MjA5MjM4MzU1M30.TioDgG3xHadZS1wvttTgnB_LxcdK5L_rqhEDk9okMLw";
+// ─────────────────────────────────────────────────────────
+
+let fases = [], grupos = [], participantes = [], equipos = [], torneoData = null;
+
+function sbHeaders() {
+  return {
+    "apikey": SUPABASE_ANON_KEY,
+    "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+  };
+}
+async function sbGet(table, params) {
+  const res = await fetch(SUPABASE_URL + "/rest/v1/" + table + (params ? "?" + params : ""), { headers: sbHeaders() });
+  if (!res.ok) throw new Error(table + " (" + res.status + "): " + await res.text());
+  return res.json();
+}
+
+async function init() {
+  try {
+    const torneoId = new URLSearchParams(window.location.search).get("torneo");
+    const fasesParams  = torneoId ? "select=*&order=orden&torneo_id=eq." + torneoId : "select=*&order=orden";
+    const equiposParams = torneoId ? "select=id,nombre,escudo_url&eliminado=eq.false&torneo_id=eq." + torneoId : "select=id,nombre,escudo_url&eliminado=eq.false";
+
+    const [f, g, p, e, t] = await Promise.all([
+      sbGet("fases", fasesParams),
+      sbGet("grupos", "select=*"),
+      sbGet("participantes_grupo", "select=*"),
+      sbGet("equipos", equiposParams),
+      torneoId ? sbGet("torneos", "select=id,nombre,campeon_id&id=eq." + torneoId) : Promise.resolve([]),
+    ]);
+    fases = f; grupos = g; equipos = e;
+    torneoData = (t && t.length) ? t[0] : null;
+    if (torneoData?.nombre) {
+      document.getElementById("bracket-title").textContent = torneoData.nombre;
+      document.title = torneoData.nombre;
+    }
+    const eqMap = {};
+    equipos.forEach(eq => eqMap[eq.id] = eq);
+    participantes = p.map(part => ({ ...part, equipos: part.equipo_id ? (eqMap[part.equipo_id] || null) : null }));
+    document.getElementById("loading").style.display = "none";
+    if (!fases.length) { showError("No hay fases configuradas."); return; }
+    render();
+  } catch(err) {
+    document.getElementById("loading").style.display = "none";
+    showError(err.message);
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById("error-msg");
+  el.innerHTML = "<strong>Error</strong>" + msg;
+  el.style.display = "block";
+}
+
+const byGrupo = gid => participantes.filter(p => p.grupo_id === gid);
+const getGrupo = id => grupos.find(g => g.id === id);
+
+function isClassified(equipoId, grupoId) {
+  if (!equipoId || !grupoId) return false;
+  const srcGrupo = grupos.find(g => g.id === grupoId);
+  if (!srcGrupo) return false;
+  const srcFase = fases.find(f => f.id === srcGrupo.fase_id);
+  if (!srcFase) return false;
+  return participantes.some(p => {
+    if (p.equipo_id !== equipoId || p.grupo_id === grupoId) return false;
+    const g = grupos.find(g => g.id === p.grupo_id);
+    if (!g) return false;
+    const f = fases.find(f => f.id === g.fase_id);
+    return f && f.orden > srcFase.orden;
+  });
+}
+
+function escudoEl(url, nombre) {
+  if (url) return `<img src="${url}" class="escudo" alt="${nombre || ''}">`;
+  return `<div class="escudo-placeholder">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <circle cx="6" cy="4" r="2.5" fill="white"/>
+      <path d="M1 11c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="white" stroke-width="1.2" fill="none"/>
+    </svg></div>`;
+}
+
+function renderMatchHTML(g) {
+  const parts = byGrupo(g.id);
+  const es2 = g.tipo_grupo === 2;
+
+  function slotEl(part, isWin, isLose) {
+    if (!part) return "";
+    const eq = part.equipos;
+    if (!eq) {
+      return `<div class="slot empty-slot">
+        <span class="team-name empty">—</span>
+      </div>`;
+    }
+    const classified = isClassified(eq.id, g.id) && !isWin && !isLose;
+    const cls = ["slot", isWin ? "winner" : isLose ? "loser" : "", classified ? "classified" : ""].filter(Boolean).join(" ");
+    const nameClass = ["team-name", isWin ? "winner-name" : ""].filter(Boolean).join(" ");
+    const scoreCls = ["score", isWin ? "win" : isLose ? "lose" : ""].filter(Boolean).join(" ");
+    const badge = classified ? `<span style="font-size:10px;font-weight:800;color:#16a34a;margin-left:auto;">✓</span>` : "";
+    return `<div class="${cls}">
+      ${escudoEl(eq.escudo_url, eq.nombre)}
+      <span class="${nameClass}">${eq.nombre}</span>
+      ${(isWin || isLose) ? `<span class="${scoreCls}">${part.goles}</span>` : ""}
+      ${badge}
+    </div>`;
+  }
+
+  if (es2) {
+    const local = parts.find(p => p.es_local) || parts[0];
+    const visit = parts.find(p => !p.es_local) || parts[1];
+    if (!local && !visit) return `<div class="match"><div class="match-header"><span class="match-name">${g.nombre}</span></div>
+      <div class="slot empty-slot"><span class="team-name empty">—</span></div>
+      <div class="slot empty-slot"><span class="team-name empty">—</span></div></div>`;
+    const hasScore = local && visit && (local.goles + visit.goles) > 0;
+    const winL = hasScore && local.goles > visit.goles;
+    const winV = hasScore && visit.goles > local.goles;
+    return `<div class="match">
+      <div class="match-header"><span class="match-name">${g.nombre}</span></div>
+      ${local ? slotEl(local, winL, winV) : '<div class="slot empty-slot"><span class="team-name empty">—</span></div>'}
+      ${visit ? slotEl(visit, winV, winL) : '<div class="slot empty-slot"><span class="team-name empty">—</span></div>'}
+    </div>`;
+  } else {
+    const slots = [];
+    for (let i = 0; i < g.tipo_grupo; i++) {
+      slots.push(parts[i] ? slotEl(parts[i], false, false)
+        : `<div class="slot empty-slot"><span class="team-name empty">—</span></div>`);
+    }
+    return `<div class="match">
+      <div class="match-header"><span class="match-name">${g.nombre}</span></div>
+      ${slots.join("")}
+    </div>`;
+  }
+}
+
+function getPhasesSorted() { return [...fases].sort((a, b) => a.orden - b.orden); }
+
+function buildCols(seeds) {
+  const cols = [seeds];
+  let current = seeds;
+  for (let i = 0; i < fases.length; i++) {
+    const nextIds = [...new Set(current.map(g => g.siguiente_grupo_id).filter(Boolean))];
+    if (!nextIds.length) break;
+    const next = nextIds.map(id => grupos.find(g => g.id === id)).filter(Boolean);
+    const unique = [...new Map(next.map(g => [g.id, g])).values()];
+    if (!unique.length) break;
+    cols.push(unique); current = unique;
+  }
+  return cols;
+}
+
+function render() {
+  const bracket = document.getElementById("bracket");
+  bracket.innerHTML = "";
+
+  const phasesSorted = getPhasesSorted();
+  if (!phasesSorted.length) return;
+
+  const phase1Groups = grupos
+    .filter(g => g.fase_id === phasesSorted[0].id)
+    .sort((a, b) => {
+      const numA = parseInt(a.nombre.match(/\d+/)?.[0] ?? '0');
+      const numB = parseInt(b.nombre.match(/\d+/)?.[0] ?? '0');
+      return numA !== numB ? numA - numB : a.nombre.localeCompare(b.nombre);
+    });
+  const mid = Math.ceil(phase1Groups.length / 2);
+  const leftGroups  = phase1Groups.slice(0, mid);
+  const rightGroups = phase1Groups.slice(mid);
+
+  const leftCols  = buildCols(leftGroups);
+  const rightCols = buildCols(rightGroups);
+
+  const leftLast   = leftCols[leftCols.length - 1];
+  const rightLast  = rightCols[rightCols.length - 1];
+  const leftLastIds = new Set(leftLast.map(g => g.id));
+  const sharedFinal = rightLast.filter(g => leftLastIds.has(g.id));
+  let centerGroups = [];
+  if (sharedFinal.length) { centerGroups = leftCols.pop(); rightCols.pop(); }
+
+  const MATCH_W  = 220;
+  const COL_GAP  = 48;
+  const GROUP_CARD_H = n => 28 + n * 34;
+  const CARD_GAP = 16;
+  const LABEL_H  = 0;
+  const LOGO_H   = 280;
+  const LOGO_PAD = LOGO_H + 32;
+  const Y_OFFSET = LOGO_PAD;
+
+  const totalCols = leftCols.length + 1 + rightCols.length;
+  const totalW = totalCols * MATCH_W + (totalCols - 1) * COL_GAP;
+  const phase1H = leftGroups.reduce((s, g) => s + GROUP_CARD_H(g.tipo_grupo) + CARD_GAP, 0);
+  const totalH = Math.max(phase1H, 400);
+
+  function colX(i) { return i * (MATCH_W + COL_GAP); }
+  function computeYCenters(groups, totalHeight) {
+    const totalCardsH = groups.reduce((s, g) => s + GROUP_CARD_H(g.tipo_grupo), 0);
+    const totalGaps   = (groups.length - 1) * CARD_GAP;
+    const extraSpace  = Math.max(0, totalHeight - totalCardsH - totalGaps);
+    const extraPerGroup = extraSpace / groups.length;
+    const centers = [];
+    let y = 0;
+    groups.forEach(g => {
+      const h = GROUP_CARD_H(g.tipo_grupo) + extraPerGroup;
+      centers.push(y + h / 2);
+      y += h + CARD_GAP;
+    });
+    return centers;
+  }
+  function computeColYCenters(col, prevCol, prevYCenters) {
+    return col.map(g => {
+      const sources = prevCol.filter(pg => pg.siguiente_grupo_id === g.id);
+      if (!sources.length) return totalH / 2;
+      const ys = sources.map(s => { const idx = prevCol.findIndex(pg => pg.id === s.id); return prevYCenters[idx] ?? totalH / 2; });
+      return ys.reduce((a, b) => a + b, 0) / ys.length;
+    });
+  }
+
+  const leftYCenters  = computeYCenters(leftGroups, totalH);
+  const rightYCenters = computeYCenters(rightGroups, totalH);
+  const leftColYCenters  = [leftYCenters];
+  const rightColYCenters = [rightYCenters];
+  for (let i = 1; i < leftCols.length; i++) leftColYCenters.push(computeColYCenters(leftCols[i], leftCols[i-1], leftColYCenters[i-1]));
+  for (let i = 1; i < rightCols.length; i++) rightColYCenters.push(computeColYCenters(rightCols[i], rightCols[i-1], rightColYCenters[i-1]));
+  const centerY = [totalH / 2];
+
+  const champEq = torneoData?.campeon_id ? equipos.find(e => e.id === torneoData.campeon_id) : null;
+  const champH = champEq ? 220 : 160;
+
+  const container = document.createElement("div");
+  container.style.cssText = `position:relative;width:${totalW}px;height:${totalH + 60 + LOGO_PAD + champH + 40}px;margin:0 auto;`;
+
+  const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svgEl.setAttribute("width", totalW);
+  svgEl.setAttribute("height", totalH + 60 + LOGO_PAD);
+  svgEl.style.cssText = "position:absolute;top:0;left:0;pointer-events:none;";
+  container.appendChild(svgEl);
+
+  // Logo
+  const logoDiv = document.createElement("div");
+  logoDiv.style.cssText = `position:absolute;display:flex;justify-content:center;align-items:center;pointer-events:none;z-index:10;`;
+  logoDiv.innerHTML = `<img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png"
+    style="height:${LOGO_H}px;object-fit:contain;filter:drop-shadow(0 0 16px rgba(204,0,0,0.6));">`;
+  container.appendChild(logoDiv);
+
+  function placeCard(g, x, yCenter, cardH) {
+    const y = yCenter - cardH / 2 + Y_OFFSET;
+    const div = document.createElement("div");
+    div.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:${MATCH_W}px;`;
+    div.innerHTML = renderMatchHTML(g);
+    container.appendChild(div);
+    return { x, y, yCenter: yCenter + Y_OFFSET, w: MATCH_W, h: cardH };
+  }
+
+  function drawConnector(x1, y1, x2, y2) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const cx = (x1 + x2) / 2;
+    path.setAttribute("d", `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`);
+    path.setAttribute("stroke", "#cc0000");
+    path.setAttribute("stroke-width", "1.5");
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke-opacity", "0.5");
+    svgEl.appendChild(path);
+  }
+
+  const leftCardPositions = [];
+  for (let ci = 0; ci < leftCols.length; ci++) {
+    const col = leftCols[ci]; const yCenters = leftColYCenters[ci]; const x = colX(ci);
+    const positions = [];
+    col.forEach((g, gi) => { const cardH = GROUP_CARD_H(g.tipo_grupo); const pos = placeCard(g, x, yCenters[gi], cardH); positions.push({ x: x + MATCH_W, yCenter: pos.yCenter }); });
+    leftCardPositions.push(positions);
+  }
+
+  const centerColIdx = leftCols.length;
+  if (centerGroups.length) {
+    const x = colX(centerColIdx);
+    centerGroups.forEach((g, gi) => {
+      const cardH = GROUP_CARD_H(g.tipo_grupo);
+      const yCenter = centerY[gi] || totalH / 2;
+      placeCard(g, x, yCenter, cardH);
+      const cardTopAbs = yCenter - cardH / 2 + Y_OFFSET;
+      logoDiv.style.left = x + "px"; logoDiv.style.top = (cardTopAbs - LOGO_H - 16) + "px";
+      logoDiv.style.width = MATCH_W + "px"; logoDiv.style.height = LOGO_H + "px";
+
+      // Champion display (read-only — mirrors bracket.html visually, no editing)
+      const cardBottomAbs = yCenter + cardH / 2 + Y_OFFSET;
+      const champDiv = document.createElement("div");
+      champDiv.style.cssText = `position:absolute;left:${x - 20}px;top:${cardBottomAbs + 20}px;width:${MATCH_W + 40}px;display:flex;flex-direction:column;align-items:center;gap:10px;`;
+      if (champEq) {
+        champDiv.innerHTML = `
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
+                      text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);">
+            Campeón
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px;
+                      background:rgba(204,0,0,0.15);border:1px solid rgba(204,0,0,0.3);
+                      border-radius:16px;padding:20px 16px;width:100%;">
+            <img src="${champEq.escudo_url || ''}" style="width:90px;height:90px;object-fit:contain;
+                 filter:drop-shadow(0 0 12px rgba(255,200,0,0.4));">
+            <span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;
+                         text-transform:uppercase;letter-spacing:0.05em;color:white;text-align:center;
+                         line-height:1.2;">${champEq.nombre}</span>
+          </div>`;
+      } else {
+        champDiv.innerHTML = `
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
+                      text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);">
+            Campeón
+          </div>
+          <div style="width:100%;border:1.5px dashed rgba(255,200,0,0.15);border-radius:16px;
+                      padding:24px 16px;display:flex;flex-direction:column;align-items:center;gap:8px;
+                      background:rgba(255,200,0,0.02);">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style="opacity:0.2">
+              <path d="M16 4l3.09 6.26L26 11.27l-5 4.87 1.18 6.86L16 19.77l-6.18 3.23L11 16.14 6 11.27l6.91-1.01L16 4z"
+                    stroke="#ffd700" stroke-width="1.5" fill="none"/>
+            </svg>
+            <span style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;
+                         color:rgba(255,200,0,0.25);text-transform:uppercase;letter-spacing:0.06em;">
+              Por determinar
+            </span>
+          </div>`;
+      }
+      container.appendChild(champDiv);
+      const champH = champEq ? 200 : 140;
+      container.style.height = (parseInt(container.style.height) + champH + 40) + "px";
+    });
+  }
+
+  const reversedRight = [...rightCols].reverse();
+  const reversedRightYCenters = [...rightColYCenters].reverse();
+  const rightCardPositions = [];
+  for (let ci = 0; ci < reversedRight.length; ci++) {
+    const col = reversedRight[ci]; const yCenters = reversedRightYCenters[ci]; const colIdx = centerColIdx + 1 + ci; const x = colX(colIdx);
+    const positions = [];
+    col.forEach((g, gi) => { const cardH = GROUP_CARD_H(g.tipo_grupo); const pos = placeCard(g, x, yCenters[gi], cardH); positions.push({ x, yCenter: pos.yCenter }); });
+    rightCardPositions.push(positions);
+  }
+
+  // Connectors
+  for (let ci = 0; ci < leftCols.length - 1; ci++) {
+    leftCols[ci].forEach((g, gi) => {
+      if (!g.siguiente_grupo_id) return;
+      const toIdx = leftCols[ci + 1].findIndex(tg => tg.id === g.siguiente_grupo_id);
+      if (toIdx < 0) return;
+      drawConnector(leftCardPositions[ci][gi].x, leftCardPositions[ci][gi].yCenter, colX(ci + 1), leftCardPositions[ci + 1][toIdx].yCenter);
+    });
+  }
+  if (centerGroups.length && leftCols.length) {
+    const lastLeftCol = leftCols[leftCols.length - 1];
+    const lastLeftPos = leftCardPositions[leftCols.length - 1];
+    lastLeftCol.forEach((g, gi) => {
+      if (!g.siguiente_grupo_id) return;
+      const toIdx = centerGroups.findIndex(cg => cg.id === g.siguiente_grupo_id);
+      if (toIdx < 0) return;
+      drawConnector(lastLeftPos[gi].x, lastLeftPos[gi].yCenter, colX(centerColIdx), totalH / 2 + Y_OFFSET);
+    });
+  }
+  if (centerGroups.length && reversedRight.length) {
+    reversedRight[0].forEach((g, gi) => {
+      // g.siguiente_grupo_id points TO a center group
+      const pointsToCenter = centerGroups.some(cg => cg.id === g.siguiente_grupo_id);
+      if (!pointsToCenter) return;
+      drawConnector(colX(centerColIdx) + MATCH_W, totalH / 2 + Y_OFFSET, colX(centerColIdx + 1), rightCardPositions[0][gi].yCenter);
+    });
+  }
+  for (let ci = 0; ci < reversedRight.length - 1; ci++) {
+    reversedRight[ci].forEach((g, gi) => {
+      reversedRight[ci + 1].forEach((tg, tgi) => {
+        if (tg.siguiente_grupo_id === g.id) drawConnector(colX(centerColIdx + 1 + ci) + MATCH_W, rightCardPositions[ci][gi].yCenter, colX(centerColIdx + 1 + ci + 1), rightCardPositions[ci + 1][tgi].yCenter);
+      });
+    });
+  }
+
+  bracket.appendChild(container);
+}
+
+init();
+</script>
+</body>
+</html>

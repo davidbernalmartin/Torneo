@@ -14,7 +14,6 @@ def get_supabase() -> Client:
 # -------------------------------------------------------
 
 def get_torneos():
-    """Devuelve todos los torneos ordenados por fecha de creación."""
     supabase = get_supabase()
     return supabase.table("torneos").select("*").order("created_at").execute().data
 
@@ -49,16 +48,26 @@ def get_equipos(torneo_id):
     )
 
 
+def get_equipos_libres(torneo_id, ocupados_ids=None):
+    supabase = get_supabase()
+    equipos = (
+        supabase.table("equipos")
+        .select("id, nombre")
+        .eq("eliminado", False)
+        .eq("torneo_id", torneo_id)
+        .execute()
+        .data
+    )
+    if ocupados_ids:
+        equipos = [e for e in equipos if e["id"] not in ocupados_ids]
+    return equipos
+
+
 def subir_equipos_batch(lista_equipos, torneo_id):
-    """
-    lista_equipos: lista de dicts [{'nombre': '...', 'escudo_url': '...'}, ...]
-    Añade torneo_id a cada uno antes de insertar.
-    """
     supabase = get_supabase()
     try:
         equipos_con_torneo = [{**e, "torneo_id": torneo_id} for e in lista_equipos]
-        response = supabase.table("equipos").insert(equipos_con_torneo).execute()
-        return response
+        return supabase.table("equipos").insert(equipos_con_torneo).execute()
     except Exception as e:
         return f"Error: {e}"
 
@@ -68,7 +77,6 @@ def subir_equipos_batch(lista_equipos, torneo_id):
 # -------------------------------------------------------
 
 def get_fases(torneo_id):
-    """Devuelve las fases de un torneo ordenadas por 'orden'."""
     supabase = get_supabase()
     return (
         supabase.table("fases")
@@ -80,14 +88,33 @@ def get_fases(torneo_id):
     )
 
 
+def crear_fase(nombre, orden, torneo_id):
+    supabase = get_supabase()
+    return supabase.table("fases").insert({
+        "nombre": nombre,
+        "orden": orden,
+        "torneo_id": torneo_id,
+    }).execute().data
+
+
 # -------------------------------------------------------
 # GRUPOS
 # -------------------------------------------------------
 
 def get_grupos_por_fase(fase_id):
-    """Devuelve todos los grupos de una fase dada."""
     supabase = get_supabase()
     return supabase.table("grupos").select("*").eq("fase_id", fase_id).execute().data
+
+
+def crear_grupos(grupos_list):
+    supabase = get_supabase()
+    return supabase.table("grupos").insert(grupos_list).execute().data
+
+
+def contar_grupos_fase(fase_id):
+    supabase = get_supabase()
+    res = supabase.table("grupos").select("id", count="exact").eq("fase_id", fase_id).execute()
+    return res.count or 0
 
 
 # -------------------------------------------------------
@@ -95,12 +122,22 @@ def get_grupos_por_fase(fase_id):
 # -------------------------------------------------------
 
 def get_participantes_grupo(grupo_id):
-    """Devuelve los participantes de un grupo, con datos del equipo anidados."""
     supabase = get_supabase()
     return (
         supabase.table("participantes_grupo")
         .select("*, equipos(id, nombre, escudo_url)")
         .eq("grupo_id", grupo_id)
+        .execute()
+        .data
+    )
+
+
+def get_participantes_grupos(ids_grupos):
+    supabase = get_supabase()
+    return (
+        supabase.table("participantes_grupo")
+        .select("*, equipos(id, nombre, escudo_url)")
+        .in_("grupo_id", ids_grupos)
         .execute()
         .data
     )

@@ -2,31 +2,79 @@ import streamlit as st
 import pandas as pd
 
 from src.database import (
-    get_supabase,
     get_torneos,
     crear_torneo,
     eliminar_torneo,
     get_equipos,
+    get_equipos_libres,
     subir_equipos_batch,
     get_fases,
     get_grupos_por_fase,
-    get_participantes_grupo,
+    get_participantes_grupos,
+    crear_fase,
+    crear_grupos,
+    contar_grupos_fase,
 )
 from src.logic import seccion_sorteo_manual
-from src.components import renderizar_tarjetas_equipos, mostrar_grupo_tv
+from src.components import (
+    renderizar_tarjetas_equipos,
+    mostrar_grupo_tv,
+    configurar_progresion_visual,
+    renderizar_tarjeta_grupo_minimalista,
+    renderizar_cuadro_progresion,
+)
 
-# --- Constantes ---
 LOGO_RFFM_URL = "https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png"
 
-# --- Configuración de página (solo una vez) ---
 st.set_page_config(page_title="Gestor Torneo RFFM", layout="wide")
 
-# --- Cliente Supabase único ---
-supabase = get_supabase()
+
+# -------------------------------------------------------
+# AUTENTICACIÓN
+# -------------------------------------------------------
+
+def check_login():
+    if st.session_state.get("authenticated"):
+        return True
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("<div style='height:48px'></div>", unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:24px;">
+                <img src="{LOGO_RFFM_URL}" style="width:80px;margin-bottom:12px;">
+                <h2 style="margin:0;font-size:1.5rem;text-align:center;">Gestión de Campeonato RFFM</h2>
+                <p style="color:#888;margin:0;">Acceso restringido</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        with st.form("login_form"):
+            usuario = st.text_input("Usuario")
+            password = st.text_input("Contraseña", type="password")
+            submitted = st.form_submit_button("Entrar", use_container_width=True, type="primary")
+
+            if submitted:
+                valid_user = st.secrets.get("auth", {}).get("username", "")
+                valid_pass = st.secrets.get("auth", {}).get("password", "")
+                if usuario == valid_user and password == valid_pass:
+                    st.session_state.authenticated = True
+                    st.rerun()
+                else:
+                    st.error("Usuario o contraseña incorrectos.")
+
+    return False
+
+
+if not check_login():
+    st.stop()
+
 
 # -------------------------------------------------------
 # MODO TV
 # -------------------------------------------------------
+
 query_params = st.query_params
 
 if "view" in query_params and query_params["view"] == "tv":
@@ -47,9 +95,11 @@ if "view" in query_params and query_params["view"] == "tv":
 
     st.stop()
 
+
 # -------------------------------------------------------
 # CABECERA
 # -------------------------------------------------------
+
 st.markdown(
     f"""
     <div style="display: flex; align-items: center;">
@@ -60,9 +110,16 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
 # -------------------------------------------------------
-# SELECTOR DE TORNEO (sidebar)
+# SIDEBAR: logout + selector de torneo + menú
 # -------------------------------------------------------
+
+if st.sidebar.button("🔒 Cerrar sesión", use_container_width=True):
+    st.session_state.authenticated = False
+    st.rerun()
+
+st.sidebar.markdown("---")
 st.sidebar.markdown("## 🏆 Torneo")
 
 torneos = get_torneos()
@@ -73,7 +130,6 @@ if not torneos:
 else:
     nombres_torneos = [t["nombre"] for t in torneos]
 
-    # Persistir selección en session_state
     if "torneo_idx" not in st.session_state:
         st.session_state.torneo_idx = 0
 
@@ -88,23 +144,22 @@ else:
 
 st.sidebar.markdown("---")
 
-# -------------------------------------------------------
-# NAVEGACIÓN
-# -------------------------------------------------------
 menu = st.sidebar.selectbox(
     "Menú",
     ["Torneos", "Dashboard", "Configurador", "Carga de Equipos", "Cuadro Visual", "Sorteo"],
 )
 
+
 # -------------------------------------------------------
-# TORNEOS
+# SECCIONES
 # -------------------------------------------------------
-if menu == "Torneos":
+
+def seccion_torneos():
     st.subheader("Gestión de Torneos")
 
     with st.expander("➕ Crear Nuevo Torneo", expanded=not torneos):
         nuevo_nombre = st.text_input("Nombre del torneo", placeholder="ej: Copa RFFM 2026")
-        nueva_desc   = st.text_input("Descripción (opcional)")
+        nueva_desc = st.text_input("Descripción (opcional)")
         if st.button("Crear torneo"):
             if nuevo_nombre.strip():
                 try:
@@ -148,18 +203,8 @@ if menu == "Torneos":
                     st.session_state.pop(f"confirm_del_{t['id']}", None)
                     st.rerun()
 
-# Guard: el resto de secciones requieren un torneo seleccionado
-if menu != "Torneos":
-    if not torneo_actual:
-        st.warning("Selecciona o crea un torneo en el sidebar para continuar.")
-        st.stop()
-    torneo_id = torneo_actual["id"]
-    st.caption(f"🏆 Torneo activo: **{torneo_actual['nombre']}**")
 
-# -------------------------------------------------------
-# DASHBOARD
-# -------------------------------------------------------
-if menu == "Dashboard":
+def seccion_dashboard(torneo_id):
     equipos = get_equipos(torneo_id)
     col_e1, col_e2 = st.columns(2)
     col_e1.metric("Total Equipos", len(equipos))
@@ -169,10 +214,8 @@ if menu == "Dashboard":
     st.subheader("Plantilla de Equipos")
     renderizar_tarjetas_equipos(equipos)
 
-# -------------------------------------------------------
-# CARGA DE EQUIPOS
-# -------------------------------------------------------
-if menu == "Carga de Equipos":
+
+def seccion_carga_equipos(torneo_id):
     st.subheader("Importación Masiva de Equipos")
 
     archivo = st.file_uploader("Sube tu Excel o CSV", type=["xlsx", "csv"])
@@ -208,10 +251,8 @@ if menu == "Carga de Equipos":
         st.subheader("Equipos actualmente en la Base de Datos")
         renderizar_tarjetas_equipos(get_equipos(torneo_id))
 
-# -------------------------------------------------------
-# CONFIGURADOR
-# -------------------------------------------------------
-if menu == "Configurador":
+
+def seccion_configurador(torneo_id):
     st.subheader("Definición de Grupos por Fase")
 
     with st.expander("➕ Crear Nueva Fase"):
@@ -219,11 +260,7 @@ if menu == "Configurador":
         orden_fase = st.number_input("Orden", min_value=1, value=1)
         if st.button("Guardar Fase"):
             try:
-                supabase.table("fases").insert({
-                    "nombre": nueva_fase_nombre,
-                    "orden": orden_fase,
-                    "torneo_id": torneo_id,
-                }).execute()
+                crear_fase(nueva_fase_nombre, orden_fase, torneo_id)
                 st.success("Fase creada")
                 st.rerun()
             except Exception as e:
@@ -233,204 +270,158 @@ if menu == "Configurador":
 
     if not fases:
         st.info("Crea una fase arriba para empezar.")
-    else:
-        fase_sel = st.selectbox("Selecciona la Fase a configurar", [f["nombre"] for f in fases])
-        fase_actual = next((f for f in fases if f["nombre"] == fase_sel), None)
+        return
 
-        if fase_actual:
-            fase_id = fase_actual["id"]
-            es_fase_progresion = fase_actual["orden"] > 1
+    fase_sel = st.selectbox("Selecciona la Fase a configurar", [f["nombre"] for f in fases])
+    fase_actual = next((f for f in fases if f["nombre"] == fase_sel), None)
 
-            st.write("---")
-            col1, col2, col3 = st.columns([2, 2, 1])
-            with col1:
-                num_grupos = st.number_input("Añadir N grupos", min_value=1, value=1)
-            with col2:
-                tamano_grupo = st.number_input("Equipos por grupo", min_value=1, value=4)
-            with col3:
-                st.write("Acción")
-                if st.button("➕ Añadir"):
-                    try:
-                        res_conteo = (
-                            supabase.table("grupos")
-                            .select("id", count="exact")
-                            .eq("fase_id", fase_id)
-                            .execute()
-                        )
-                        total_existentes = res_conteo.count or 0
-                        nuevos_grupos = [
-                            {
-                                "fase_id": fase_id,
-                                "nombre": f"{fase_actual['nombre']} {total_existentes + i + 1}",
-                                "tipo_grupo": tamano_grupo,
-                            }
-                            for i in range(num_grupos)
-                        ]
-                        supabase.table("grupos").insert(nuevos_grupos).execute()
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al añadir grupos: {e}")
+    if not fase_actual:
+        return
 
-            st.write("### Estructura y Origen de Plazas")
-            grupos = get_grupos_por_fase(fase_id)
+    fase_id = fase_actual["id"]
+    es_fase_progresion = fase_actual["orden"] > 1
 
-            if grupos:
-                if not es_fase_progresion:
-                    st.info("Fase 1: las plazas se llenan por sorteo, no requiere configuración de origen.")
-                else:
-                    fase_anterior = next(
-                        (f for f in fases if f["orden"] == fase_actual["orden"] - 1), None
-                    )
-                    grupos_fase_anterior = get_grupos_por_fase(fase_anterior["id"]) if fase_anterior else []
+    st.write("---")
+    col1, col2, col3 = st.columns([2, 2, 1])
+    with col1:
+        num_grupos = st.number_input("Añadir N grupos", min_value=1, value=1)
+    with col2:
+        tamano_grupo = st.number_input("Equipos por grupo", min_value=1, value=4)
+    with col3:
+        st.write("Acción")
+        if st.button("➕ Añadir"):
+            try:
+                total_existentes = contar_grupos_fase(fase_id)
+                nuevos_grupos = [
+                    {
+                        "fase_id": fase_id,
+                        "nombre": f"{fase_actual['nombre']} {total_existentes + i + 1}",
+                        "tipo_grupo": tamano_grupo,
+                    }
+                    for i in range(num_grupos)
+                ]
+                crear_grupos(nuevos_grupos)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error al añadir grupos: {e}")
 
-                    from src.components import configurar_progresion_visual
-                    configurar_progresion_visual(
-                        grupos_destino=grupos,
-                        grupos_origen=grupos_fase_anterior,
-                        supabase=supabase,
-                    )
+    st.write("### Estructura y Origen de Plazas")
+    grupos = get_grupos_por_fase(fase_id)
 
-                total_plazas = sum(g["tipo_grupo"] for g in grupos)
-                st.info(f"Capacidad total de la fase: {total_plazas} equipos.")
-
-            fase_siguiente = next(
-                (f for f in fases if f["orden"] == fase_actual["orden"] + 1), None
+    if grupos:
+        if not es_fase_progresion:
+            st.info("Fase 1: las plazas se llenan por sorteo, no requiere configuración de origen.")
+        else:
+            fase_anterior = next(
+                (f for f in fases if f["orden"] == fase_actual["orden"] - 1), None
             )
-            if fase_siguiente:
-                grupos_sig = get_grupos_por_fase(fase_siguiente["id"])
-                if grupos and grupos_sig:
-                    st.write("---")
-                    st.write("### 🏆 Conexión al cuadro bracket")
-                    st.caption(
-                        f"Define a qué grupo de **{fase_siguiente['nombre']}** avanza "
-                        f"el ganador de cada grupo de **{fase_actual['nombre']}**."
-                    )
-                    opciones_sig = {g["nombre"]: g["id"] for g in grupos_sig}
-                    for g in grupos:
-                        actual_sig_id = g.get("siguiente_grupo_id")
-                        actual_sig_nombre = next(
-                            (gs["nombre"] for gs in grupos_sig if gs["id"] == actual_sig_id), None
-                        )
-                        idx = list(opciones_sig.keys()).index(actual_sig_nombre) + 1 if actual_sig_nombre else 0
-                        sel = st.selectbox(
-                            f"Ganador de **{g['nombre']}** → va a:",
-                            ["— sin asignar —"] + list(opciones_sig.keys()),
-                            index=idx,
-                            key=f"sig_{g['id']}",
-                        )
-                        nuevo_sig_id = opciones_sig.get(sel) if sel != "— sin asignar —" else None
-                        if nuevo_sig_id != actual_sig_id:
-                            try:
-                                supabase.table("grupos").update(
-                                    {"siguiente_grupo_id": nuevo_sig_id}
-                                ).eq("id", g["id"]).execute()
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Error al guardar: {e}")
+            grupos_fase_anterior = get_grupos_por_fase(fase_anterior["id"]) if fase_anterior else []
+            configurar_progresion_visual(
+                grupos_destino=grupos,
+                grupos_origen=grupos_fase_anterior,
+            )
 
-# -------------------------------------------------------
-# CUADRO VISUAL
-# -------------------------------------------------------
-if menu == "Cuadro Visual":
+        total_plazas = sum(g["tipo_grupo"] for g in grupos)
+        st.info(f"Capacidad total de la fase: {total_plazas} equipos.")
+
+
+def seccion_cuadro_visual(torneo_id):
     st.subheader("Gestión de Equipos por Grupo")
 
     fases = get_fases(torneo_id)
 
     if not fases:
         st.info("No hay fases configuradas.")
-    else:
-        fase_sel = st.selectbox("Seleccionar Fase", [f["nombre"] for f in fases])
-        fase_actual = next(f for f in fases if f["nombre"] == fase_sel)
-        fase_id = fase_actual["id"]
-        es_progresion = fase_actual["orden"] > 1
+        return
 
-        grupos = get_grupos_por_fase(fase_id)
-        ids_grupos = [g["id"] for g in grupos]
+    fase_sel = st.selectbox("Seleccionar Fase", [f["nombre"] for f in fases])
+    fase_actual = next(f for f in fases if f["nombre"] == fase_sel)
+    fase_id = fase_actual["id"]
+    es_progresion = fase_actual["orden"] > 1
 
-        todos_participantes = []
-        if ids_grupos:
-            try:
-                todos_participantes = (
-                    supabase.table("participantes_grupo")
-                    .select("*, equipos(id, nombre, escudo_url)")
-                    .in_("grupo_id", ids_grupos)
-                    .execute()
-                ).data
-            except Exception as e:
-                st.error(f"Error cargando participantes: {e}")
+    grupos = get_grupos_por_fase(fase_id)
+    ids_grupos = [g["id"] for g in grupos]
 
-        participantes_por_grupo: dict = {}
-        for p in todos_participantes:
-            participantes_por_grupo.setdefault(p["grupo_id"], []).append(p)
+    todos_participantes = []
+    if ids_grupos:
+        try:
+            todos_participantes = get_participantes_grupos(ids_grupos)
+        except Exception as e:
+            st.error(f"Error cargando participantes: {e}")
 
-        from src.components import renderizar_tarjeta_grupo_minimalista, renderizar_cuadro_progresion
+    participantes_por_grupo: dict = {}
+    for p in todos_participantes:
+        participantes_por_grupo.setdefault(p["grupo_id"], []).append(p)
 
-        if not es_progresion:
+    if not es_progresion:
+        ocupados_ids = {p["equipo_id"] for p in todos_participantes if p["equipo_id"]}
+        try:
+            equipos_libres = get_equipos_libres(torneo_id, ocupados_ids)
+        except Exception as e:
+            st.error(f"Error cargando equipos libres: {e}")
             equipos_libres = []
-            try:
-                res_eq = (
-                    supabase.table("equipos")
-                    .select("id, nombre")
-                    .eq("eliminado", False)
-                    .eq("torneo_id", torneo_id)
-                    .execute()
+
+        cols_grupos = st.columns(3)
+        for idx, grupo in enumerate(grupos):
+            participantes = participantes_por_grupo.get(grupo["id"], [])
+            with cols_grupos[idx % 3]:
+                renderizar_tarjeta_grupo_minimalista(
+                    grupo=grupo,
+                    participantes=participantes,
+                    equipos_libres=equipos_libres,
                 )
-                ocupados_ids = {p["equipo_id"] for p in todos_participantes if p["equipo_id"]}
-                equipos_libres = [e for e in res_eq.data if e["id"] not in ocupados_ids]
+    else:
+        fase_anterior = next(
+            (f for f in fases if f["orden"] == fase_actual["orden"] - 1), None
+        )
+        grupos_fase_anterior = get_grupos_por_fase(fase_anterior["id"]) if fase_anterior else []
+        ids_grupos_ant = [g["id"] for g in grupos_fase_anterior]
+
+        participantes_fase_ant = []
+        if ids_grupos_ant:
+            try:
+                participantes_fase_ant = get_participantes_grupos(ids_grupos_ant)
             except Exception as e:
-                st.error(f"Error cargando equipos libres: {e}")
+                st.error(f"Error cargando fase anterior: {e}")
 
-            cols_grupos = st.columns(3)
-            for idx, grupo in enumerate(grupos):
-                participantes = participantes_por_grupo.get(grupo["id"], [])
-                with cols_grupos[idx % 3]:
-                    renderizar_tarjeta_grupo_minimalista(
-                        grupo=grupo,
-                        participantes=participantes,
-                        equipos_libres=equipos_libres,
-                        es_progresion=False,
-                        fases=fases,
-                        fase_actual=fase_actual,
-                        supabase=supabase,
-                    )
-        else:
-            fase_anterior = next(
-                (f for f in fases if f["orden"] == fase_actual["orden"] - 1), None
-            )
-            grupos_fase_anterior = get_grupos_por_fase(fase_anterior["id"]) if fase_anterior else []
-            ids_grupos_ant = [g["id"] for g in grupos_fase_anterior]
+        participantes_ant_por_grupo: dict = {}
+        for p in participantes_fase_ant:
+            participantes_ant_por_grupo.setdefault(p["grupo_id"], []).append(p)
 
-            participantes_fase_ant = []
-            if ids_grupos_ant:
-                try:
-                    participantes_fase_ant = (
-                        supabase.table("participantes_grupo")
-                        .select("*, equipos(id, nombre, escudo_url)")
-                        .in_("grupo_id", ids_grupos_ant)
-                        .execute()
-                    ).data
-                except Exception as e:
-                    st.error(f"Error cargando fase anterior: {e}")
+        ya_asignados_ids = {p["equipo_id"] for p in todos_participantes if p["equipo_id"]}
 
-            participantes_ant_por_grupo: dict = {}
-            for p in participantes_fase_ant:
-                participantes_ant_por_grupo.setdefault(p["grupo_id"], []).append(p)
+        renderizar_cuadro_progresion(
+            grupos_destino=grupos,
+            grupos_origen=grupos_fase_anterior,
+            participantes_por_grupo_destino=participantes_por_grupo,
+            participantes_por_grupo_origen=participantes_ant_por_grupo,
+            ya_asignados_ids=ya_asignados_ids,
+            fases=fases,
+            fase_actual=fase_actual,
+        )
 
-            ya_asignados_ids = {p["equipo_id"] for p in todos_participantes if p["equipo_id"]}
-
-            renderizar_cuadro_progresion(
-                grupos_destino=grupos,
-                grupos_origen=grupos_fase_anterior,
-                participantes_por_grupo_destino=participantes_por_grupo,
-                participantes_por_grupo_origen=participantes_ant_por_grupo,
-                ya_asignados_ids=ya_asignados_ids,
-                fases=fases,
-                fase_actual=fase_actual,
-                supabase=supabase,
-            )
 
 # -------------------------------------------------------
-# SORTEO
+# DESPACHO DEL MENÚ
 # -------------------------------------------------------
-if menu == "Sorteo":
-    seccion_sorteo_manual(supabase, torneo_id)
+
+if menu == "Torneos":
+    seccion_torneos()
+else:
+    if not torneo_actual:
+        st.warning("Selecciona o crea un torneo en el sidebar para continuar.")
+        st.stop()
+
+    torneo_id = torneo_actual["id"]
+    st.caption(f"🏆 Torneo activo: **{torneo_actual['nombre']}**")
+
+    if menu == "Dashboard":
+        seccion_dashboard(torneo_id)
+    elif menu == "Carga de Equipos":
+        seccion_carga_equipos(torneo_id)
+    elif menu == "Configurador":
+        seccion_configurador(torneo_id)
+    elif menu == "Cuadro Visual":
+        seccion_cuadro_visual(torneo_id)
+    elif menu == "Sorteo":
+        seccion_sorteo_manual(torneo_id)
