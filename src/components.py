@@ -537,16 +537,25 @@ def renderizar_tarjeta_grupo_minimalista(
                 if escudo else
                 '<div style="width:22px;margin-right:10px;"></div>'
             )
-            st.markdown(f"""
-                <div style="display:flex;align-items:center;background:white;
-                            border-radius:6px;padding:6px 10px;margin-bottom:5px;">
-                    {img_tag}
-                    <span style="font-size:0.78rem;font-weight:700;color:#1a1a1a;text-transform:uppercase;
-                                 letter-spacing:0.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                        {nombre_equipo}
-                    </span>
-                </div>
-            """, unsafe_allow_html=True)
+            col_equipo, col_rm = st.columns([11, 1])
+            with col_equipo:
+                st.markdown(f"""
+                    <div style="display:flex;align-items:center;background:white;
+                                border-radius:6px;padding:6px 10px;margin-bottom:5px;">
+                        {img_tag}
+                        <span style="font-size:0.78rem;font-weight:700;color:#1a1a1a;text-transform:uppercase;
+                                     letter-spacing:0.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                            {nombre_equipo}
+                        </span>
+                    </div>
+                """, unsafe_allow_html=True)
+            with col_rm:
+                if st.button("✕", key=f"rm_{grupo_id}_{i}", help=f"Quitar {nombre_equipo}"):
+                    try:
+                        supabase.table("participantes_grupo").delete().eq("id", p_actual["id"]).execute()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al quitar: {e}")
         else:
             st.markdown("""
                 <div style="border:1px dashed rgba(255,255,255,0.3);border-radius:6px;

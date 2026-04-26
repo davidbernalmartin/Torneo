@@ -354,7 +354,14 @@ if menu == "Dashboard":
 
     st.write("---")
     st.subheader("Plantilla de Equipos")
-    renderizar_tarjetas_equipos(equipos)
+    busqueda = st.text_input("Buscar equipo", placeholder="Filtrar por nombre...", label_visibility="collapsed")
+    equipos_filtrados = (
+        [e for e in equipos if busqueda.strip().upper() in e["nombre"].upper()]
+        if busqueda.strip() else equipos
+    )
+    if busqueda.strip() and not equipos_filtrados:
+        st.caption("Sin resultados.")
+    renderizar_tarjetas_equipos(equipos_filtrados)
 
 # -------------------------------------------------------
 # CARGA DE EQUIPOS
@@ -376,18 +383,27 @@ if menu == "Carga de Equipos":
         columnas_ok = "nombre" in df.columns and "escudo_url" in df.columns
 
         if columnas_ok:
-            if st.button("Confirmar y subir a Supabase"):
-                equipos_dict = df[["nombre", "escudo_url"]].to_dict(orient="records")
-                n = len(equipos_dict)
+            nombres_existentes = {e["nombre"].strip().upper() for e in get_equipos(torneo_id)}
+            df["_nuevo"] = ~df["nombre"].str.strip().str.upper().isin(nombres_existentes)
+            duplicados = df[~df["_nuevo"]]["nombre"].tolist()
+            df_nuevos = df[df["_nuevo"]].drop(columns=["_nuevo"])
 
-                with st.spinner(f"Subiendo {n} equipos..."):
-                    resultado = subir_equipos_batch(equipos_dict, torneo_id)
+            if duplicados:
+                st.warning(f"⚠️ Ya existen en el torneo y se omitirán: **{', '.join(duplicados)}**")
 
-                if isinstance(resultado, str):
-                    st.error(resultado)
-                else:
-                    st.success(f"¡{n} equipos cargados con éxito!")
-                    st.rerun()
+            if df_nuevos.empty:
+                st.error("Todos los equipos del archivo ya existen en el torneo. No hay nada que subir.")
+            else:
+                label = f"Confirmar y subir {len(df_nuevos)} equipo(s)" if duplicados else "Confirmar y subir a Supabase"
+                if st.button(label):
+                    equipos_dict = df_nuevos[["nombre", "escudo_url"]].to_dict(orient="records")
+                    with st.spinner(f"Subiendo {len(equipos_dict)} equipos..."):
+                        resultado = subir_equipos_batch(equipos_dict, torneo_id)
+                    if isinstance(resultado, str):
+                        st.error(resultado)
+                    else:
+                        st.success(f"¡{len(equipos_dict)} equipos cargados con éxito!")
+                        st.rerun()
         else:
             st.error("El archivo debe tener las columnas: 'nombre' y 'escudo_url'")
 
