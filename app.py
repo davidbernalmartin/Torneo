@@ -3,6 +3,9 @@ import pandas as pd
 
 from src.database import (
     get_supabase,
+    get_torneos,
+    crear_torneo,
+    eliminar_torneo,
     get_equipos,
     subir_equipos_batch,
     get_fases,
@@ -58,18 +61,100 @@ st.markdown(
 )
 
 # -------------------------------------------------------
+# SELECTOR DE TORNEO (sidebar)
+# -------------------------------------------------------
+st.sidebar.markdown("## 🏆 Torneo")
+
+torneos = get_torneos()
+
+if not torneos:
+    st.sidebar.info("No hay torneos. Crea uno primero.")
+    torneo_actual = None
+else:
+    nombres_torneos = [t["nombre"] for t in torneos]
+
+    # Persistir selección en session_state
+    if "torneo_idx" not in st.session_state:
+        st.session_state.torneo_idx = 0
+
+    torneo_sel = st.sidebar.selectbox(
+        "Seleccionar torneo",
+        nombres_torneos,
+        index=st.session_state.torneo_idx,
+        key="torneo_selector",
+    )
+    st.session_state.torneo_idx = nombres_torneos.index(torneo_sel)
+    torneo_actual = next(t for t in torneos if t["nombre"] == torneo_sel)
+
+st.sidebar.markdown("---")
+
+# -------------------------------------------------------
 # NAVEGACIÓN
 # -------------------------------------------------------
 menu = st.sidebar.selectbox(
     "Menú",
-    ["Dashboard", "Configurador", "Carga de Equipos", "Cuadro Visual", "Sorteo"],
+    ["Torneos", "Dashboard", "Configurador", "Carga de Equipos", "Cuadro Visual", "Sorteo"],
 )
+
+# -------------------------------------------------------
+# TORNEOS
+# -------------------------------------------------------
+if menu == "Torneos":
+    st.subheader("Gestión de Torneos")
+
+    with st.expander("➕ Crear Nuevo Torneo", expanded=not torneos):
+        nuevo_nombre = st.text_input("Nombre del torneo", placeholder="ej: Copa RFFM 2026")
+        nueva_desc   = st.text_input("Descripción (opcional)")
+        if st.button("Crear torneo"):
+            if nuevo_nombre.strip():
+                try:
+                    crear_torneo(nuevo_nombre.strip(), nueva_desc.strip())
+                    st.success(f"Torneo '{nuevo_nombre}' creado.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
+            else:
+                st.warning("El nombre no puede estar vacío.")
+
+    if torneos:
+        st.write("### Torneos existentes")
+        for t in torneos:
+            col_n, col_d, col_b = st.columns([3, 4, 1])
+            col_n.markdown(f"**{t['nombre']}**")
+            col_d.caption(t.get("descripcion") or "—")
+            if col_b.button("🗑️", key=f"del_{t['id']}", help="Eliminar torneo y todos sus datos"):
+                st.session_state[f"confirm_del_{t['id']}"] = True
+
+            if st.session_state.get(f"confirm_del_{t['id']}", False):
+                st.warning(
+                    f"¿Eliminar **{t['nombre']}** y TODOS sus datos (fases, grupos, equipos)? "
+                    "Esta acción no se puede deshacer."
+                )
+                c1, c2 = st.columns(2)
+                if c1.button("Sí, eliminar", key=f"si_del_{t['id']}", type="primary"):
+                    try:
+                        eliminar_torneo(t["id"])
+                        st.session_state.pop(f"confirm_del_{t['id']}", None)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                if c2.button("Cancelar", key=f"no_del_{t['id']}"):
+                    st.session_state.pop(f"confirm_del_{t['id']}", None)
+                    st.rerun()
+
+# Guard: el resto de secciones requieren un torneo seleccionado
+if menu != "Torneos":
+    if not torneo_actual:
+        st.warning("Selecciona o crea un torneo en el sidebar para continuar.")
+        st.stop()
+    torneo_id = torneo_actual["id"]
+    st.caption(f"🏆 Torneo activo: **{torneo_actual['nombre']}**")
 
 # -------------------------------------------------------
 # DASHBOARD
 # -------------------------------------------------------
 if menu == "Dashboard":
-    equipos = get_equipos()
+    equipos = get_equipos(torneo_id)
     col_e1, col_e2 = st.columns(2)
     col_e1.metric("Total Equipos", len(equipos))
     col_e2.metric("En Competición", len([e for e in equipos if not e["eliminado"]]))
@@ -103,9 +188,8 @@ if menu == "Carga de Equipos":
                 n = len(equipos_dict)
 
                 with st.spinner(f"Subiendo {n} equipos..."):
-                    resultado = subir_equipos_batch(equipos_dict)
+                    resultado = subir_equipos_batch(equipos_dict, torneo_id)
 
-                # Mismo nivel de indentación que el bloque "with"
                 if isinstance(resultado, str):
                     st.error(resultado)
                 else:
@@ -116,7 +200,7 @@ if menu == "Carga de Equipos":
 
         st.write("---")
         st.subheader("Equipos actualmente en la Base de Datos")
-        renderizar_tarjetas_equipos(get_equipos())
+        renderizar_tarjetas_equipos(get_equipos(torneo_id))
 
 # -------------------------------------------------------
 # CONFIGURADOR
@@ -124,21 +208,22 @@ if menu == "Carga de Equipos":
 if menu == "Configurador":
     st.subheader("Definición de Grupos por Fase")
 
-    # Crear nueva fase
     with st.expander("➕ Crear Nueva Fase"):
         nueva_fase_nombre = st.text_input("Nombre de la fase (ej: Fase de grupos)")
         orden_fase = st.number_input("Orden", min_value=1, value=1)
         if st.button("Guardar Fase"):
             try:
-                supabase.table("fases").insert(
-                    {"nombre": nueva_fase_nombre, "orden": orden_fase}
-                ).execute()
+                supabase.table("fases").insert({
+                    "nombre": nueva_fase_nombre,
+                    "orden": orden_fase,
+                    "torneo_id": torneo_id,
+                }).execute()
                 st.success("Fase creada")
                 st.rerun()
             except Exception as e:
                 st.error(f"Error al crear la fase: {e}")
 
-    fases = get_fases()
+    fases = get_fases(torneo_id)
 
     if not fases:
         st.info("Crea una fase arriba para empezar.")
@@ -150,7 +235,6 @@ if menu == "Configurador":
             fase_id = fase_actual["id"]
             es_fase_progresion = fase_actual["orden"] > 1
 
-            # Creación de grupos
             st.write("---")
             col1, col2, col3 = st.columns([2, 2, 1])
             with col1:
@@ -181,7 +265,6 @@ if menu == "Configurador":
                     except Exception as e:
                         st.error(f"Error al añadir grupos: {e}")
 
-            # Visualización y configuración de progresión
             st.write("### Estructura y Origen de Plazas")
             grupos = get_grupos_por_fase(fase_id)
 
@@ -204,7 +287,6 @@ if menu == "Configurador":
                 total_plazas = sum(g["tipo_grupo"] for g in grupos)
                 st.info(f"Capacidad total de la fase: {total_plazas} equipos.")
 
-            # ── Configurar siguiente_grupo_id (para el cuadro bracket) ──
             fase_siguiente = next(
                 (f for f in fases if f["orden"] == fase_actual["orden"] + 1), None
             )
@@ -240,15 +322,13 @@ if menu == "Configurador":
                             except Exception as e:
                                 st.error(f"Error al guardar: {e}")
 
-
-
 # -------------------------------------------------------
 # CUADRO VISUAL
 # -------------------------------------------------------
 if menu == "Cuadro Visual":
     st.subheader("Gestión de Equipos por Grupo")
 
-    fases = get_fases()
+    fases = get_fases(torneo_id)
 
     if not fases:
         st.info("No hay fases configuradas.")
@@ -261,7 +341,6 @@ if menu == "Cuadro Visual":
         grupos = get_grupos_por_fase(fase_id)
         ids_grupos = [g["id"] for g in grupos]
 
-        # Participantes de la fase actual
         todos_participantes = []
         if ids_grupos:
             try:
@@ -281,13 +360,13 @@ if menu == "Cuadro Visual":
         from src.components import renderizar_tarjeta_grupo_minimalista, renderizar_cuadro_progresion
 
         if not es_progresion:
-            # Fase 1 — grid de 3 columnas normal
             equipos_libres = []
             try:
                 res_eq = (
                     supabase.table("equipos")
                     .select("id, nombre")
                     .eq("eliminado", False)
+                    .eq("torneo_id", torneo_id)
                     .execute()
                 )
                 ocupados_ids = {p["equipo_id"] for p in todos_participantes if p["equipo_id"]}
@@ -309,14 +388,12 @@ if menu == "Cuadro Visual":
                         supabase=supabase,
                     )
         else:
-            # Fase de progresión — vista lado a lado
             fase_anterior = next(
                 (f for f in fases if f["orden"] == fase_actual["orden"] - 1), None
             )
             grupos_fase_anterior = get_grupos_por_fase(fase_anterior["id"]) if fase_anterior else []
             ids_grupos_ant = [g["id"] for g in grupos_fase_anterior]
 
-            # Participantes de la fase anterior (para mostrar quién clasificó)
             participantes_fase_ant = []
             if ids_grupos_ant:
                 try:
@@ -333,7 +410,6 @@ if menu == "Cuadro Visual":
             for p in participantes_fase_ant:
                 participantes_ant_por_grupo.setdefault(p["grupo_id"], []).append(p)
 
-            # IDs ya asignados en la nueva fase (para marcarlos en la columna izquierda)
             ya_asignados_ids = {p["equipo_id"] for p in todos_participantes if p["equipo_id"]}
 
             renderizar_cuadro_progresion(
@@ -347,5 +423,8 @@ if menu == "Cuadro Visual":
                 supabase=supabase,
             )
 
+# -------------------------------------------------------
+# SORTEO
+# -------------------------------------------------------
 if menu == "Sorteo":
-    seccion_sorteo_manual(supabase)
+    seccion_sorteo_manual(supabase, torneo_id)
