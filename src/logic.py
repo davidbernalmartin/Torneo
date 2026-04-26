@@ -53,7 +53,7 @@ def realizar_sorteo(fase_id, lista_grupos):
 # SECCIÓN SORTEO MANUAL (componente de página)
 # -------------------------------------------------------
 
-def seccion_sorteo_manual(supabase):
+def seccion_sorteo_manual(supabase, torneo_id=None):
     """
     Gestiona el sorteo manual buscando automáticamente la fase de orden 1.
     """
