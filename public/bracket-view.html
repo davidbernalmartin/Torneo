@@ -320,16 +320,16 @@ function renderMatchHTML(g) {
 
     // Resolve penalties from BD
     const hasPen = g.penaltis || false;
+    const lpart = parts.find(p => p.es_local);
+    const vpart = parts.find(p => !p.es_local);
     let penWin = "";
     if (hasPen && g.penaltis_ganador_id) {
-      const lpart = parts.find(p => p.es_local);
-      const vpart = parts.find(p => !p.es_local);
       if (lpart?.equipo_id === g.penaltis_ganador_id) penWin = "local";
       else if (vpart?.equipo_id === g.penaltis_ganador_id) penWin = "visitante";
     }
-    const isPenWinner = hasPen && local && visit && local.goles === visit.goles &&
+    const isPenWinner = hasPen && lpart && vpart && lpart.goles === vpart.goles &&
       ((part.es_local && penWin === "local") || (!part.es_local && penWin === "visitante"));
-    const isPenLoser = hasPen && local && visit && local.goles === visit.goles && !isPenWinner && (part.es_local || !part.es_local);
+    const isPenLoser = hasPen && lpart && vpart && lpart.goles === vpart.goles && !isPenWinner && !!part.equipo_id;
     const effectiveWin  = isWin || isPenWinner;
     const effectiveLose = isLose || isPenLoser;
 
@@ -338,12 +338,12 @@ function renderMatchHTML(g) {
     const badge = classified && !effectiveWin
       ? `<span style="font-size:10px;font-weight:800;color:#16a34a;margin-left:auto;">✓</span>`
       : effectiveWin && hasPen
-      ? `<span style="font-size:10px;font-weight:800;color:#16a34a;margin-left:auto;">P</span>`
+      ? `<span style="font-size:10px;font-weight:800;color:#1a1a1a;margin-left:auto;">(P)</span>`
       : "";
     return `<div class="${cls}">
       ${escudoEl(eq.escudo_url, eq.nombre)}
       <span class="team-name" style="color:${isWhite ? '#1a1a1a' : 'white'};font-weight:800;">${eq.nombre}</span>
-      ${(effectiveWin || effectiveLose || isWin || isLose) ? `<span class="score" style="color:${effectiveWin ? '#16a34a' : 'rgba(255,255,255,0.35)'};font-size:14px;font-weight:800;margin-left:auto;">${part.goles}</span>` : ""}
+      ${(effectiveWin || effectiveLose || isWin || isLose) ? `<span class="score" style="color:${effectiveWin ? '#1a1a1a' : 'rgba(255,255,255,0.35)'};font-size:14px;font-weight:800;margin-left:auto;">${part.goles}</span>` : ""}
       ${badge}
     </div>`;
   }
