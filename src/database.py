@@ -10,23 +10,54 @@ def get_supabase() -> Client:
 
 
 # -------------------------------------------------------
+# TORNEOS
+# -------------------------------------------------------
+
+def get_torneos():
+    """Devuelve todos los torneos ordenados por fecha de creación."""
+    supabase = get_supabase()
+    return supabase.table("torneos").select("*").order("created_at").execute().data
+
+
+def crear_torneo(nombre, descripcion=""):
+    supabase = get_supabase()
+    return supabase.table("torneos").insert({
+        "nombre": nombre,
+        "descripcion": descripcion,
+        "activo": True,
+    }).execute().data
+
+
+def eliminar_torneo(torneo_id):
+    supabase = get_supabase()
+    supabase.table("torneos").delete().eq("id", torneo_id).execute()
+
+
+# -------------------------------------------------------
 # EQUIPOS
 # -------------------------------------------------------
 
-def get_equipos():
+def get_equipos(torneo_id):
     supabase = get_supabase()
-    response = supabase.table("equipos").select("*").order("nombre").execute()
-    return response.data
+    return (
+        supabase.table("equipos")
+        .select("*")
+        .eq("torneo_id", torneo_id)
+        .order("nombre")
+        .execute()
+        .data
+    )
 
 
-def subir_equipos_batch(lista_equipos):
+def subir_equipos_batch(lista_equipos, torneo_id):
     """
     lista_equipos: lista de dicts [{'nombre': '...', 'escudo_url': '...'}, ...]
-    Devuelve el response de Supabase o un string de error.
+    Añade torneo_id a cada uno antes de insertar.
     """
     supabase = get_supabase()
     try:
-        response = supabase.table("equipos").insert(lista_equipos).execute()
+        equipos_con_torneo = [{**e, "torneo_id": torneo_id} for e in lista_equipos]
+        response = supabase.table("equipos").insert(equipos_con_torneo).execute()
         return response
     except Exception as e:
         return f"Error: {e}"
@@ -36,10 +67,17 @@ def subir_equipos_batch(lista_equipos):
 # FASES
 # -------------------------------------------------------
 
-def get_fases():
-    """Devuelve todas las fases ordenadas por su campo 'orden'."""
+def get_fases(torneo_id):
+    """Devuelve las fases de un torneo ordenadas por 'orden'."""
     supabase = get_supabase()
-    return supabase.table("fases").select("*").order("orden").execute().data
+    return (
+        supabase.table("fases")
+        .select("*")
+        .eq("torneo_id", torneo_id)
+        .order("orden")
+        .execute()
+        .data
+    )
 
 
 # -------------------------------------------------------
