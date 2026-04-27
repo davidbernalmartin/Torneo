@@ -225,6 +225,7 @@ else:
     )
     st.session_state.torneo_idx = nombres_torneos.index(torneo_sel)
     torneo_actual = next((t for t in torneos if t["nombre"] == torneo_sel), None)
+    torneo_id = torneo_actual["id"]
 
 with st.sidebar.expander("➕ Nuevo torneo"):
     nuevo_nombre = st.text_input("Nombre", placeholder="ej: Copa RFFM 2026", key="sb_nuevo_nombre")
@@ -345,8 +346,8 @@ if menu == "Ajustes":
 
 # Guard: todas las secciones requieren un torneo seleccionado
 if not torneo_actual:
-        st.warning("Selecciona o crea un torneo en el sidebar para continuar.")
-        st.stop()
+    st.warning("Selecciona o crea un torneo en el sidebar para continuar.")
+    st.stop()
     torneo_id = torneo_actual["id"]
     st.caption(f"Torneo activo: **{torneo_actual['nombre']}**")
 
