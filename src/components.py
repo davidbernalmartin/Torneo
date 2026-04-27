@@ -1,5 +1,4 @@
 import re
-import time
 import streamlit as st
 
 from src.database import get_supabase
@@ -30,7 +29,7 @@ def mostrar_grupo_tv(nombre_grupo_url, torneo_id=None):
     supabase = get_supabase()
 
     try:
-        # Obtener IDs de fases del torneo para filtrar correctamente
+        # ── Datos del grupo (se cargan una vez por navegación) ──────────────
         ids_fases_torneo = None
         if torneo_id:
             fases_res = supabase.table("fases").select("id").eq("torneo_id", torneo_id).execute()
@@ -45,31 +44,30 @@ def mostrar_grupo_tv(nombre_grupo_url, torneo_id=None):
             q = q.in_("fase_id", ids_fases_torneo)
 
         res_grupo = q.execute()
-
         if not res_grupo.data:
             st.error(f"Grupo '{nombre_grupo_url}' no encontrado.")
             return
 
         datos_grupo = res_grupo.data[0]
-        grupo_id = datos_grupo["id"]
-        fase_id = datos_grupo["fase_id"]
+        grupo_id    = datos_grupo["id"]
+        fase_id     = datos_grupo["fase_id"]
         nombre_display = datos_grupo["nombre"]
-        tipo_grupo = datos_grupo["tipo_grupo"]
+        tipo_grupo  = datos_grupo["tipo_grupo"]
         notas_grupo = datos_grupo.get("notas") or ""
 
-        # Cabecera con logo
+        # ── Cabecera estática ────────────────────────────────────────────────
         notas_tv_html = (
             f'<p style="text-align:center;color:rgba(255,255,255,0.8);'
             f'font-size:2rem;margin:-10px 0 20px;font-weight:400;">{notas_grupo}</p>'
             if notas_grupo else ""
         )
         st.markdown(f"""
-            <div style="display: flex; align-items: center; justify-content: center;
-                        gap: 20px; width: 100%;">
-                <img src="{LOGO_TV_URL}" style="width: 80px;">
-                <h1 style="text-align: center; font-size: 5rem; margin: 20px 0;
-                           color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-                           line-height: 1;">
+            <div style="display:flex;align-items:center;justify-content:center;
+                        gap:20px;width:100%;">
+                <img src="{LOGO_TV_URL}" style="width:80px;">
+                <h1 style="text-align:center;font-size:5rem;margin:20px 0;
+                           color:white;text-shadow:2px 2px 4px rgba(0,0,0,0.3);
+                           line-height:1;">
                     {nombre_display}
                 </h1>
             </div>
@@ -78,47 +76,56 @@ def mostrar_grupo_tv(nombre_grupo_url, torneo_id=None):
 
         st.write("")
 
-        # Participantes
-        res_part = (
-            supabase.table("participantes_grupo")
-            .select("equipos(nombre, escudo_url)")
-            .eq("grupo_id", grupo_id)
-            .execute()
-        )
-        participantes = res_part.data or []
+        # ── Participantes — se refresca cada 3 s sin recargar la página ─────
+        @st.fragment(run_every=3)
+        def _participantes():
+            res_part = (
+                supabase.table("participantes_grupo")
+                .select("equipos(nombre, escudo_url)")
+                .eq("grupo_id", grupo_id)
+                .execute()
+            )
+            participantes = res_part.data or []
 
-        for i in range(tipo_grupo):
-            if i < len(participantes):
-                nombre_equipo = participantes[i]["equipos"]["nombre"]
-                escudo = participantes[i]["equipos"]["escudo_url"]
-                st.markdown(f"""
-                    <div style="background-color: white; padding: 15px 40px;
-                                border-radius: 15px; margin-bottom: 15px;
-                                display: flex; align-items: center;
-                                box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
-                                border: 1px solid #eee;">
-                        {f'<img src="{escudo}" style="height: 70px; width: 70px; object-fit: contain; margin-right: 30px;">' if escudo else ''}
-                        <span style="font-size: 3.5rem; font-weight: 900; color: #1a1c24;
-                                     text-transform: uppercase;">
-                            {nombre_equipo}
-                        </span>
-                    </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                    <div style="background-color: rgba(255,255,255,0.1); padding: 20px;
-                                border: 3px dashed rgba(255,255,255,0.4);
-                                border-radius: 15px; margin-bottom: 15px; text-align: center;">
-                        <span style="font-size: 2.2rem; color: rgba(255,255,255,0.6);
-                                     font-style: italic; font-weight: bold;">
-                            ESPERANDO SORTEO...
-                        </span>
-                    </div>
-                """, unsafe_allow_html=True)
+            for i in range(tipo_grupo):
+                if i < len(participantes) and participantes[i].get("equipos"):
+                    nombre_equipo = participantes[i]["equipos"]["nombre"]
+                    escudo = participantes[i]["equipos"]["escudo_url"] or ""
+                    img = (
+                        f'<img src="{escudo}" style="height:70px;width:70px;'
+                        f'object-fit:contain;margin-right:30px;">'
+                        if escudo else ""
+                    )
+                    st.markdown(f"""
+                        <div style="background-color:white;padding:15px 40px;
+                                    border-radius:15px;margin-bottom:15px;
+                                    display:flex;align-items:center;
+                                    box-shadow:0px 4px 15px rgba(0,0,0,0.2);
+                                    border:1px solid #eee;">
+                            {img}
+                            <span style="font-size:3.5rem;font-weight:900;color:#1a1c24;
+                                         text-transform:uppercase;">
+                                {nombre_equipo}
+                            </span>
+                        </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown("""
+                        <div style="background-color:rgba(255,255,255,0.1);padding:20px;
+                                    border:3px dashed rgba(255,255,255,0.4);
+                                    border-radius:15px;margin-bottom:15px;text-align:center;">
+                            <span style="font-size:2.2rem;color:rgba(255,255,255,0.6);
+                                         font-style:italic;font-weight:bold;">
+                                ESPERANDO SORTEO...
+                            </span>
+                        </div>
+                    """, unsafe_allow_html=True)
 
-        # Navegador de grupos — siempre fase 1 del torneo, ordenada por orden_cuadro
+        _participantes()
+
+        # ── Navegador de grupos — fuera del fragment, rerun completo al clic ─
         st.write("---")
-        fase1_id = fase_id  # fallback si no hay torneo_id
+        fase1_id = fase_id
         if torneo_id:
             res_fase1 = (
                 supabase.table("fases")
@@ -151,7 +158,6 @@ def mostrar_grupo_tv(nombre_grupo_url, torneo_id=None):
                 ),
             )
             cols_nav = st.columns(len(grupos_nav))
-
             for idx, g_nav in enumerate(grupos_nav):
                 nombre_btn = g_nav["nombre"]
                 palabras = re.findall(r"[A-Za-zÀ-ÿ]+", nombre_btn)
@@ -168,10 +174,6 @@ def mostrar_grupo_tv(nombre_grupo_url, torneo_id=None):
                 ):
                     st.query_params["grupo"] = nombre_btn
                     st.rerun()
-
-        # Refresco automático
-        time.sleep(3)
-        st.rerun()
 
     except Exception as e:
         st.error(f"Error en la visualización: {e}")

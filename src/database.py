@@ -36,6 +36,7 @@ def eliminar_torneo(torneo_id):
 # EQUIPOS
 # -------------------------------------------------------
 
+@st.cache_data(ttl=30)
 def get_equipos(torneo_id):
     supabase = get_supabase()
     return (
@@ -67,7 +68,9 @@ def subir_equipos_batch(lista_equipos, torneo_id):
     supabase = get_supabase()
     try:
         equipos_con_torneo = [{**e, "torneo_id": torneo_id} for e in lista_equipos]
-        return supabase.table("equipos").insert(equipos_con_torneo).execute()
+        result = supabase.table("equipos").insert(equipos_con_torneo).execute()
+        st.cache_data.clear()
+        return result
     except Exception as e:
         return f"Error: {e}"
 
@@ -76,6 +79,7 @@ def subir_equipos_batch(lista_equipos, torneo_id):
 # FASES
 # -------------------------------------------------------
 
+@st.cache_data(ttl=30)
 def get_fases(torneo_id):
     supabase = get_supabase()
     return (
@@ -90,17 +94,20 @@ def get_fases(torneo_id):
 
 def crear_fase(nombre, orden, torneo_id):
     supabase = get_supabase()
-    return supabase.table("fases").insert({
+    result = supabase.table("fases").insert({
         "nombre": nombre,
         "orden": orden,
         "torneo_id": torneo_id,
     }).execute().data
+    st.cache_data.clear()
+    return result
 
 
 # -------------------------------------------------------
 # GRUPOS
 # -------------------------------------------------------
 
+@st.cache_data(ttl=30)
 def get_grupos_por_fase(fase_id):
     supabase = get_supabase()
     return supabase.table("grupos").select("*").eq("fase_id", fase_id).execute().data
@@ -108,7 +115,28 @@ def get_grupos_por_fase(fase_id):
 
 def crear_grupos(grupos_list):
     supabase = get_supabase()
-    return supabase.table("grupos").insert(grupos_list).execute().data
+    result = supabase.table("grupos").insert(grupos_list).execute().data
+    st.cache_data.clear()
+    return result
+
+
+def actualizar_grupo(grupo_id, nombre, tipo_grupo, orden_cuadro):
+    supabase = get_supabase()
+    supabase.table("grupos").update({
+        "nombre": nombre,
+        "tipo_grupo": tipo_grupo,
+        "orden_cuadro": orden_cuadro,
+    }).eq("id", grupo_id).execute()
+    st.cache_data.clear()
+
+
+def eliminar_grupo(grupo_id):
+    supabase = get_supabase()
+    # Romper FK auto-referencial antes de borrar
+    supabase.table("grupos").update({"siguiente_grupo_id": None}).eq("siguiente_grupo_id", grupo_id).execute()
+    supabase.table("participantes_grupo").delete().eq("grupo_id", grupo_id).execute()
+    supabase.table("grupos").delete().eq("id", grupo_id).execute()
+    st.cache_data.clear()
 
 
 def contar_grupos_fase(fase_id):

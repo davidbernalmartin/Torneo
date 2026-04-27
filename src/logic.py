@@ -104,7 +104,7 @@ def seccion_sorteo_manual(supabase, torneo_id=None):
             g["plazas_libres"] = g["tipo_grupo"] - actual
             grupos_disponibles.append(g)
 
-    eq_query = supabase.table("equipos").select("id, nombre")
+    eq_query = supabase.table("equipos").select("id, nombre").eq("eliminado", False)
     if torneo_id:
         eq_query = eq_query.eq("torneo_id", torneo_id)
     res_e = eq_query.execute()

@@ -1,3 +1,7 @@
+import io
+import re as _re
+import urllib.parse
+
 import streamlit as st
 import pandas as pd
 
@@ -14,15 +18,22 @@ from src.database import (
     crear_fase,
     crear_grupos,
     contar_grupos_fase,
+    actualizar_grupo,
+    eliminar_grupo,
 )
 from src.logic import seccion_sorteo_manual
+from src.components import (
+    renderizar_tarjetas_equipos,
+    mostrar_grupo_tv,
+    configurar_progresion_visual,
+    renderizar_tarjeta_grupo_minimalista,
+    renderizar_cuadro_progresion,
+)
 
 
 # ── QR helper ──────────────────────────────────────────
 def generar_qr(url: str):
-    """Genera un QR code como imagen PIL a partir de una URL."""
     import qrcode
-    import io
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
@@ -36,7 +47,6 @@ def generar_qr(url: str):
     img.save(buf, format="PNG")
     buf.seek(0)
     return buf
-from src.components import renderizar_tarjetas_equipos, mostrar_grupo_tv
 
 # --- Constantes ---
 LOGO_RFFM_URL = "https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png"
@@ -142,8 +152,6 @@ supabase = get_supabase()
 # -------------------------------------------------------
 # HELPERS
 # -------------------------------------------------------
-import re as _re
-
 def _sort_grupos(grupos):
     """Ordena grupos numéricamente por el número en su nombre."""
     def _num(n):
@@ -191,7 +199,6 @@ st.markdown(
 # -------------------------------------------------------
 # SELECTOR DE TORNEO (sidebar)
 # -------------------------------------------------------
-# Botón de logout en sidebar
 if st.sidebar.button("🔒 Cerrar sesión", use_container_width=True):
     st.session_state.authenticated = False
     st.rerun()
@@ -207,7 +214,6 @@ if not torneos:
 else:
     nombres_torneos = [t["nombre"] for t in torneos]
 
-    # Persistir selección en session_state
     if "torneo_idx" not in st.session_state:
         st.session_state.torneo_idx = 0
 
@@ -220,6 +226,20 @@ else:
     st.session_state.torneo_idx = nombres_torneos.index(torneo_sel)
     torneo_actual = next((t for t in torneos if t["nombre"] == torneo_sel), None)
 
+with st.sidebar.expander("➕ Nuevo torneo"):
+    nuevo_nombre = st.text_input("Nombre", placeholder="ej: Copa RFFM 2026", key="sb_nuevo_nombre")
+    nueva_desc   = st.text_input("Descripción (opcional)", key="sb_nueva_desc")
+    if st.button("Crear", use_container_width=True, key="sb_crear_torneo"):
+        if nuevo_nombre.strip():
+            try:
+                crear_torneo(nuevo_nombre.strip(), nueva_desc.strip())
+                st.success(f"Torneo '{nuevo_nombre}' creado.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error: {e}")
+        else:
+            st.warning("El nombre no puede estar vacío.")
+
 st.sidebar.markdown("---")
 
 # -------------------------------------------------------
@@ -227,28 +247,14 @@ st.sidebar.markdown("---")
 # -------------------------------------------------------
 menu = st.sidebar.selectbox(
     "Menú",
-    ["Torneos", "Dashboard", "Configurador", "Carga de Equipos", "Cuadro Visual", "Sorteo"],
+    ["Dashboard", "Configurador", "Carga de Equipos", "Cuadro Visual", "Sorteo", "Ajustes"],
 )
 
 # -------------------------------------------------------
-# TORNEOS
+# AJUSTES
 # -------------------------------------------------------
-if menu == "Torneos":
-    st.subheader("Gestión de Torneos")
-
-    with st.expander("➕ Crear Nuevo Torneo", expanded=not torneos):
-        nuevo_nombre = st.text_input("Nombre del torneo", placeholder="ej: Copa RFFM 2026")
-        nueva_desc   = st.text_input("Descripción (opcional)")
-        if st.button("Crear torneo"):
-            if nuevo_nombre.strip():
-                try:
-                    crear_torneo(nuevo_nombre.strip(), nueva_desc.strip())
-                    st.success(f"Torneo '{nuevo_nombre}' creado.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
-            else:
-                st.warning("El nombre no puede estar vacío.")
+if menu == "Ajustes":
+    st.subheader("Ajustes de Torneos")
 
     if torneos:
         st.write("### Torneos existentes")
@@ -277,7 +283,6 @@ if menu == "Torneos":
                     )
                 if grupos_tv:
                     primer_grupo = grupos_tv[0]["nombre"]
-                    import urllib.parse
                     url_tv = f"/?view=tv&grupo={urllib.parse.quote(primer_grupo)}&torneo={tid}"
                     st.markdown("**Vista TV** (pantalla de sorteo):")
                     col_tv_url, col_tv_btn = st.columns([4, 1])
@@ -338,9 +343,8 @@ if menu == "Torneos":
                     args=[f"confirm_del_{t['id']}", None],
                 )
 
-# Guard: el resto de secciones requieren un torneo seleccionado
-if menu != "Torneos":
-    if not torneo_actual:
+# Guard: todas las secciones requieren un torneo seleccionado
+if not torneo_actual:
         st.warning("Selecciona o crea un torneo en el sidebar para continuar.")
         st.stop()
     torneo_id = torneo_actual["id"]
@@ -539,9 +543,8 @@ if menu == "Configurador":
                         if st.button("Guardar cambios", key=f"guardar_orden_{fase_id}", type="primary"):
                             try:
                                 for row, g in zip(edited_orden, grupos):
-                                    pos = row["Posición"]
                                     try:
-                                        orden = int(pos) if pos is not None else None
+                                        orden = int(row["Posición"]) if row["Posición"] is not None else None
                                     except (ValueError, TypeError):
                                         orden = None
                                     try:
@@ -549,11 +552,7 @@ if menu == "Configurador":
                                     except (ValueError, TypeError):
                                         equipos_num = g["tipo_grupo"]
                                     nombre = (row["Nombre"] or "").strip() or g["nombre"]
-                                    supabase.table("grupos").update({
-                                        "orden_cuadro": orden,
-                                        "nombre": nombre,
-                                        "tipo_grupo": equipos_num,
-                                    }).eq("id", g["id"]).execute()
+                                    actualizar_grupo(g["id"], nombre, equipos_num, orden)
                                 st.success("Cambios guardados.")
                                 st.rerun()
                             except Exception as e:
@@ -564,7 +563,6 @@ if menu == "Configurador":
                     )
                     grupos_fase_anterior = _sort_grupos(get_grupos_por_fase(fase_anterior["id"])) if fase_anterior else []
 
-                    from src.components import configurar_progresion_visual
                     configurar_progresion_visual(
                         grupos_destino=grupos,
                         grupos_origen=grupos_fase_anterior,
@@ -574,6 +572,34 @@ if menu == "Configurador":
 
                 total_plazas = sum(g["tipo_grupo"] for g in grupos)
                 st.info(f"Capacidad total de la fase: {total_plazas} equipos.")
+
+                with st.expander("🗑️ Eliminar un grupo"):
+                    for g in grupos:
+                        g_id = g["id"]
+                        confirm_key = f"confirm_del_grupo_{g_id}"
+                        col_nombre, col_btn = st.columns([6, 1])
+                        col_nombre.markdown(f"**{g['nombre']}** — {g['tipo_grupo']} equipos")
+                        if col_btn.button("🗑️", key=f"del_grupo_{g_id}", help=f"Eliminar {g['nombre']}"):
+                            st.session_state[confirm_key] = True
+                        if st.session_state.get(confirm_key):
+                            st.warning(
+                                f"¿Eliminar **{g['nombre']}** y todos sus participantes? "
+                                "Esta acción no se puede deshacer."
+                            )
+                            c1, c2 = st.columns(2)
+                            if c1.button("Sí, eliminar", key=f"si_del_grupo_{g_id}", type="primary"):
+                                try:
+                                    eliminar_grupo(g_id)
+                                    st.session_state.pop(confirm_key, None)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+                            c2.button(
+                                "Cancelar",
+                                key=f"no_del_grupo_{g_id}",
+                                on_click=st.session_state.pop,
+                                args=[confirm_key, None],
+                            )
 
 
 
@@ -612,7 +638,7 @@ if menu == "Cuadro Visual":
         for p in todos_participantes:
             participantes_por_grupo.setdefault(p["grupo_id"], []).append(p)
 
-        from src.components import renderizar_tarjeta_grupo_minimalista, renderizar_cuadro_progresion
+
 
         if not es_progresion:
             equipos_libres = []
