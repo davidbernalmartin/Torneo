@@ -218,7 +218,7 @@ else:
         key="torneo_selector",
     )
     st.session_state.torneo_idx = nombres_torneos.index(torneo_sel)
-    torneo_actual = next(t for t in torneos if t["nombre"] == torneo_sel)
+    torneo_actual = next((t for t in torneos if t["nombre"] == torneo_sel), None)
 
 st.sidebar.markdown("---")
 
@@ -331,9 +331,12 @@ if menu == "Torneos":
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error: {e}")
-                if c2.button("Cancelar", key=f"no_del_{t['id']}"):
-                    st.session_state.pop(f"confirm_del_{t['id']}", None)
-                    st.rerun()
+                c2.button(
+                    "Cancelar",
+                    key=f"no_del_{t['id']}",
+                    on_click=st.session_state.pop,
+                    args=[f"confirm_del_{t['id']}", None],
+                )
 
 # Guard: el resto de secciones requieren un torneo seleccionado
 if menu != "Torneos":
@@ -371,45 +374,91 @@ if menu == "Carga de Equipos":
 
     archivo = st.file_uploader("Sube tu Excel o CSV", type=["xlsx", "csv"])
 
+    # ── Plantilla descargable ────────────────────────────
+    with st.expander("Ver formato esperado y descargar plantilla"):
+        st.markdown("""
+El archivo debe ser **Excel (.xlsx)** o **CSV (.csv)** con exactamente estas dos columnas:
+
+| Columna | Obligatorio | Descripción |
+|---|---|---|
+| `nombre` | ✅ Sí | Nombre del equipo |
+| `escudo_url` | ✅ Sí | URL pública de la imagen del escudo (puede dejarse vacía) |
+
+La primera fila debe ser la cabecera con esos nombres exactos (en minúsculas).
+        """)
+        plantilla_df = pd.DataFrame({
+            "nombre":     ["Real Madrid", "Barcelona", "Atlético de Madrid"],
+            "escudo_url": ["https://ejemplo.com/rm.png", "https://ejemplo.com/fcb.png", ""],
+        })
+        st.dataframe(plantilla_df, use_container_width=True, hide_index=True)
+        csv_plantilla = plantilla_df.to_csv(index=False).encode("utf-8")
+        st.download_button("Descargar plantilla CSV", csv_plantilla, "plantilla_equipos.csv", "text/csv")
+
     if archivo:
-        if archivo.name.endswith("xlsx"):
-            df = pd.read_excel(archivo)
-        else:
-            df = pd.read_csv(archivo)
-
-        st.write("### Vista previa de tus equipos")
-        st.dataframe(df, use_container_width=True)
-
-        columnas_ok = "nombre" in df.columns and "escudo_url" in df.columns
-
-        if columnas_ok:
-            nombres_existentes = {e["nombre"].strip().upper() for e in get_equipos(torneo_id)}
-            df["_nuevo"] = ~df["nombre"].str.strip().str.upper().isin(nombres_existentes)
-            duplicados = df[~df["_nuevo"]]["nombre"].tolist()
-            df_nuevos = df[df["_nuevo"]].drop(columns=["_nuevo"])
-
-            if duplicados:
-                st.warning(f"⚠️ Ya existen en el torneo y se omitirán: **{', '.join(duplicados)}**")
-
-            if df_nuevos.empty:
-                st.error("Todos los equipos del archivo ya existen en el torneo. No hay nada que subir.")
+        # ── Lectura del fichero ───────────────────────────
+        try:
+            if archivo.name.endswith("xlsx"):
+                df = pd.read_excel(archivo)
             else:
-                label = f"Confirmar y subir {len(df_nuevos)} equipo(s)" if duplicados else "Confirmar y subir a Supabase"
-                if st.button(label):
-                    equipos_dict = df_nuevos[["nombre", "escudo_url"]].to_dict(orient="records")
-                    with st.spinner(f"Subiendo {len(equipos_dict)} equipos..."):
-                        resultado = subir_equipos_batch(equipos_dict, torneo_id)
-                    if isinstance(resultado, str):
-                        st.error(resultado)
-                    else:
-                        st.success(f"¡{len(equipos_dict)} equipos cargados con éxito!")
-                        st.rerun()
-        else:
-            st.error("El archivo debe tener las columnas: 'nombre' y 'escudo_url'")
+                df = pd.read_csv(archivo)
+        except Exception as e:
+            st.error(f"No se pudo leer el archivo: {e}")
+            st.info("Asegúrate de que el archivo no está corrupto y es un Excel o CSV válido.")
+            df = None
 
-        st.write("---")
-        st.subheader("Equipos actualmente en la Base de Datos")
-        renderizar_tarjetas_equipos(get_equipos(torneo_id))
+        if df is not None:
+            st.write("### Vista previa del archivo")
+            st.dataframe(df, use_container_width=True)
+
+            # ── Validación de columnas ────────────────────
+            tiene_nombre   = "nombre"     in df.columns
+            tiene_escudo   = "escudo_url" in df.columns
+
+            if not tiene_nombre or not tiene_escudo:
+                faltantes = []
+                if not tiene_nombre: faltantes.append("`nombre`")
+                if not tiene_escudo: faltantes.append("`escudo_url`")
+
+                st.error(f"Faltan las columnas obligatorias: {', '.join(faltantes)}")
+
+                cols_encontradas = [f"`{c}`" for c in df.columns.tolist()]
+                st.markdown(
+                    f"**Columnas encontradas en tu archivo:** {', '.join(cols_encontradas) if cols_encontradas else '_(ninguna)_'}\n\n"
+                    f"**Columnas requeridas:** `nombre`, `escudo_url`\n\n"
+                    "Revisa que la primera fila del archivo contiene exactamente esos nombres (en minúsculas y sin espacios extra). "
+                    "Despliega el panel de arriba para ver el formato correcto y descargar una plantilla."
+                )
+
+            elif df["nombre"].isna().all() or df.empty:
+                st.error("El archivo está vacío o la columna `nombre` no tiene datos.")
+
+            else:
+                # ── Happy path ────────────────────────────
+                nombres_existentes = {e["nombre"].strip().upper() for e in get_equipos(torneo_id)}
+                df["_nuevo"] = ~df["nombre"].str.strip().str.upper().isin(nombres_existentes)
+                duplicados  = df[~df["_nuevo"]]["nombre"].tolist()
+                df_nuevos   = df[df["_nuevo"]].drop(columns=["_nuevo"])
+
+                if duplicados:
+                    st.warning(f"⚠️ Ya existen en el torneo y se omitirán: **{', '.join(duplicados)}**")
+
+                if df_nuevos.empty:
+                    st.error("Todos los equipos del archivo ya existen en el torneo. No hay nada que subir.")
+                else:
+                    label = f"Confirmar y subir {len(df_nuevos)} equipo(s)" if duplicados else "Confirmar y subir a Supabase"
+                    if st.button(label):
+                        equipos_dict = df_nuevos[["nombre", "escudo_url"]].to_dict(orient="records")
+                        with st.spinner(f"Subiendo {len(equipos_dict)} equipos..."):
+                            resultado = subir_equipos_batch(equipos_dict, torneo_id)
+                        if isinstance(resultado, str):
+                            st.error(resultado)
+                        else:
+                            st.success(f"¡{len(equipos_dict)} equipos cargados con éxito!")
+                            st.rerun()
+
+    st.write("---")
+    st.subheader("Equipos actualmente en la Base de Datos")
+    renderizar_tarjetas_equipos(get_equipos(torneo_id))
 
 # -------------------------------------------------------
 # CONFIGURADOR
@@ -469,6 +518,46 @@ if menu == "Configurador":
             if grupos:
                 if not es_fase_progresion:
                     st.info("Fase 1: las plazas se llenan por sorteo, no requiere configuración de origen.")
+
+                    with st.expander("Orden y nombres en el cuadro visual"):
+                        st.caption("Edita el nombre, el número de equipos y la posición (1, 2, 3…) de cada grupo en el bracket.")
+                        orden_rows = [
+                            {"Nombre": g["nombre"], "Equipos": g["tipo_grupo"], "Posición": g.get("orden_cuadro")}
+                            for g in grupos
+                        ]
+                        edited_orden = st.data_editor(
+                            orden_rows,
+                            column_config={
+                                "Nombre":   st.column_config.TextColumn(),
+                                "Equipos":  st.column_config.NumberColumn(min_value=1, step=1),
+                                "Posición": st.column_config.NumberColumn(min_value=1, step=1),
+                            },
+                            hide_index=True,
+                            use_container_width=True,
+                            key=f"orden_cuadro_editor_{fase_id}",
+                        )
+                        if st.button("Guardar cambios", key=f"guardar_orden_{fase_id}", type="primary"):
+                            try:
+                                for row, g in zip(edited_orden, grupos):
+                                    pos = row["Posición"]
+                                    try:
+                                        orden = int(pos) if pos is not None else None
+                                    except (ValueError, TypeError):
+                                        orden = None
+                                    try:
+                                        equipos_num = int(row["Equipos"]) if row["Equipos"] else g["tipo_grupo"]
+                                    except (ValueError, TypeError):
+                                        equipos_num = g["tipo_grupo"]
+                                    nombre = (row["Nombre"] or "").strip() or g["nombre"]
+                                    supabase.table("grupos").update({
+                                        "orden_cuadro": orden,
+                                        "nombre": nombre,
+                                        "tipo_grupo": equipos_num,
+                                    }).eq("id", g["id"]).execute()
+                                st.success("Cambios guardados.")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error al guardar: {e}")
                 else:
                     fase_anterior = next(
                         (f for f in fases if f["orden"] == fase_actual["orden"] - 1), None

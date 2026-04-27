@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Información de Grupos</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red:       #cc0000;
+    --red-dark:  #8b0000;
+    --font-display: 'Barlow Condensed', sans-serif;
+    --font-body:    'Barlow', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a0000;
+    color: white;
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: auto;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 32px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.4);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(6px);
+  }
+  .logo-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--red); flex-shrink: 0;
+    box-shadow: 0 0 8px var(--red);
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-size: 22px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+
+  .bracket-outer {
+    padding: 40px 32px;
+    overflow: auto;
+    min-height: calc(100vh - 65px);
+  }
+  .bracket { position: relative; min-width: max-content; }
+
+  .phase-label {
+    font-family: var(--font-display);
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--red);
+    text-align: center;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(204,0,0,0.3);
+  }
+
+  .match {
+    background: var(--red-dark);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(204,0,0,0.3);
+  }
+  .match-header {
+    background: var(--red);
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .match-name {
+    font-family: var(--font-display);
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: white;
+  }
+  .match-notes {
+    font-size: 10px; font-weight: 400;
+    color: rgba(255,255,255,0.82);
+    font-style: italic;
+    font-family: var(--font-body);
+    text-transform: none; letter-spacing: normal;
+    line-height: 1.4;
+  }
+
+  #loading {
+    position: fixed; inset: 0;
+    background: #1a0000;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px; z-index: 200;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(204,0,0,0.2);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading p {
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.4);
+  }
+
+  #error-msg {
+    margin: 32px; padding: 20px 24px;
+    background: rgba(204,0,0,0.15);
+    border: 1px solid rgba(204,0,0,0.4);
+    border-radius: 10px;
+    font-size: 14px; line-height: 1.6;
+    color: rgba(255,255,255,0.7);
+    display: none;
+  }
+  #error-msg strong { color: white; display: block; margin-bottom: 6px; font-size: 16px; }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Cargando grupos...</p>
+</div>
+<div id="error-msg"></div>
+
+<header>
+  <div class="logo-dot"></div>
+  <h1 id="bracket-title">Grupos</h1>
+</header>
+
+<div class="bracket-outer">
+  <div class="bracket" id="bracket"></div>
+</div>
+
+<script>
+const SUPABASE_URL      = "https://bdqoapdnokydfwykitww.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcW9hcGRub2t5ZGZ3eWtpdHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDc1NTMsImV4cCI6MjA5MjM4MzU1M30.TioDgG3xHadZS1wvttTgnB_LxcdK5L_rqhEDk9okMLw";
+
+let fases = [], grupos = [], torneoData = null;
+
+function sbHeaders() {
+  return {
+    "apikey": SUPABASE_ANON_KEY,
+    "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+    "Accept": "application/json",
+  };
+}
+
+async function sbGet(table, params) {
+  const url = SUPABASE_URL + "/rest/v1/" + table + (params ? "?" + params : "");
+  const res = await fetch(url, { headers: sbHeaders() });
+  if (!res.ok) throw new Error(table + " (" + res.status + "): " + await res.text());
+  return res.json();
+}
+
+function showError(msg) {
+  document.getElementById("loading").style.display = "none";
+  const el = document.getElementById("error-msg");
+  el.innerHTML = "<strong>Error</strong> " + msg;
+  el.style.display = "block";
+}
+
+async function init() {
+  try {
+    await loadData();
+    document.getElementById("loading").style.display = "none";
+    if (!fases.length) { showError("No hay fases en la base de datos."); return; }
+    render();
+  } catch(err) {
+    showError(err.message);
+    console.error(err);
+  }
+}
+
+async function loadData() {
+  const torneoId = new URLSearchParams(window.location.search).get("torneo");
+  const fasesParams = (torneoId ? "torneo_id=eq." + torneoId + "&" : "") + "select=*&order=orden";
+
+  const [f, t] = await Promise.all([
+    sbGet("fases", fasesParams),
+    torneoId ? sbGet("torneos", "select=id,nombre&id=eq." + torneoId) : Promise.resolve([]),
+  ]);
+
+  fases      = f;
+  torneoData = (t && t.length) ? t[0] : null;
+
+  if (torneoData?.nombre) {
+    document.getElementById("bracket-title").textContent = torneoData.nombre;
+    document.title = torneoData.nombre;
+  }
+
+  if (fases.length) {
+    const faseIds = fases.map(f => f.id).join(",");
+    grupos = await sbGet("grupos", "select=*&fase_id=in.(" + faseIds + ")");
+  }
+}
+
+// ── CARD HEIGHT ───────────────────────────────────────────
+// Header only: name row (~22px) + optional notes row(s) + padding
+function CARD_H(g) {
+  if (!g.notas) return 38;
+  // Estimate ~14px per line of notes (generous)
+  const lines = g.notas.split("\n").length;
+  return 38 + lines * 15;
+}
+
+// ── RENDER ────────────────────────────────────────────────
+function renderGroupCard(g) {
+  const notasHtml = g.notas
+    ? `<span class="match-notes">${g.notas}</span>`
+    : "";
+  return `<div class="match">
+    <div class="match-header">
+      <span class="match-name">${g.nombre}</span>
+      ${notasHtml}
+    </div>
+  </div>`;
+}
+
+function getPhasesSorted() {
+  return [...fases].sort((a, b) => a.orden - b.orden);
+}
+
+function render() {
+  const wrapper = document.getElementById("bracket");
+  wrapper.innerHTML = "";
+
+  const phasesSorted = getPhasesSorted();
+  if (!phasesSorted.length) return;
+
+  const firstPhase = phasesSorted[0];
+  const phase1Groups = grupos
+    .filter(g => g.fase_id === firstPhase.id)
+    .sort((a, b) => {
+      const oA = (a.orden_cuadro != null) ? a.orden_cuadro : Infinity;
+      const oB = (b.orden_cuadro != null) ? b.orden_cuadro : Infinity;
+      if (oA !== oB) return oA - oB;
+      const nA = parseInt(a.nombre.match(/\d+/)?.[0] ?? "0");
+      const nB = parseInt(b.nombre.match(/\d+/)?.[0] ?? "0");
+      return nA !== nB ? nA - nB : a.nombre.localeCompare(b.nombre);
+    });
+
+  const mid = Math.ceil(phase1Groups.length / 2);
+  const leftGroups  = phase1Groups.slice(0, mid);
+  const rightGroups = phase1Groups.slice(mid);
+
+  function buildCols(seeds) {
+    const cols = [seeds];
+    let current = seeds;
+    for (let i = 0; i < phasesSorted.length; i++) {
+      const nextIds = [...new Set(current.map(g => g.siguiente_grupo_id).filter(Boolean))];
+      if (!nextIds.length) break;
+      const next   = nextIds.map(id => grupos.find(g => g.id === id)).filter(Boolean);
+      const unique = [...new Map(next.map(g => [g.id, g])).values()];
+      if (!unique.length) break;
+      cols.push(unique);
+      current = unique;
+    }
+    return cols;
+  }
+
+  const leftCols  = buildCols(leftGroups);
+  const rightCols = buildCols(rightGroups);
+
+  // Detect shared final
+  const leftLastIds  = new Set(leftCols[leftCols.length - 1].map(g => g.id));
+  const sharedFinal  = rightCols[rightCols.length - 1].filter(g => leftLastIds.has(g.id));
+  let centerGroups   = [];
+  if (sharedFinal.length) {
+    centerGroups = leftCols.pop();
+    rightCols.pop();
+  }
+
+  const MATCH_W  = 200;
+  const COL_GAP  = 48;
+  const CARD_GAP = 16;
+
+  const totalCols = leftCols.length + 1 + rightCols.length;
+  const totalW    = totalCols * MATCH_W + (totalCols - 1) * COL_GAP;
+
+  // Vertical layout helpers
+  function computeYCenters(groups, totalH) {
+    const totalCardsH  = groups.reduce((s, g) => s + CARD_H(g), 0);
+    const totalGapsH   = (groups.length - 1) * CARD_GAP;
+    const extra        = Math.max(0, totalH - totalCardsH - totalGapsH);
+    const extraPerCard = extra / groups.length;
+    const centers = [];
+    let y = 0;
+    groups.forEach(g => {
+      const h = CARD_H(g) + extraPerCard;
+      centers.push(y + h / 2);
+      y += h + CARD_GAP;
+    });
+    return centers;
+  }
+
+  const phase1H = leftGroups.reduce((s, g) => s + CARD_H(g) + CARD_GAP, 0);
+  const totalH  = Math.max(phase1H, 200);
+
+  const leftYCenters  = computeYCenters(leftGroups, totalH);
+  const rightYCenters = computeYCenters(rightGroups, totalH);
+
+  function computeColYCenters(col, prevCol, prevYCenters) {
+    return col.map(g => {
+      const sources = prevCol.filter(pg => pg.siguiente_grupo_id === g.id);
+      if (!sources.length) return totalH / 2;
+      const ys = sources.map(s => {
+        const idx = prevCol.findIndex(pg => pg.id === s.id);
+        return prevYCenters[idx] ?? totalH / 2;
+      });
+      return ys.reduce((a, b) => a + b, 0) / ys.length;
+    });
+  }
+
+  const leftColYCenters  = [leftYCenters];
+  const rightColYCenters = [rightYCenters];
+  for (let i = 1; i < leftCols.length; i++)
+    leftColYCenters.push(computeColYCenters(leftCols[i], leftCols[i-1], leftColYCenters[i-1]));
+  for (let i = 1; i < rightCols.length; i++)
+    rightColYCenters.push(computeColYCenters(rightCols[i], rightCols[i-1], rightColYCenters[i-1]));
+
+  // ── DOM BUILD ─────────────────────────────────────────
+  const Y_OFFSET = 32; // room for phase label at top
+
+  const container = document.createElement("div");
+  container.style.cssText = `position:relative;width:${totalW}px;height:${totalH + 60 + Y_OFFSET}px;margin:0 auto;`;
+
+  const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svgEl.setAttribute("width", totalW);
+  svgEl.setAttribute("height", totalH + 60 + Y_OFFSET);
+  svgEl.style.cssText = "position:absolute;top:0;left:0;pointer-events:none;";
+  container.appendChild(svgEl);
+
+  function colX(ci) { return ci * (MATCH_W + COL_GAP); }
+
+  function placeCard(g, x, yCenter, cardH) {
+    const y   = yCenter - cardH / 2 + Y_OFFSET;
+    const div = document.createElement("div");
+    div.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:${MATCH_W}px;`;
+    div.innerHTML     = renderGroupCard(g);
+    container.appendChild(div);
+    return { x, y, yCenter: yCenter + Y_OFFSET };
+  }
+
+  function placeLabel(text, x) {
+    const div = document.createElement("div");
+    div.className     = "phase-label";
+    div.style.cssText = `position:absolute;left:${x}px;top:4px;width:${MATCH_W}px;`;
+    div.textContent   = text;
+    container.appendChild(div);
+  }
+
+  function drawConnector(x1, y1, x2, y2) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const cx   = (x1 + x2) / 2;
+    path.setAttribute("d", `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`);
+    path.setAttribute("stroke", "#cc0000");
+    path.setAttribute("stroke-width", "1.5");
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke-opacity", "0.5");
+    svgEl.appendChild(path);
+  }
+
+  // ── LEFT COLUMNS ──────────────────────────────────────
+  const leftPos = [];
+  for (let ci = 0; ci < leftCols.length; ci++) {
+    const col      = leftCols[ci];
+    const yCenters = leftColYCenters[ci];
+    const x        = colX(ci);
+    const phaseName = fases.find(f => f.id === col[0]?.fase_id)?.nombre || "";
+    placeLabel(phaseName, x);
+    const positions = [];
+    col.forEach((g, gi) => {
+      const h   = CARD_H(g);
+      const pos = placeCard(g, x, yCenters[gi], h);
+      positions.push({ x: x + MATCH_W, yCenter: pos.yCenter });
+    });
+    leftPos.push(positions);
+  }
+
+  // ── CENTER COLUMN ─────────────────────────────────────
+  const centerColIdx = leftCols.length;
+  if (centerGroups.length) {
+    const x         = colX(centerColIdx);
+    const phaseName = fases.find(f => f.id === centerGroups[0]?.fase_id)?.nombre || "";
+    placeLabel(phaseName, x);
+    centerGroups.forEach((g, gi) => {
+      const h       = CARD_H(g);
+      const yCenter = totalH / 2;
+      placeCard(g, x, yCenter, h);
+    });
+  }
+
+  // ── RIGHT COLUMNS ─────────────────────────────────────
+  const reversedRight        = [...rightCols].reverse();
+  const reversedRightYCenters = [...rightColYCenters].reverse();
+  const rightPos = [];
+
+  for (let ci = 0; ci < reversedRight.length; ci++) {
+    const col      = reversedRight[ci];
+    const yCenters = reversedRightYCenters[ci];
+    const colIdx   = centerColIdx + 1 + ci;
+    const x        = colX(colIdx);
+    const phaseName = fases.find(f => f.id === col[0]?.fase_id)?.nombre || "";
+    placeLabel(phaseName, x);
+    const positions = [];
+    col.forEach((g, gi) => {
+      const h   = CARD_H(g);
+      const pos = placeCard(g, x, yCenters[gi], h);
+      positions.push({ x, yCenter: pos.yCenter });
+    });
+    rightPos.push(positions);
+  }
+
+  // ── CONNECTORS ────────────────────────────────────────
+  // Left side
+  for (let ci = 0; ci < leftCols.length - 1; ci++) {
+    leftCols[ci].forEach((g, gi) => {
+      if (!g.siguiente_grupo_id) return;
+      const toIdx = leftCols[ci + 1].findIndex(tg => tg.id === g.siguiente_grupo_id);
+      if (toIdx < 0) return;
+      drawConnector(leftPos[ci][gi].x, leftPos[ci][gi].yCenter, colX(ci + 1), leftPos[ci + 1][toIdx].yCenter);
+    });
+  }
+  // Left last → center
+  if (centerGroups.length && leftCols.length) {
+    const lastLeft    = leftCols[leftCols.length - 1];
+    const lastLeftPos = leftPos[leftCols.length - 1];
+    lastLeft.forEach((g, gi) => {
+      if (!g.siguiente_grupo_id) return;
+      if (!centerGroups.some(cg => cg.id === g.siguiente_grupo_id)) return;
+      drawConnector(lastLeftPos[gi].x, lastLeftPos[gi].yCenter, colX(centerColIdx), totalH / 2 + Y_OFFSET);
+    });
+  }
+  // Center → first right
+  if (centerGroups.length && reversedRight.length) {
+    reversedRight[0].forEach((g, gi) => {
+      if (!centerGroups.some(cg => cg.id === g.siguiente_grupo_id)) return;
+      drawConnector(colX(centerColIdx) + MATCH_W, totalH / 2 + Y_OFFSET, colX(centerColIdx + 1), rightPos[0][gi].yCenter);
+    });
+  }
+  // Right side outward
+  for (let ci = 0; ci < reversedRight.length - 1; ci++) {
+    reversedRight[ci].forEach((g, gi) => {
+      reversedRight[ci + 1].forEach((tg, tgi) => {
+        if (tg.siguiente_grupo_id !== g.id) return;
+        drawConnector(
+          colX(centerColIdx + 1 + ci) + MATCH_W, rightPos[ci][gi].yCenter,
+          colX(centerColIdx + 2 + ci), rightPos[ci + 1][tgi].yCenter
+        );
+      });
+    });
+  }
+
+  wrapper.appendChild(container);
+}
+
+init();
+</script>
+</body>
+</html>

@@ -119,9 +119,22 @@
     background: var(--red);
     padding: 5px 10px;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 1px;
   }
+  .match-notes-input {
+    font-size: 9px; font-weight: 400;
+    color: rgba(255,255,255,0.72);
+    font-style: italic;
+    font-family: var(--font-body);
+    text-transform: none; letter-spacing: normal;
+    background: transparent;
+    border: none; outline: none;
+    width: 100%; padding: 0; margin: 0;
+    cursor: text;
+  }
+  .match-notes-input::placeholder { color: rgba(255,255,255,0.35); font-style: italic; }
+  .match-notes-input:focus { background: rgba(255,255,255,0.08); border-radius: 3px; padding: 0 3px; }
   .match-name {
     font-family: var(--font-display);
     font-size: 10px; font-weight: 700;
@@ -898,6 +911,26 @@ function slotLabelVirtual(grupoId, slotIndex) {
 
 // ── RENDER HELPERS ─────────────────────────────────────────
 
+function escapeAttr(str) {
+  return (str || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+async function saveNotas(grupoId, value) {
+  const g = grupos.find(gr => gr.id === grupoId);
+  if (!g) return;
+  const notas = value.trim() || null;
+  if (g.notas === notas) return;
+  g.notas = notas;
+  setSaveState("saving");
+  try {
+    await sbPatch("grupos", grupoId, { notas });
+    setSaveState("saved");
+  } catch(err) {
+    setSaveState("error");
+    console.error(err);
+  }
+}
+
 function escudoEl(url, nombre) {
   if (url) return `<img src="${url}" class="escudo" alt="${nombre}">`;
   return `<div class="escudo-placeholder">
@@ -928,6 +961,7 @@ function isClassified(equipoId, grupoId) {
 function renderMatchHTML(g) {
   const parts = byGrupo(g.id);
   const es2 = g.tipo_grupo === 2;
+  const notasHtml = `<input class="match-notes-input" type="text" value="${escapeAttr(g.notas)}" placeholder="📍 Campo · ⏰ Hora · 👤 Árbitro..." onblur="saveNotas('${g.id}',this.value)" onclick="event.stopPropagation()" ondblclick="event.stopPropagation()">`;
 
   // Always render tipo_grupo slots — fill missing ones with empty drop targets
   function buildSlots(expectedCount, localFirst) {
@@ -1024,6 +1058,7 @@ function renderMatchHTML(g) {
     return `<div class="match" ondblclick="openScoreModal('${g.id}')" style="cursor:pointer;" title="Doble click para editar resultado">
       <div class="match-header">
         <span class="match-name">${g.nombre}</span>
+        ${notasHtml}
       </div>
       ${slotEl(local, winL, winV)}
       ${slotEl(visit, winV, winL)}
@@ -1031,7 +1066,7 @@ function renderMatchHTML(g) {
   } else {
     const slots = buildSlots(g.tipo_grupo, false);
     return `<div class="match">
-      <div class="match-header"><span class="match-name">${g.nombre}</span></div>
+      <div class="match-header"><span class="match-name">${g.nombre}</span>${notasHtml}</div>
       ${slots.map(s => slotEl(s, false, false)).join("")}
     </div>`;
   }
@@ -1075,6 +1110,9 @@ function render() {
   const phase1Groups = grupos
     .filter(g => g.fase_id === firstPhase.id)
     .sort((a, b) => {
+      const oA = (a.orden_cuadro != null) ? a.orden_cuadro : Infinity;
+      const oB = (b.orden_cuadro != null) ? b.orden_cuadro : Infinity;
+      if (oA !== oB) return oA - oB;
       const numA = parseInt(a.nombre.match(/\d+/)?.[0] ?? '0');
       const numB = parseInt(b.nombre.match(/\d+/)?.[0] ?? '0');
       return numA !== numB ? numA - numB : a.nombre.localeCompare(b.nombre);

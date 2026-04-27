@@ -132,27 +132,31 @@ def seccion_sorteo_manual(supabase, torneo_id=None):
             if st.button("Confirmar", use_container_width=True, type="primary"):
                 if equipo_nombre and grupo_sel_display:
                     nombre_grupo_limpio = grupo_sel_display.split(" (")[0]
-                    id_e = next(e["id"] for e in equipos_libres if e["nombre"] == equipo_nombre)
-                    id_g = next(g["id"] for g in grupos_disponibles if g["nombre"] == nombre_grupo_limpio)
-                    try:
-                        # Buscar si existe una plaza vacía (equipo_id NULL) en este grupo
-                        plaza_vacia = supabase.table("participantes_grupo")                             .select("id")                             .eq("grupo_id", id_g)                             .is_("equipo_id", "null")                             .limit(1)                             .execute()
+                    e_match = next((e for e in equipos_libres if e["nombre"] == equipo_nombre), None)
+                    g_match = next((g for g in grupos_disponibles if g["nombre"] == nombre_grupo_limpio), None)
+                    if not e_match or not g_match:
+                        st.error("Los datos han cambiado. Recarga la página e inténtalo de nuevo.")
+                    else:
+                        id_e, id_g = e_match["id"], g_match["id"]
+                        try:
+                            # Buscar si existe una plaza vacía (equipo_id NULL) en este grupo
+                            plaza_vacia = supabase.table("participantes_grupo")                             .select("id")                             .eq("grupo_id", id_g)                             .is_("equipo_id", "null")                             .limit(1)                             .execute()
 
-                        if plaza_vacia.data:
-                            # Actualizar la primera plaza vacía existente
-                            supabase.table("participantes_grupo")                                 .update({"equipo_id": id_e, "puntos": 0, "goles": 0})                                 .eq("id", plaza_vacia.data[0]["id"])                                 .execute()
-                        else:
-                            # Insertar nueva fila si no hay plazas vacías preexistentes
-                            supabase.table("participantes_grupo").insert({
-                                "grupo_id": id_g,
-                                "equipo_id": id_e,
-                                "puntos": 0,
-                                "goles": 0,
-                            }).execute()
-                        st.toast(f"Asignado: {equipo_nombre} al {nombre_grupo_limpio}")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al confirmar asignación: {e}")
+                            if plaza_vacia.data:
+                                # Actualizar la primera plaza vacía existente
+                                supabase.table("participantes_grupo")                                 .update({"equipo_id": id_e, "puntos": 0, "goles": 0})                                 .eq("id", plaza_vacia.data[0]["id"])                                 .execute()
+                            else:
+                                # Insertar nueva fila si no hay plazas vacías preexistentes
+                                supabase.table("participantes_grupo").insert({
+                                    "grupo_id": id_g,
+                                    "equipo_id": id_e,
+                                    "puntos": 0,
+                                    "goles": 0,
+                                }).execute()
+                            st.toast(f"Asignado: {equipo_nombre} al {nombre_grupo_limpio}")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al confirmar asignación: {e}")
 
     if not grupos_disponibles:
         st.warning("⚠️ No quedan grupos con plazas disponibles. Revisa la configuración de la fase.")

@@ -5,6 +5,18 @@ import streamlit as st
 from src.database import get_supabase
 
 
+def _cancelar_confirm(clave):
+    st.session_state.pop(clave, None)
+
+
+def _guardar_notas_grupo(grupo_id, clave):
+    nuevas = st.session_state.get(clave, "") or None
+    try:
+        get_supabase().table("grupos").update({"notas": nuevas}).eq("id", grupo_id).execute()
+    except Exception:
+        pass
+
+
 # Constante compartida para la vista TV
 LOGO_TV_URL = "https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png"
 
@@ -26,7 +38,7 @@ def mostrar_grupo_tv(nombre_grupo_url, torneo_id=None):
 
         q = (
             supabase.table("grupos")
-            .select("id, nombre, tipo_grupo, fase_id")
+            .select("id, nombre, tipo_grupo, fase_id, notas")
             .eq("nombre", nombre_grupo_url)
         )
         if ids_fases_torneo:
@@ -43,8 +55,14 @@ def mostrar_grupo_tv(nombre_grupo_url, torneo_id=None):
         fase_id = datos_grupo["fase_id"]
         nombre_display = datos_grupo["nombre"]
         tipo_grupo = datos_grupo["tipo_grupo"]
+        notas_grupo = datos_grupo.get("notas") or ""
 
         # Cabecera con logo
+        notas_tv_html = (
+            f'<p style="text-align:center;color:rgba(255,255,255,0.8);'
+            f'font-size:2rem;margin:-10px 0 20px;font-weight:400;">{notas_grupo}</p>'
+            if notas_grupo else ""
+        )
         st.markdown(f"""
             <div style="display: flex; align-items: center; justify-content: center;
                         gap: 20px; width: 100%;">
@@ -55,6 +73,7 @@ def mostrar_grupo_tv(nombre_grupo_url, torneo_id=None):
                     {nombre_display}
                 </h1>
             </div>
+            {notas_tv_html}
         """, unsafe_allow_html=True)
 
         st.write("")
@@ -97,12 +116,25 @@ def mostrar_grupo_tv(nombre_grupo_url, torneo_id=None):
                     </div>
                 """, unsafe_allow_html=True)
 
-        # Navegador de grupos
+        # Navegador de grupos — siempre fase 1 del torneo, ordenada por orden_cuadro
         st.write("---")
+        fase1_id = fase_id  # fallback si no hay torneo_id
+        if torneo_id:
+            res_fase1 = (
+                supabase.table("fases")
+                .select("id")
+                .eq("torneo_id", torneo_id)
+                .eq("orden", 1)
+                .limit(1)
+                .execute()
+            )
+            if res_fase1.data:
+                fase1_id = res_fase1.data[0]["id"]
+
         res_hermanos = (
             supabase.table("grupos")
-            .select("nombre")
-            .eq("fase_id", fase_id)
+            .select("nombre, orden_cuadro")
+            .eq("fase_id", fase1_id)
             .execute()
         )
 
@@ -111,14 +143,21 @@ def mostrar_grupo_tv(nombre_grupo_url, torneo_id=None):
                 nums = re.findall(r"\d+", n)
                 return int(nums[0]) if nums else 0
 
-            nombres_ordenados = sorted(
-                [g["nombre"] for g in res_hermanos.data], key=extraer_num
+            grupos_nav = sorted(
+                res_hermanos.data,
+                key=lambda g: (
+                    g["orden_cuadro"] if g.get("orden_cuadro") is not None else float("inf"),
+                    extraer_num(g["nombre"]),
+                ),
             )
-            cols_nav = st.columns(len(nombres_ordenados))
+            cols_nav = st.columns(len(grupos_nav))
 
-            for idx, nombre_btn in enumerate(nombres_ordenados):
-                num_solo = re.findall(r"\d+", nombre_btn)
-                label = f"G{num_solo[0]}" if num_solo else nombre_btn[:2]
+            for idx, g_nav in enumerate(grupos_nav):
+                nombre_btn = g_nav["nombre"]
+                palabras = re.findall(r"[A-Za-zÀ-ÿ]+", nombre_btn)
+                primera = palabras[0][0].upper() if palabras else "G"
+                nums = re.findall(r"\d+", nombre_btn)
+                label = f"{primera}{nums[-1]}" if nums else primera
                 es_actual = nombre_btn == nombre_grupo_url
 
                 if cols_nav[idx].button(
@@ -383,12 +422,16 @@ def renderizar_cuadro_progresion(
     def _fila_hueco():
         return '<div style="border:1px dashed rgba(255,255,255,0.3);border-radius:5px;background:rgba(0,0,0,0.15);height:30px;margin-bottom:4px;"></div>'
 
-    def _tarjeta(nombre_grupo, cuerpo_html):
+    def _tarjeta(nombre_grupo, cuerpo_html, notas=""):
+        notas_html = (
+            f'<br/><em style="font-size:0.65rem;color:rgba(255,255,255,0.78);font-weight:400;letter-spacing:normal;text-transform:none;">{notas}</em>'
+            if notas else ""
+        )
         return (
             f'<div style="background:#8b0000;border-radius:10px;overflow:hidden;margin-bottom:4px;">'
             f'<div style="background:#cc0000;padding:8px 12px;display:flex;align-items:center;gap:6px;">'
             f'<div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.4);flex-shrink:0;"></div>'
-            f'<span style="font-size:0.7rem;font-weight:700;color:white;text-transform:uppercase;letter-spacing:0.06em;">{nombre_grupo}</span>'
+            f'<span style="font-size:0.7rem;font-weight:700;color:white;text-transform:uppercase;letter-spacing:0.06em;">{nombre_grupo}{notas_html}</span>'
             f'</div>'
             f'<div style="padding:6px 10px 8px;">{cuerpo_html}</div>'
             f'</div>'
@@ -412,7 +455,7 @@ def renderizar_cuadro_progresion(
                 )
             if not cuerpo:
                 cuerpo = '<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);font-style:italic;padding:4px 0;">Sin equipos asignados</div>'
-            st.markdown(_tarjeta(g_orig["nombre"], cuerpo), unsafe_allow_html=True)
+            st.markdown(_tarjeta(g_orig["nombre"], cuerpo, g_orig.get("notas") or ""), unsafe_allow_html=True)
 
     # ---- SEPARADOR ----
     with col_sep:
@@ -436,7 +479,7 @@ def renderizar_cuadro_progresion(
             for _ in range(capacidad - n_asignados):
                 cuerpo += _fila_hueco()
 
-            st.markdown(_tarjeta(g_dest["nombre"], cuerpo), unsafe_allow_html=True)
+            st.markdown(_tarjeta(g_dest["nombre"], cuerpo, g_dest.get("notas") or ""), unsafe_allow_html=True)
 
             # Vaciar o selectbox
             if grupo_lleno:
@@ -452,9 +495,12 @@ def renderizar_cuadro_progresion(
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al vaciar: {e}")
-                    if col_no.button("Cancelar", key=f"no_vaciar_{g_id}"):
-                        st.session_state.pop(f"confirmar_vaciar_{g_id}", None)
-                        st.rerun()
+                    col_no.button(
+                        "Cancelar",
+                        key=f"no_vaciar_{g_id}",
+                        on_click=_cancelar_confirm,
+                        args=[f"confirmar_vaciar_{g_id}"],
+                    )
             else:
                 plazas_vacias = [p for p in participantes if not p.get("equipo_id")]
                 if not plazas_vacias:
@@ -488,12 +534,24 @@ def renderizar_cuadro_progresion(
                             label_visibility="collapsed",
                         )
                         if seleccion != opciones[0]:
-                            e_id = next(c["id"] for c in candidatos if c["nombre"] == seleccion)
-                            supabase.table("participantes_grupo").update({"equipo_id": e_id}).eq("id", p_actual["id"]).execute()
-                            st.rerun()
+                            e_match = next((c for c in candidatos if c["nombre"] == seleccion), None)
+                            if e_match:
+                                supabase.table("participantes_grupo").update({"equipo_id": e_match["id"]}).eq("id", p_actual["id"]).execute()
+                                st.rerun()
                     except Exception as e:
                         st.error(f"Error cargando candidatos: {e}")
 
+            notas_key = f"notas_{g_id}"
+            if notas_key not in st.session_state:
+                st.session_state[notas_key] = g_dest.get("notas") or ""
+            st.text_input(
+                "notas_input",
+                key=notas_key,
+                on_change=_guardar_notas_grupo,
+                args=[g_id, notas_key],
+                placeholder="📍 Campo · ⏰ Hora · 👤 Árbitro...",
+                label_visibility="collapsed",
+            )
             st.markdown("<div style='margin-bottom:6px;'></div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------
@@ -514,6 +572,13 @@ def renderizar_tarjeta_grupo_minimalista(
     capacidad = grupo["tipo_grupo"]
     asignados = [p for p in participantes if p and p.get("equipo_id")]
     grupo_lleno = len(asignados) >= capacidad
+    notas = grupo.get("notas") or ""
+
+    notas_html = (
+        f'<br/><em style="font-size:0.65rem;color:rgba(255,255,255,0.78);'
+        f'font-weight:400;letter-spacing:normal;text-transform:none;">{notas}</em>'
+        if notas else ""
+    )
 
     # --- Tarjeta HTML ---
     st.markdown(f"""
@@ -521,7 +586,7 @@ def renderizar_tarjeta_grupo_minimalista(
             <div style="background:#cc0000;padding:10px 14px;display:flex;align-items:center;gap:8px;">
                 <div style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.35);flex-shrink:0;"></div>
                 <span style="font-size:0.72rem;font-weight:700;color:white;text-transform:uppercase;letter-spacing:0.07em;">
-                    {grupo['nombre']}
+                    {grupo['nombre']}{notas_html}
                 </span>
             </div>
             <div style="padding:8px 14px 8px;">
@@ -579,9 +644,12 @@ def renderizar_tarjeta_grupo_minimalista(
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error al vaciar: {e}")
-            if col_no.button("Cancelar", key=f"no_vaciar_{grupo_id}"):
-                st.session_state.pop(f"confirmar_vaciar_{grupo_id}", None)
-                st.rerun()
+            col_no.button(
+                "Cancelar",
+                key=f"no_vaciar_{grupo_id}",
+                on_click=_cancelar_confirm,
+                args=[f"confirmar_vaciar_{grupo_id}"],
+            )
     else:
         # Grupo incompleto — selectbox directo, sin botón ni label
         if not es_progresion:
@@ -594,13 +662,16 @@ def renderizar_tarjeta_grupo_minimalista(
             )
             if seleccion != opciones[0]:
                 try:
-                    e_id = next(e["id"] for e in equipos_libres if e["nombre"] == seleccion)
-                    supabase.table("participantes_grupo").insert({
-                        "grupo_id": grupo_id,
-                        "equipo_id": e_id,
-                        "referencia_origen": "Sorteo",
-                    }).execute()
-                    st.rerun()
+                    e_match = next((e for e in equipos_libres if e["nombre"] == seleccion), None)
+                    if not e_match:
+                        st.error("Equipo no encontrado. Recarga la página e inténtalo de nuevo.")
+                    else:
+                        supabase.table("participantes_grupo").insert({
+                            "grupo_id": grupo_id,
+                            "equipo_id": e_match["id"],
+                            "referencia_origen": "Sorteo",
+                        }).execute()
+                        st.rerun()
                 except Exception as e:
                     st.error(f"Error al asignar: {e}")
         else:
@@ -665,15 +736,31 @@ def renderizar_tarjeta_grupo_minimalista(
                         )
                         if sel != opciones[0]:
                             try:
-                                e_id = next(c["id"] for c in candidatos if c["nombre"] == sel)
-                                supabase.table("participantes_grupo").update(
-                                    {"equipo_id": e_id}
-                                ).eq("id", p_actual["id"]).execute()
-                                st.rerun()
+                                e_match = next((c for c in candidatos if c["nombre"] == sel), None)
+                                if not e_match:
+                                    st.error("Equipo no encontrado. Recarga la página e inténtalo de nuevo.")
+                                else:
+                                    supabase.table("participantes_grupo").update(
+                                        {"equipo_id": e_match["id"]}
+                                    ).eq("id", p_actual["id"]).execute()
+                                    st.rerun()
                             except Exception as e:
                                 st.error(f"Error al asignar: {e}")
                     except Exception as e:
                         st.error(f"Error cargando candidatos: {e}")
+
+    # --- Campo de notas editable ---
+    notas_key = f"notas_{grupo_id}"
+    if notas_key not in st.session_state:
+        st.session_state[notas_key] = notas
+    st.text_input(
+        "notas_input",
+        key=notas_key,
+        on_change=_guardar_notas_grupo,
+        args=[grupo_id, notas_key],
+        placeholder="📍 Campo · ⏰ Hora · 👤 Árbitro...",
+        label_visibility="collapsed",
+    )
 
 # -------------------------------------------------------
 # TARJETAS DE EQUIPOS (vista escritorio)

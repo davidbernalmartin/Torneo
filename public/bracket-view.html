@@ -72,6 +72,16 @@
   .match-header {
     background: var(--red);
     padding: 5px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .match-notes {
+    font-size: 9px; font-weight: 400;
+    color: rgba(255,255,255,0.72);
+    font-style: italic;
+    font-family: var(--font-body);
+    text-transform: none; letter-spacing: normal;
   }
   .match-name {
     font-family: var(--font-display);
@@ -306,6 +316,7 @@ function escudoEl(url, nombre) {
 function renderMatchHTML(g) {
   const parts = byGrupo(g.id);
   const es2 = g.tipo_grupo === 2;
+  const notasHtml = g.notas ? `<span class="match-notes">${g.notas}</span>` : "";
 
   function slotEl(part, isWin, isLose) {
     if (!part) return "";
@@ -358,7 +369,7 @@ function renderMatchHTML(g) {
     const winL = hasScore && local.goles > visit.goles;
     const winV = hasScore && visit.goles > local.goles;
     return `<div class="match">
-      <div class="match-header"><span class="match-name">${g.nombre}</span></div>
+      <div class="match-header"><span class="match-name">${g.nombre}</span>${notasHtml}</div>
       ${local ? slotEl(local, winL, winV) : '<div class="slot empty-slot"><span class="team-name empty">—</span></div>'}
       ${visit ? slotEl(visit, winV, winL) : '<div class="slot empty-slot"><span class="team-name empty">—</span></div>'}
     </div>`;
@@ -369,7 +380,7 @@ function renderMatchHTML(g) {
         : `<div class="slot empty-slot"><span class="team-name empty">—</span></div>`);
     }
     return `<div class="match">
-      <div class="match-header"><span class="match-name">${g.nombre}</span></div>
+      <div class="match-header"><span class="match-name">${g.nombre}</span>${notasHtml}</div>
       ${slots.join("")}
     </div>`;
   }
@@ -402,6 +413,9 @@ function render() {
   const phase1Groups = grupos
     .filter(g => g.fase_id === phasesSorted[0].id)
     .sort((a, b) => {
+      const oA = (a.orden_cuadro != null) ? a.orden_cuadro : Infinity;
+      const oB = (b.orden_cuadro != null) ? b.orden_cuadro : Infinity;
+      if (oA !== oB) return oA - oB;
       const numA = parseInt(a.nombre.match(/\d+/)?.[0] ?? '0');
       const numB = parseInt(b.nombre.match(/\d+/)?.[0] ?? '0');
       return numA !== numB ? numA - numB : a.nombre.localeCompare(b.nombre);
