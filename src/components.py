@@ -100,6 +100,7 @@ def mostrar_grupo_tv(nombre_grupo_url, torneo_id=None):
                         <div style="background-color:white;padding:15px 40px;
                                     border-radius:15px;margin-bottom:15px;
                                     display:flex;align-items:center;
+                                    justify-content: center;
                                     box-shadow:0px 4px 15px rgba(0,0,0,0.2);
                                     border:1px solid #eee;">
                             {img}

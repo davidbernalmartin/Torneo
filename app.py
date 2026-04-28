@@ -153,11 +153,13 @@ supabase = get_supabase()
 # HELPERS
 # -------------------------------------------------------
 def _sort_grupos(grupos):
-    """Ordena grupos numéricamente por el número en su nombre."""
-    def _num(n):
-        m = _re.search(r"\d+", n)
-        return int(m.group()) if m else 0
-    return sorted(grupos, key=lambda g: _num(g["nombre"]))
+    """Ordena grupos por orden_cuadro (si está definido) y luego por número en el nombre."""
+    def _key(g):
+        m = _re.search(r"\d+", g["nombre"])
+        num = int(m.group()) if m else 0
+        orden = g.get("orden_cuadro")
+        return (orden if orden is not None else float("inf"), num)
+    return sorted(grupos, key=_key)
 
 # -------------------------------------------------------
 # MODO TV
@@ -255,94 +257,105 @@ menu = st.sidebar.selectbox(
 # AJUSTES
 # -------------------------------------------------------
 if menu == "Ajustes":
-    st.subheader("Ajustes de Torneos")
+    t   = torneo_actual
+    tid = torneo_id
 
-    if torneos:
-        st.write("### Torneos existentes")
-        for t in torneos:
-            col_n, col_d, col_b = st.columns([3, 4, 1])
-            col_n.markdown(f"**{t['nombre']}**")
-            col_d.caption(t.get("descripcion") or "—")
-            with st.expander(f"Enlaces — {t['nombre']}"):
-                tid = t["id"]
-                url_gestion = f"bracket.html?torneo={tid}"
-                url_vista   = f"bracket-view.html?torneo={tid}"
+    st.subheader(f"Ajustes — {t['nombre']}")
+    if t.get("descripcion"):
+        st.caption(t["descripcion"])
 
-                st.markdown("**Bracket dinámico** (gestión):")
-                st.code(url_gestion, language=None)
+    # ── URLs ────────────────────────────────────────────────
+    url_gestion = f"bracket.html?torneo={tid}"
+    url_vista   = f"bracket-view.html?torneo={tid}"
+    url_grupos  = f"grupos-info.html?torneo={tid}"
 
-                st.markdown("**Bracket de consulta** (solo lectura):")
-                st.code(url_vista, language=None)
+    fases_torneo = supabase.table("fases").select("id").eq("torneo_id", tid).eq("orden", 1).execute().data
+    url_tv = None
+    if fases_torneo:
+        grupos_raw = supabase.table("grupos").select("nombre, orden_cuadro").eq("fase_id", fases_torneo[0]["id"]).execute().data
+        grupos_tv_ord = sorted(
+            grupos_raw,
+            key=lambda g: (g["orden_cuadro"] if g.get("orden_cuadro") is not None else float("inf"),
+                           int(m.group()) if (m := _re.search(r"\d+", g["nombre"])) else 0)
+        )
+        if grupos_tv_ord:
+            url_tv = f"/?view=tv&grupo={urllib.parse.quote(grupos_tv_ord[0]['nombre'])}&torneo={tid}"
 
-                # Vista TV — obtener grupos de la fase 1 de este torneo
-                fases_torneo = supabase.table("fases").select("id").eq("torneo_id", tid).eq("orden", 1).execute().data
-                grupos_tv = []
-                if fases_torneo:
-                    grupos_tv = sorted(
-                        supabase.table("grupos").select("nombre").eq("fase_id", fases_torneo[0]["id"]).execute().data,
-                        key=lambda g: int(m.group()) if (m := _re.search(r"\d+", g["nombre"])) else 0
-                    )
-                if grupos_tv:
-                    primer_grupo = grupos_tv[0]["nombre"]
-                    url_tv = f"/?view=tv&grupo={urllib.parse.quote(primer_grupo)}&torneo={tid}"
-                    st.markdown("**Vista TV** (pantalla de sorteo):")
-                    col_tv_url, col_tv_btn = st.columns([4, 1])
-                    col_tv_url.code(url_tv, language=None)
-                    col_tv_btn.link_button("Abrir", url_tv, use_container_width=True)
+    cards = [
+        ("⚙️", "Bracket Gestión",   "Edita resultados y mueve equipos entre grupos", url_gestion),
+        ("👁️", "Bracket Vista",     "Consulta pública, sin edición",                 url_vista),
+        ("📋", "Cabeceras Grupos",  "Árbol de grupos con nombre y notas",             url_grupos),
+    ]
+    if url_tv:
+        cards.append(("📺", "Vista TV", "Pantalla de sorteo en tiempo real", url_tv))
 
-                st.markdown("---")
-                col_qr1, col_qr2 = st.columns(2)
-                with col_qr1:
-                    if st.button("QR — Vista pública", key=f"qr_view_{tid}", use_container_width=True):
-                        st.session_state[f"show_qr_{tid}"] = "view"
-                with col_qr2:
-                    if st.button("QR — Gestión", key=f"qr_gest_{tid}", use_container_width=True):
-                        st.session_state[f"show_qr_{tid}"] = "gest"
-
-                qr_mode = st.session_state.get(f"show_qr_{tid}")
-                if qr_mode:
-                    qr_url  = url_vista if qr_mode == "view" else url_gestion
-                    qr_label = "Vista pública" if qr_mode == "view" else "Gestión"
-                    try:
-                        qr_bytes = generar_qr(qr_url).getvalue()
-                        col_img, col_txt = st.columns([1, 2])
-                        with col_img:
-                            st.image(qr_bytes, width=160)
-                        with col_txt:
-                            st.markdown(f"**{t['nombre']}**")
-                            st.caption(f"{qr_label}")
-                            st.caption(qr_url)
-                            st.download_button(
-                                "Descargar QR",
-                                data=qr_bytes,
-                                file_name=f"qr_{t['nombre'].replace(' ','_')}_{qr_mode}.png",
-                                mime="image/png",
-                                key=f"dl_qr_{tid}_{qr_mode}",
-                            )
-                    except Exception as e:
-                        st.error(f"Error generando QR: {e}. Asegúrate de tener instalado qrcode[pil]")
-            if col_b.button("🗑️", key=f"del_{t['id']}", help="Eliminar torneo y todos sus datos"):
-                st.session_state[f"confirm_del_{t['id']}"] = True
-
-            if st.session_state.get(f"confirm_del_{t['id']}", False):
-                st.warning(
-                    f"¿Eliminar **{t['nombre']}** y TODOS sus datos (fases, grupos, equipos)? "
-                    "Esta acción no se puede deshacer."
+    # ── Modal QR ────────────────────────────────────────────
+    @st.dialog("Enlace y código QR")
+    def _modal_qr(label, url):
+        st.markdown(f"**{label}**")
+        st.code(url, language=None)
+        st.divider()
+        try:
+            qr_bytes = generar_qr(url).getvalue()
+            col_img, col_acc = st.columns([1, 1])
+            col_img.image(qr_bytes, use_container_width=True)
+            with col_acc:
+                st.caption("Escanea para abrir el enlace directamente.")
+                st.download_button(
+                    "Descargar QR",
+                    data=qr_bytes,
+                    file_name=f"qr_{label.replace(' ', '_')}.png",
+                    mime="image/png",
+                    key=f"dl_qr_modal",
                 )
-                c1, c2 = st.columns(2)
-                if c1.button("Sí, eliminar", key=f"si_del_{t['id']}", type="primary"):
-                    try:
-                        eliminar_torneo(t["id"])
-                        st.session_state.pop(f"confirm_del_{t['id']}", None)
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-                c2.button(
-                    "Cancelar",
-                    key=f"no_del_{t['id']}",
-                    on_click=st.session_state.pop,
-                    args=[f"confirm_del_{t['id']}", None],
+        except Exception as e:
+            st.error(f"Error generando QR: {e}")
+
+    # ── Tarjetas ────────────────────────────────────────────
+    st.write("### Accesos")
+    cols = st.columns(len(cards))
+    for i, (icon, label, desc, url) in enumerate(cards):
+        with cols[i]:
+            with st.container(border=True):
+                st.markdown(
+                    f'<div style="font-size:2.2rem;text-align:center;padding:14px 0 6px;">{icon}</div>'
+                    f'<p style="font-weight:700;font-size:0.95rem;text-align:center;margin:0 0 4px;">{label}</p>'
+                    f'<p style="font-size:0.72rem;color:rgba(255,255,255,0.45);text-align:center;'
+                    f'margin:0 0 18px;line-height:1.4;">{desc}</p>',
+                    unsafe_allow_html=True,
                 )
+                if st.button("🔗 URL y QR", key=f"modal_btn_{i}", use_container_width=True):
+                    _modal_qr(label, url)
+                st.link_button("↗ Abrir", url, use_container_width=True)
+
+    # ── Zona de peligro ─────────────────────────────────────
+    st.write("---")
+    st.write("### Zona de peligro")
+    with st.container(border=True):
+        col_txt, col_btn = st.columns([5, 1])
+        col_txt.markdown(
+            f"Eliminar **{t['nombre']}** y **todos** sus datos (fases, grupos, equipos, participantes). "
+            "Esta acción **no se puede deshacer**."
+        )
+        if col_btn.button("🗑️ Eliminar", key=f"del_{tid}", use_container_width=True):
+            st.session_state[f"confirm_del_{tid}"] = True
+
+        if st.session_state.get(f"confirm_del_{tid}", False):
+            st.warning(f"¿Seguro que quieres eliminar **{t['nombre']}**? Se borrarán todos los datos.")
+            c1, c2 = st.columns(2)
+            if c1.button("Sí, eliminar definitivamente", key=f"si_del_{tid}", type="primary"):
+                try:
+                    eliminar_torneo(tid)
+                    st.session_state.pop(f"confirm_del_{tid}", None)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
+            c2.button(
+                "Cancelar",
+                key=f"no_del_{tid}",
+                on_click=st.session_state.pop,
+                args=[f"confirm_del_{tid}", None],
+            )
 
 # Guard: todas las secciones requieren un torneo seleccionado
 if not torneo_actual:
