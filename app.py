@@ -250,7 +250,7 @@ st.sidebar.markdown("---")
 # -------------------------------------------------------
 menu = st.sidebar.selectbox(
     "Menú",
-    ["Dashboard", "Configurador", "Carga de Equipos", "Cuadro Visual", "Sorteo", "Ajustes"],
+    ["Dashboard", "Configurador", "Cuadro Visual", "Sorteo", "Ajustes"],
 )
 
 # -------------------------------------------------------
@@ -365,34 +365,12 @@ if not torneo_actual:
     st.caption(f"Torneo activo: **{torneo_actual['nombre']}**")
 
 # -------------------------------------------------------
-# DASHBOARD
+# MODAL CARGA DE EQUIPOS
 # -------------------------------------------------------
-if menu == "Dashboard":
-    equipos = get_equipos(torneo_id)
-    col_e1, col_e2 = st.columns(2)
-    col_e1.metric("Total Equipos", len(equipos))
-    col_e2.metric("En Competición", len([e for e in equipos if not e["eliminado"]]))
-
-    st.write("---")
-    st.subheader("Plantilla de Equipos")
-    busqueda = st.text_input("Buscar equipo", placeholder="Filtrar por nombre...", label_visibility="collapsed")
-    equipos_filtrados = (
-        [e for e in equipos if busqueda.strip().upper() in e["nombre"].upper()]
-        if busqueda.strip() else equipos
-    )
-    if busqueda.strip() and not equipos_filtrados:
-        st.caption("Sin resultados.")
-    renderizar_tarjetas_equipos(equipos_filtrados)
-
-# -------------------------------------------------------
-# CARGA DE EQUIPOS
-# -------------------------------------------------------
-if menu == "Carga de Equipos":
-    st.subheader("Importación Masiva de Equipos")
-
+@st.dialog("📥 Importación Masiva de Equipos", width="large")
+def _modal_carga_equipos(torneo_id):
     archivo = st.file_uploader("Sube tu Excel o CSV", type=["xlsx", "csv"])
 
-    # ── Plantilla descargable ────────────────────────────
     with st.expander("Ver formato esperado y descargar plantilla"):
         st.markdown("""
 El archivo debe ser **Excel (.xlsx)** o **CSV (.csv)** con exactamente estas dos columnas:
@@ -413,58 +391,46 @@ La primera fila debe ser la cabecera con esos nombres exactos (en minúsculas).
         st.download_button("Descargar plantilla CSV", csv_plantilla, "plantilla_equipos.csv", "text/csv")
 
     if archivo:
-        # ── Lectura del fichero ───────────────────────────
         try:
-            if archivo.name.endswith("xlsx"):
-                df = pd.read_excel(archivo)
-            else:
-                df = pd.read_csv(archivo)
+            df = pd.read_excel(archivo) if archivo.name.endswith("xlsx") else pd.read_csv(archivo)
         except Exception as e:
             st.error(f"No se pudo leer el archivo: {e}")
             st.info("Asegúrate de que el archivo no está corrupto y es un Excel o CSV válido.")
             df = None
 
         if df is not None:
-            st.write("### Vista previa del archivo")
+            st.write("### Vista previa")
             st.dataframe(df, use_container_width=True)
 
-            # ── Validación de columnas ────────────────────
-            tiene_nombre   = "nombre"     in df.columns
-            tiene_escudo   = "escudo_url" in df.columns
+            tiene_nombre = "nombre"     in df.columns
+            tiene_escudo = "escudo_url" in df.columns
 
             if not tiene_nombre or not tiene_escudo:
                 faltantes = []
                 if not tiene_nombre: faltantes.append("`nombre`")
                 if not tiene_escudo: faltantes.append("`escudo_url`")
-
                 st.error(f"Faltan las columnas obligatorias: {', '.join(faltantes)}")
-
                 cols_encontradas = [f"`{c}`" for c in df.columns.tolist()]
                 st.markdown(
-                    f"**Columnas encontradas en tu archivo:** {', '.join(cols_encontradas) if cols_encontradas else '_(ninguna)_'}\n\n"
-                    f"**Columnas requeridas:** `nombre`, `escudo_url`\n\n"
-                    "Revisa que la primera fila del archivo contiene exactamente esos nombres (en minúsculas y sin espacios extra). "
-                    "Despliega el panel de arriba para ver el formato correcto y descargar una plantilla."
+                    f"**Columnas encontradas:** {', '.join(cols_encontradas) if cols_encontradas else '_(ninguna)_'}\n\n"
+                    "Revisa que la primera fila contiene exactamente `nombre` y `escudo_url` (en minúsculas)."
                 )
-
             elif df["nombre"].isna().all() or df.empty:
                 st.error("El archivo está vacío o la columna `nombre` no tiene datos.")
-
             else:
-                # ── Happy path ────────────────────────────
                 nombres_existentes = {e["nombre"].strip().upper() for e in get_equipos(torneo_id)}
                 df["_nuevo"] = ~df["nombre"].str.strip().str.upper().isin(nombres_existentes)
-                duplicados  = df[~df["_nuevo"]]["nombre"].tolist()
-                df_nuevos   = df[df["_nuevo"]].drop(columns=["_nuevo"])
+                duplicados = df[~df["_nuevo"]]["nombre"].tolist()
+                df_nuevos  = df[df["_nuevo"]].drop(columns=["_nuevo"])
 
                 if duplicados:
-                    st.warning(f"⚠️ Ya existen en el torneo y se omitirán: **{', '.join(duplicados)}**")
+                    st.warning(f"⚠️ Ya existen y se omitirán: **{', '.join(duplicados)}**")
 
                 if df_nuevos.empty:
-                    st.error("Todos los equipos del archivo ya existen en el torneo. No hay nada que subir.")
+                    st.error("Todos los equipos ya existen en el torneo.")
                 else:
-                    label = f"Confirmar y subir {len(df_nuevos)} equipo(s)" if duplicados else "Confirmar y subir a Supabase"
-                    if st.button(label):
+                    label = f"Confirmar y subir {len(df_nuevos)} equipo(s)" if duplicados else "Confirmar y subir"
+                    if st.button(label, type="primary", use_container_width=True):
                         equipos_dict = df_nuevos[["nombre", "escudo_url"]].to_dict(orient="records")
                         with st.spinner(f"Subiendo {len(equipos_dict)} equipos..."):
                             resultado = subir_equipos_batch(equipos_dict, torneo_id)
@@ -474,9 +440,27 @@ La primera fila debe ser la cabecera con esos nombres exactos (en minúsculas).
                             st.success(f"¡{len(equipos_dict)} equipos cargados con éxito!")
                             st.rerun()
 
+# -------------------------------------------------------
+# DASHBOARD
+# -------------------------------------------------------
+if menu == "Dashboard":
+    equipos = get_equipos(torneo_id)
+    col_e1, col_e2, col_btn = st.columns([1, 1, 1], vertical_alignment="bottom")
+    col_e1.metric("Total Equipos", len(equipos))
+    col_e2.metric("En Competición", len([e for e in equipos if not e["eliminado"]]))
+    if col_btn.button("Añadir equipos", use_container_width=True, ):
+        _modal_carga_equipos(torneo_id)
+
     st.write("---")
-    st.subheader("Equipos actualmente en la Base de Datos")
-    renderizar_tarjetas_equipos(get_equipos(torneo_id))
+    st.subheader("Plantilla de Equipos")
+    busqueda = st.text_input("Buscar equipo", placeholder="Filtrar por nombre...", label_visibility="collapsed")
+    equipos_filtrados = (
+        [e for e in equipos if busqueda.strip().upper() in e["nombre"].upper()]
+        if busqueda.strip() else equipos
+    )
+    if busqueda.strip() and not equipos_filtrados:
+        st.caption("Sin resultados.")
+    renderizar_tarjetas_equipos(equipos_filtrados)
 
 # -------------------------------------------------------
 # CONFIGURADOR
