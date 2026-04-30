@@ -408,7 +408,7 @@
 <script>
 // ─────────────────────────────────────────────────────────
 const SUPABASE_URL      = "https://bdqoapdnokydfwykitww.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcW9hcGRub2t5ZGZ3eWtpdHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDc1NTMsImV4cCI6MjA5MjM4MzU1M30.TioDgG3xHadZS1wvttTgnB_LxcdK5L_rqhEDk9okMLw";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcW9hcGRub2t5ZGZ3eWtpdHd3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjgwNzU1MywiZXhwIjoyMDkyMzgzNTUzfQ.rdMPUiAbe9qn04WXYm-5A1fTzMuExaXIN1G_YmyEles";
 // ─────────────────────────────────────────────────────────
 
 let fases = [], grupos = [], participantes = [], equipos = [], torneoData = null;
@@ -417,8 +417,8 @@ let dragState = null;
 // ── REST API ─────────────────────────────────────────────
 function sbHeaders() {
   return {
-    "apikey": SUPABASE_ANON_KEY,
-    "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+    "apikey": SUPABASE_KEY,
+    "Authorization": "Bearer " + SUPABASE_KEY,
     "Content-Type": "application/json",
     "Prefer": "return=minimal"
   };
@@ -924,7 +924,7 @@ function renderMatchHTML(g) {
         : "";
       return `<div class="${cls} ${isWhite ? 'classified' : ''}" ${draggable} ${dropAttrs}>
         ${escudoEl(eq.escudo_url, eq.nombre)}
-        <span class="team-name" style="color:${isWhite ? '#1a1a1a' : '#1a1a1a'};font-weight:800;">${eq.nombre}</span>
+        <span class="team-name" style="color:var(--text);font-weight:800;">${eq.nombre}</span>
         ${(effectiveWin || effectiveLose || isWin || isLose) ? `<span class="score" style="color:${effectiveWin ? 'var(--win-green)' : '#cccccc'};font-size:14px;font-weight:800;margin-left:auto;">${part.goles}</span>` : ""}
         ${badge}
       </div>`;

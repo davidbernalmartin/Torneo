@@ -296,6 +296,27 @@ if st.sidebar.button("🔒 Cerrar sesión", use_container_width=True):
     st.session_state.authenticated = False
     st.rerun()
 
+# QR de acceso al menú de cuadros (URL global, no ligada a ningún torneo)
+_URL_CUADRO = "https://cuadro-rffm-consulta-029991936871-eu-west-3-an.s3.eu-west-3.amazonaws.com/bracket-view.html"
+with st.sidebar.expander("QR Cuadro Visual"):
+    import qrcode
+    _qr = qrcode.QRCode(box_size=6, border=2)
+    _qr.add_data(_URL_CUADRO)
+    _qr.make(fit=True)
+    _img = _qr.make_image(fill_color="#7b0000", back_color="white")
+    _buf = io.BytesIO()
+    _img.save(_buf, format="PNG")
+    _buf.seek(0)
+    st.image(_buf, use_container_width=True)
+    _buf.seek(0)
+    st.download_button(
+        "Descargar",
+        data=_buf,
+        file_name="qr_cuadro_rffm.png",
+        mime="image/png",
+        use_container_width=True,
+    )
+
 st.sidebar.markdown("---")
 st.sidebar.markdown("## Torneo")
 
@@ -461,7 +482,7 @@ if not torneo_actual:
 # -------------------------------------------------------
 # MODAL CARGA DE EQUIPOS
 # -------------------------------------------------------
-@st.dialog("📥 Importación Masiva de Equipos", width="large")
+@st.dialog("Importación Masiva de Equipos", width="large")
 def _modal_carga_equipos(torneo_id):
     archivo = st.file_uploader("Sube tu Excel o CSV", type=["xlsx", "csv"])
 
@@ -951,7 +972,7 @@ if menu == "Partidos":
                     key=f"editor_partidos_{grupo_id}",
                 )
 
-                if st.button("💾 Guardar cambios", key=f"guardar_{grupo_id}", type="primary"):
+                if st.button("Guardar cambios", key=f"guardar_{grupo_id}", type="primary"):
                     updates = []
                     for i, row in edited.iterrows():
                         goles_l = row["Goles L"]
