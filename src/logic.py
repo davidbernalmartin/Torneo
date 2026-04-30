@@ -75,14 +75,17 @@ def seccion_sorteo_manual(supabase, torneo_id=None):
 
     res_grupos = (
         supabase.table("grupos")
-        .select("id, nombre, tipo_grupo")
+        .select("id, nombre, tipo_grupo, orden_cuadro")
         .eq("fase_id", fase_id)
         .execute()
     )
     def _num(n):
         m = re.search(r"\d+", n)
         return int(m.group()) if m else 0
-    todos_los_grupos = sorted(res_grupos.data, key=lambda g: _num(g["nombre"]))
+    todos_los_grupos = sorted(
+        res_grupos.data,
+        key=lambda g: (g["orden_cuadro"] if g.get("orden_cuadro") is not None else float("inf"), _num(g["nombre"]))
+    )
     ids_grupos = [g["id"] for g in todos_los_grupos]
 
     res_p = (
@@ -140,7 +143,7 @@ def seccion_sorteo_manual(supabase, torneo_id=None):
                         id_e, id_g = e_match["id"], g_match["id"]
                         try:
                             # Buscar si existe una plaza vacía (equipo_id NULL) en este grupo
-                            plaza_vacia = supabase.table("participantes_grupo")                             .select("id")                             .eq("grupo_id", id_g)                             .is_("equipo_id", "null")                             .limit(1)                             .execute()
+                            plaza_vacia = supabase.table("participantes_grupo")                             .select("id")                             .eq("grupo_id", id_g)                             .is_("equipo_id", "null")                             .order("posicion")                             .limit(1)                             .execute()
 
                             if plaza_vacia.data:
                                 # Actualizar la primera plaza vacía existente

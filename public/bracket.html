@@ -2,119 +2,89 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=0.5, minimum-scale=0.25, maximum-scale=4.0, user-scalable=yes">
 <title>Cuadro RFFM</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  /* ── CONFIG ─────────────────────────────────────────── */
   :root {
-    --red:       #cc0000;
-    --red-dark:  #8b0000;
-    --red-deep:  #3d0000;
-    --white:     #ffffff;
-    --off:       #f5f0eb;
-    --gray:      #888;
-    --light:     rgba(255,255,255,0.07);
-    --lighter:   rgba(255,255,255,0.13);
-    --border:    rgba(255,255,255,0.12);
-    --win-green: #86efac;
-    --win-bg:    rgba(134,239,172,0.08);
+    --red:        #cc0000;
+    --red-dark:   #a00000;
+    --red-light:  #f9e6e6;
+    --bg:         #f0f2f5;
+    --white:      #ffffff;
+    --text:       #1a1a1a;
+    --text-muted: #777777;
+    --border:     #d8d8d8;
+    --win-green:  #16a34a;
+    --win-bg:     #f0fdf4;
+    --win-border: #86efac;
+    --shadow:     0 2px 10px rgba(0,0,0,0.08);
     --font-display: 'Barlow Condensed', sans-serif;
     --font-body:    'Barlow', sans-serif;
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
   body {
-    background: #1a0000;
-    color: var(--white);
+    background: var(--bg);
+    color: var(--text);
     font-family: var(--font-body);
     min-height: 100vh;
     overflow-x: auto;
   }
 
-  /* ── HEADER ─────────────────────────────────────────── */
+  /* ── Header ── */
   header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 18px 32px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    background: rgba(0,0,0,0.4);
+    padding: 0 16px;
+    min-height: 56px;
+    height: auto;
+    background: var(--red);
     position: sticky;
     top: 0;
     z-index: 50;
-    backdrop-filter: blur(6px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    flex-wrap: wrap;
+    gap: 8px;
   }
-  .header-left { display: flex; align-items: center; gap: 14px; }
-  .logo-dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: var(--red); flex-shrink: 0;
-    box-shadow: 0 0 8px var(--red);
-  }
+  .header-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .logo-img { height: 28px; width: 28px; object-fit: contain; flex-shrink: 0; }
   h1 {
     font-family: var(--font-display);
-    font-size: 22px; font-weight: 800;
-    text-transform: uppercase; letter-spacing: 0.08em;
-    color: var(--white);
+    font-size: clamp(14px, 4vw, 20px); font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: white;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .header-right { display: flex; align-items: center; gap: 12px; }
+  .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .save-indicator {
     font-size: 11px; font-weight: 500;
-    color: rgba(255,255,255,0.4);
+    color: rgba(255,255,255,0.6);
     display: flex; align-items: center; gap: 6px;
     transition: color 0.3s;
   }
   .save-indicator.saving { color: #fbbf24; }
   .save-indicator.saved  { color: #86efac; }
-  .save-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: currentColor;
-  }
+  .save-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
-  /* ── BRACKET CONTAINER ──────────────────────────────── */
+  /* ── Bracket area ── */
   .bracket-outer {
-    padding: 40px 32px;
+    padding: 32px;
     overflow: auto;
-    min-height: calc(100vh - 65px);
+    min-height: calc(100vh - 56px);
   }
-  .bracket {
-    position: relative;
-    min-width: max-content;
-  }
-  .phase-label {
-    font-family: var(--font-display);
-    font-size: 11px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--red);
-    border-bottom: 1px solid rgba(204,0,0,0.3);
-    padding-bottom: 6px;
-    margin-bottom: 0;
-  }
+  .bracket { position: relative; min-width: max-content; }
 
-  /* ── PHASE COLUMN ───────────────────────────────────── */
-  .phase-col { display: flex; flex-direction: column; width: 200px; }
-  .phase-label {
-    font-family: var(--font-display);
-    font-size: 11px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--red);
-    text-align: center;
-    padding: 0 12px 16px;
-    border-bottom: 1px solid rgba(204,0,0,0.3);
-    margin-bottom: 16px;
-  }
-  .matches { display: flex; flex-direction: column; gap: 12px; flex: 1; }
-
-  /* ── MATCH CARD ─────────────────────────────────────── */
+  /* ── Match cards ── */
   .match {
-    background: var(--red-dark);
-    border-radius: 10px;
+    background: var(--white);
+    border-radius: 8px;
     overflow: hidden;
-    border: 1px solid rgba(204,0,0,0.3);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
     transition: border-color 0.2s;
   }
-  .match:hover { border-color: rgba(204,0,0,0.6); }
+  .match:hover { border-color: var(--red-dark); }
   .match-header {
     background: var(--red);
     padding: 5px 10px;
@@ -124,7 +94,7 @@
   }
   .match-notes-input {
     font-size: 9px; font-weight: 400;
-    color: rgba(255,255,255,0.72);
+    color: rgba(255,255,255,0.75);
     font-style: italic;
     font-family: var(--font-body);
     text-transform: none; letter-spacing: normal;
@@ -133,83 +103,69 @@
     width: 100%; padding: 0; margin: 0;
     cursor: text;
   }
-  .match-notes-input::placeholder { color: rgba(255,255,255,0.35); font-style: italic; }
-  .match-notes-input:focus { background: rgba(255,255,255,0.08); border-radius: 3px; padding: 0 3px; }
+  .match-notes-input::placeholder { color: rgba(255,255,255,0.4); font-style: italic; }
+  .match-notes-input:focus { background: rgba(255,255,255,0.12); border-radius: 3px; padding: 0 3px; }
   .match-name {
     font-family: var(--font-display);
     font-size: 10px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.07em;
     color: white;
   }
-  .score-btn {
-    font-size: 9px; font-weight: 600;
-    color: rgba(255,255,255,0.5);
-    cursor: pointer;
-    text-transform: uppercase; letter-spacing: 0.05em;
-    padding: 2px 5px;
-    border-radius: 3px;
-    transition: background 0.15s, color 0.15s;
-    border: none; background: none;
-  }
-  .score-btn:hover { background: rgba(255,255,255,0.15); color: white; }
 
-  /* ── SLOT ───────────────────────────────────────────── */
+  /* ── Slots ── */
   .slot {
     display: flex;
     align-items: center;
     padding: 6px 10px;
     min-height: 34px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid #f0f0f0;
+    gap: 8px;
+    background: white;
     transition: background 0.15s;
     cursor: default;
-    gap: 8px;
   }
   .slot:last-of-type { border-bottom: none; }
   .slot.has-team { cursor: grab; }
   .slot.has-team:active { cursor: grabbing; }
+  .slot.winner {
+    background: var(--win-bg);
+    border-left: 3px solid var(--win-border);
+  }
+  .slot.loser { opacity: 0.4; }
+  .slot.classified {
+    background: var(--win-bg);
+    border-left: 3px solid var(--win-border);
+  }
   .slot.empty-slot {
-    border: 1.5px dashed rgba(255,255,255,0.15);
-    background: rgba(0,0,0,0.15);
+    background: #fafafa;
+    border: 1.5px dashed #e0e0e0;
     min-height: 34px;
   }
   .slot.empty-slot:hover {
-    border-color: rgba(204,0,0,0.5);
-    background: rgba(204,0,0,0.08);
+    border-color: rgba(204,0,0,0.4);
+    background: rgba(204,0,0,0.04);
   }
   .slot.drag-over {
-    background: rgba(204,0,0,0.3) !important;
-    border: 1.5px dashed rgba(255,255,255,0.5) !important;
+    background: rgba(204,0,0,0.08) !important;
+    border: 1.5px dashed rgba(204,0,0,0.5) !important;
   }
-  .slot.winner { background: var(--win-bg); }
-  .slot.loser  { opacity: 0.45; }
-  .slot.classified {
-    background: white;
-    border-left: 3px solid #86efac;
-  }
-  .slot.classified .team-name { color: #1a1a1a !important; font-weight: 800; }
-  .slot.classified .escudo { filter: none; }
-  .drop-hint {
-    display: flex; align-items: center; gap: 7px; width: 100%;
-  }
+  .drop-hint { display: flex; align-items: center; gap: 7px; width: 100%; }
 
   .escudo {
     width: 20px; height: 20px;
-    object-fit: contain;
-    border-radius: 2px; flex-shrink: 0;
+    object-fit: contain; border-radius: 2px; flex-shrink: 0;
   }
   .escudo-placeholder {
     width: 20px; height: 20px;
     border-radius: 2px; flex-shrink: 0;
-    background: rgba(255,255,255,0.1);
+    background: #eeeeee;
     display: flex; align-items: center; justify-content: center;
   }
-  .escudo-placeholder svg { opacity: 0.3; }
-
   .team-name {
     font-family: var(--font-display);
     font-size: 12px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.03em;
-    color: white;
+    color: #1a1a1a;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     flex: 1;
   }
@@ -217,37 +173,29 @@
     font-family: var(--font-body);
     font-size: 11px; font-weight: 400;
     font-style: italic;
-    color: rgba(255,255,255,0.6);
+    color: #bbbbbb;
     text-transform: none;
   }
-  .team-name.winner-name { color: var(--win-green); }
-
   .score {
     font-family: var(--font-display);
     font-size: 14px; font-weight: 800;
     min-width: 18px; text-align: center;
-    color: white;
+    color: var(--text);
   }
   .score.win  { color: var(--win-green); }
-  .score.lose { color: rgba(255,255,255,0.3); }
+  .score.lose { color: #cccccc; }
 
-  /* ── CONNECTORS ─────────────────────────────────────── */
-  .connector-col {
-    width: 32px; flex-shrink: 0;
-    display: flex; flex-direction: column;
-  }
-
-  /* ── LOADING ────────────────────────────────────────── */
+  /* ── Loading ── */
   #loading {
     position: fixed; inset: 0;
-    background: #1a0000;
+    background: var(--bg);
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     gap: 16px; z-index: 200;
   }
   .spinner {
     width: 36px; height: 36px;
-    border: 3px solid rgba(204,0,0,0.2);
+    border: 3px solid rgba(204,0,0,0.15);
     border-top-color: var(--red);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
@@ -257,24 +205,97 @@
     font-family: var(--font-display);
     font-size: 13px; font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.1em;
-    color: rgba(255,255,255,0.4);
+    color: var(--text-muted);
   }
 
-  /* ── MODAL ──────────────────────────────────────────── */
+  /* ── Error ── */
+  #error-msg {
+    margin: 32px; padding: 20px 24px;
+    background: var(--red-light);
+    border: 1px solid rgba(204,0,0,0.25);
+    border-radius: 8px;
+    font-size: 14px; line-height: 1.6;
+    color: #660000;
+    display: none;
+  }
+  #error-msg strong { color: var(--red); display: block; margin-bottom: 6px; font-size: 16px; }
+
+  /* ── Menú de torneos ── */
+  #menu-torneos {
+    display: none;
+    min-height: calc(100vh - 56px);
+    align-items: center;
+    justify-content: center;
+    padding: 48px 32px;
+  }
+  .menu-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    max-width: 520px;
+    width: 100%;
+  }
+  .menu-title {
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+  .torneo-btn {
+    width: 100%;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--red);
+    border-radius: 8px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: box-shadow 0.15s, transform 0.1s, border-color 0.15s;
+    text-decoration: none;
+    color: var(--text);
+    box-shadow: var(--shadow);
+  }
+  .torneo-btn:hover {
+    box-shadow: 0 4px 18px rgba(204,0,0,0.15);
+    transform: translateY(-2px);
+    border-color: var(--red);
+  }
+  .torneo-btn-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+  .torneo-btn-text { flex: 1; text-align: left; }
+  .torneo-btn-name {
+    font-family: var(--font-display);
+    font-size: 18px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text);
+    display: block;
+  }
+  .torneo-btn-desc {
+    font-family: var(--font-body);
+    font-size: 12px; color: var(--text-muted);
+    display: block; margin-top: 2px;
+  }
+  .torneo-btn-arrow { color: var(--red); font-size: 22px; font-weight: 700; flex-shrink: 0; }
+
+  /* ── Modal ── */
   .modal-backdrop {
     position: fixed; inset: 0;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0,0,0,0.45);
     display: flex; align-items: center; justify-content: center;
     z-index: 100;
     animation: fadein 0.15s ease;
   }
   @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
   .modal {
-    background: #1f0000;
-    border: 1px solid rgba(204,0,0,0.4);
-    border-radius: 14px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
     padding: 24px;
     width: 300px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
     animation: slidein 0.15s ease;
   }
   @keyframes slidein { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -282,36 +303,34 @@
     font-family: var(--font-display);
     font-size: 16px; font-weight: 800;
     text-transform: uppercase; letter-spacing: 0.07em;
-    color: white; margin-bottom: 20px;
+    color: var(--text); margin-bottom: 20px;
   }
   .modal-teams { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
   .modal-team {
     display: flex; align-items: center; gap: 10px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 8px; padding: 8px 12px;
+    background: #f8f8f8; border-radius: 8px; padding: 8px 12px;
   }
   .modal-team-name {
     font-family: var(--font-display);
     font-size: 13px; font-weight: 700;
-    text-transform: uppercase; color: white; flex: 1;
+    text-transform: uppercase; color: var(--text); flex: 1;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .modal-team input {
     width: 56px; text-align: center;
     font-family: var(--font-display);
     font-size: 18px; font-weight: 800;
-    background: rgba(204,0,0,0.2);
-    border: 1px solid rgba(204,0,0,0.4);
-    border-radius: 6px; color: white; padding: 4px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); padding: 4px;
     outline: none;
   }
-  .modal-team input:focus { border-color: var(--red); background: rgba(204,0,0,0.3); }
+  .modal-team input:focus { border-color: var(--red); }
   .vs-divider {
     text-align: center;
     font-family: var(--font-display);
-    font-size: 11px; font-weight: 700;
-    letter-spacing: 0.1em;
-    color: rgba(255,255,255,0.2);
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+    color: #cccccc;
   }
   .modal-btns { display: flex; gap: 8px; }
   .btn {
@@ -325,15 +344,15 @@
   .btn:active { transform: scale(0.97); }
   .btn-primary { background: var(--red); color: white; }
   .btn-primary:hover { opacity: 0.85; }
-  .btn-secondary { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); }
-  .btn-secondary:hover { background: rgba(255,255,255,0.13); }
+  .btn-secondary { background: #f0f0f0; color: #666; }
+  .btn-secondary:hover { background: #e0e0e0; }
 
-  /* ── TOAST ──────────────────────────────────────────── */
+  /* ── Toast ── */
   #toast {
     position: fixed; bottom: 24px; left: 50%;
     transform: translateX(-50%) translateY(12px);
     background: #0f3d1a; border: 1px solid #2d7a3a;
-    color: var(--win-green);
+    color: #86efac;
     font-family: var(--font-display);
     font-size: 12px; font-weight: 700;
     letter-spacing: 0.06em; text-transform: uppercase;
@@ -342,50 +361,30 @@
     pointer-events: none; white-space: nowrap; z-index: 300;
   }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  /* ── ERROR ──────────────────────────────────────────── */
-  #config-warning {
-    margin: 32px; padding: 20px 24px;
-    background: rgba(204,0,0,0.15);
-    border: 1px solid rgba(204,0,0,0.4);
-    border-radius: 10px;
-    font-family: var(--font-display);
-    font-size: 14px; line-height: 1.6;
-    color: rgba(255,255,255,0.7);
-    display: none;
-  }
-  #config-warning strong { color: white; display: block; margin-bottom: 6px; font-size: 16px; }
-  code {
-    background: rgba(255,255,255,0.1); padding: 2px 6px;
-    border-radius: 4px; font-size: 13px;
-    font-family: 'Courier New', monospace;
-    color: #fcd34d;
-  }
 </style>
 </head>
 <body>
 
-<!-- LOADING -->
 <div id="loading">
   <div class="spinner"></div>
   <p>Cargando cuadro...</p>
 </div>
 
-<!-- CONFIG WARNING -->
-<div id="config-warning">
-  <strong>Configura tus credenciales de Supabase</strong>
-  Abre este fichero en un editor de texto y rellena las dos constantes al inicio del script:<br><br>
-  <code>SUPABASE_URL</code> — la URL de tu proyecto (ej: https://xxxx.supabase.co)<br>
-  <code>SUPABASE_ANON_KEY</code> — la clave anon/public de tu proyecto
-</div>
+<div id="error-msg"></div>
 
-<!-- HEADER -->
 <header>
   <div class="header-left">
-    <div class="logo-dot"></div>
+    <img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" class="logo-img" alt="RFFM">
     <h1 id="bracket-title">Cuadro RFFM</h1>
   </div>
   <div class="header-right">
+    <a id="btn-volver" href="bracket.html"
+       style="display:none;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;
+              text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.85);
+              text-decoration:none;border:1px solid rgba(255,255,255,0.4);
+              padding:4px 10px;border-radius:4px;white-space:nowrap;">
+      ‹ Torneos
+    </a>
     <div class="save-indicator saved" id="save-indicator">
       <div class="save-dot"></div>
       <span id="save-text">Todo guardado</span>
@@ -393,28 +392,29 @@
   </div>
 </header>
 
-<!-- BRACKET -->
+<div id="menu-torneos">
+  <div class="menu-inner">
+    <p class="menu-title">Selecciona un torneo</p>
+    <div id="menu-lista"></div>
+  </div>
+</div>
+
 <div class="bracket-outer">
   <div class="bracket" id="bracket"></div>
 </div>
 
-<!-- TOAST -->
 <div id="toast"></div>
 
 <script>
-// ─────────────────────────────────────────────────────────
-//  CONFIGURA AQUÍ TUS CREDENCIALES
 // ─────────────────────────────────────────────────────────
 const SUPABASE_URL      = "https://bdqoapdnokydfwykitww.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcW9hcGRub2t5ZGZ3eWtpdHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDc1NTMsImV4cCI6MjA5MjM4MzU1M30.TioDgG3xHadZS1wvttTgnB_LxcdK5L_rqhEDk9okMLw";
 // ─────────────────────────────────────────────────────────
 
-// ── STATE ────────────────────────────────────────────────
 let fases = [], grupos = [], participantes = [], equipos = [], torneoData = null;
 let dragState = null;
 
-// ── INIT ─────────────────────────────────────────────────
-// ── REST API (sin SDK) ───────────────────────────────────
+// ── REST API ─────────────────────────────────────────────
 function sbHeaders() {
   return {
     "apikey": SUPABASE_ANON_KEY,
@@ -425,23 +425,16 @@ function sbHeaders() {
 }
 
 async function sbGet(table, params) {
-  const qs = params ? "?" + params : "";
-  const url = SUPABASE_URL + "/rest/v1/" + table + qs;
-  const res = await fetch(url, {
+  const res = await fetch(SUPABASE_URL + "/rest/v1/" + table + (params ? "?" + params : ""), {
     headers: { ...sbHeaders(), "Accept": "application/json" }
   });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(table + " (" + res.status + "): " + txt);
-  }
+  if (!res.ok) throw new Error(table + " (" + res.status + "): " + await res.text());
   return res.json();
 }
 
 async function sbPatch(table, id, payload) {
   const res = await fetch(SUPABASE_URL + "/rest/v1/" + table + "?id=eq." + id, {
-    method: "PATCH",
-    headers: sbHeaders(),
-    body: JSON.stringify(payload)
+    method: "PATCH", headers: sbHeaders(), body: JSON.stringify(payload)
   });
   if (!res.ok) throw new Error(table + " PATCH: " + await res.text());
 }
@@ -449,9 +442,7 @@ async function sbPatch(table, id, payload) {
 async function sbPost(table, payload) {
   const headers = { ...sbHeaders(), "Prefer": "return=representation" };
   const res = await fetch(SUPABASE_URL + "/rest/v1/" + table, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload)
+    method: "POST", headers, body: JSON.stringify(payload)
   });
   if (!res.ok) throw new Error(table + " POST: " + await res.text());
   const data = await res.json();
@@ -459,71 +450,86 @@ async function sbPost(table, payload) {
 }
 
 function showError(msg) {
-  const el = document.getElementById("config-warning");
-  el.innerHTML = "<strong>Error de carga</strong> " + msg;
+  const el = document.getElementById("error-msg");
+  el.innerHTML = "<strong>Error</strong>" + msg;
   el.style.display = "block";
 }
 
-async function init() {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    document.getElementById("loading").style.display = "none";
-    document.getElementById("config-warning").style.display = "block";
+// ── MENÚ DE TORNEOS ──────────────────────────────────────
+function showMenu(torneos) {
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("menu-torneos").style.display = "flex";
+  document.querySelector(".bracket-outer").style.display = "none";
+
+  const lista = document.getElementById("menu-lista");
+  lista.innerHTML = "";
+  if (!torneos.length) {
+    lista.innerHTML = '<p style="color:var(--text-muted);font-size:14px;text-align:center;">No hay torneos configurados.</p>';
     return;
   }
+  torneos.forEach(t => {
+    const url = "bracket.html?torneo=" + t.id;
+    const desc = t.descripcion ? `<span class="torneo-btn-desc">${t.descripcion}</span>` : "";
+    const btn = document.createElement("a");
+    btn.href = url;
+    btn.className = "torneo-btn";
+    btn.innerHTML = `
+      <div class="torneo-btn-dot"></div>
+      <div class="torneo-btn-text">
+        <span class="torneo-btn-name">${t.nombre}</span>
+        ${desc}
+      </div>
+      <span class="torneo-btn-arrow">›</span>`;
+    lista.appendChild(btn);
+  });
+}
+
+// ── INIT ─────────────────────────────────────────────────
+async function init() {
   try {
-    await loadData();
-    document.getElementById("loading").style.display = "none";
-    if (!fases.length) {
-      showError("Conexión OK pero no hay fases en la BD. Crea al menos una fase desde Streamlit.");
+    const torneoId = new URLSearchParams(window.location.search).get("torneo");
+
+    if (!torneoId) {
+      const torneos = await sbGet("torneos", "select=id,nombre,descripcion&order=created_at");
+      showMenu(torneos);
       return;
     }
+
+    const [f, e, t] = await Promise.all([
+      sbGet("fases", "select=*&order=orden&torneo_id=eq." + torneoId),
+      sbGet("equipos", "select=id,nombre,escudo_url&eliminado=eq.false&torneo_id=eq." + torneoId),
+      sbGet("torneos", "select=id,nombre,campeon_id&id=eq." + torneoId),
+    ]);
+    fases = f; equipos = e;
+    torneoData = (t && t.length) ? t[0] : null;
+    document.getElementById("btn-volver").style.display = "inline-block";
+    if (torneoData?.nombre) {
+      document.getElementById("bracket-title").textContent = torneoData.nombre;
+      document.title = torneoData.nombre + " — Cuadro RFFM";
+    }
+    if (fases.length) {
+      const faseIds = fases.map(f => f.id).join(",");
+      const [g, p] = await Promise.all([
+        sbGet("grupos", "select=*&fase_id=in.(" + faseIds + ")"),
+        sbGet("participantes_grupo", "select=*"),
+      ]);
+      grupos = g;
+      const grupoIdSet = new Set(g.map(gr => gr.id));
+      const pFiltered = p.filter(part => grupoIdSet.has(part.grupo_id));
+      const eqMap = {};
+      equipos.forEach(eq => eqMap[eq.id] = eq);
+      participantes = pFiltered.map(part => ({
+        ...part,
+        equipos: part.equipo_id ? (eqMap[part.equipo_id] || null) : null
+      }));
+    }
+    document.getElementById("loading").style.display = "none";
+    if (!fases.length) { showError("No hay fases configuradas para este torneo."); return; }
     render();
   } catch(err) {
     document.getElementById("loading").style.display = "none";
     showError(err.message);
     console.error(err);
-  }
-}
-
-// ── DATA LOADING ─────────────────────────────────────────
-async function loadData() {
-  const torneoId = new URLSearchParams(window.location.search).get("torneo");
-  const fasesParams = torneoId
-    ? "select=*&order=orden&torneo_id=eq." + torneoId
-    : "select=*&order=orden";
-  const equiposParams = torneoId
-    ? "select=id,nombre,escudo_url&eliminado=eq.false&torneo_id=eq." + torneoId
-    : "select=id,nombre,escudo_url&eliminado=eq.false";
-  const [f, e, t] = await Promise.all([
-    sbGet("fases", fasesParams),
-    sbGet("equipos", equiposParams),
-    torneoId ? sbGet("torneos", "select=id,nombre,campeon_id&id=eq." + torneoId) : Promise.resolve([]),
-  ]);
-  fases      = f;
-  equipos    = e;
-  torneoData = (t && t.length) ? t[0] : null;
-  if (torneoData?.nombre) {
-    const el = document.getElementById("bracket-title");
-    if (el) { el.textContent = torneoData.nombre; }
-    document.title = torneoData.nombre;
-  }
-
-  // Filtrar grupos y participantes solo a los de este torneo
-  if (fases.length) {
-    const faseIds = fases.map(f => f.id).join(",");
-    const [g, p] = await Promise.all([
-      sbGet("grupos", "select=*&fase_id=in.(" + faseIds + ")"),
-      sbGet("participantes_grupo", "select=*"),
-    ]);
-    grupos = g;
-    const grupoIdSet = new Set(g.map(gr => gr.id));
-    const pFiltered = p.filter(part => grupoIdSet.has(part.grupo_id));
-    const equipoMap = {};
-    equipos.forEach(eq => equipoMap[eq.id] = eq);
-    participantes = pFiltered.map(part => ({
-      ...part,
-      equipos: part.equipo_id ? (equipoMap[part.equipo_id] || null) : null
-    }));
   }
 }
 
@@ -545,20 +551,6 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove("show"), 2200);
 }
 
-// ── SUPABASE WRITES ───────────────────────────────────────
-async function updateParticipant(id, payload) {
-  setSaveState("saving");
-  try {
-    await sbPatch("participantes_grupo", id, payload);
-    setSaveState("saved");
-    return true;
-  } catch(err) {
-    setSaveState("error");
-    console.error(err);
-    return false;
-  }
-}
-
 // ── DRAG & DROP ───────────────────────────────────────────
 function onDragStart(e, partId, equipoId) {
   dragState = { partId, equipoId };
@@ -576,23 +568,9 @@ function onDragOver(e) {
 function onDragLeave(e) {
   e.currentTarget.classList.remove("drag-over");
 }
-function getFaseIdForPart(partId) {
-  if (!partId) return null;
-  if (partId.startsWith("vslot__")) {
-    const grupoId = partId.split("__")[1];
-    const grupo = grupos.find(g => g.id === grupoId);
-    return grupo?.fase_id || null;
-  }
-  const part  = participantes.find(p => p.id === partId);
-  if (!part) return null;
-  const grupo = grupos.find(g => g.id === part.grupo_id);
-  return grupo?.fase_id || null;
-}
 
 function getGrupoIdFromVirtualSlot(virtualId) {
-  // format: vslot__<grupo_id>__<index>
-  const parts = virtualId.split("__");
-  return parts[1]; // grupo_id is always the middle segment
+  return virtualId.split("__")[1];
 }
 
 async function onDrop(e, targetPartId) {
@@ -609,14 +587,12 @@ async function onDrop(e, targetPartId) {
   const isVirtual = targetPartId.startsWith("vslot__");
   const tgt = isVirtual ? null : participantes.find(p => p.id === targetPartId);
 
-  // Determine phases
   const srcGrupo = grupos.find(g => g.id === src.grupo_id);
   const srcFaseId = srcGrupo?.fase_id;
 
   let tgtFaseId = null;
   if (isVirtual) {
-    const tgtGrupoId = getGrupoIdFromVirtualSlot(targetPartId);
-    const tgtGrupo = grupos.find(g => g.id === tgtGrupoId);
+    const tgtGrupo = grupos.find(g => g.id === getGrupoIdFromVirtualSlot(targetPartId));
     tgtFaseId = tgtGrupo?.fase_id;
   } else if (tgt) {
     const tgtGrupo = grupos.find(g => g.id === tgt.grupo_id);
@@ -627,9 +603,7 @@ async function onDrop(e, targetPartId) {
   dragState = null;
 
   if (sameFase && !isVirtual && tgt) {
-    // ── SWAP within same phase ────────────────────────────
-    const srcEq = src.equipo_id;
-    const tgtEq = tgt.equipo_id;
+    const srcEq = src.equipo_id, tgtEq = tgt.equipo_id;
     src.equipo_id = tgtEq; src.equipos = tgtEq ? (eqMap[tgtEq] || null) : null;
     tgt.equipo_id = srcEq; tgt.equipos = srcEq ? (eqMap[srcEq] || null) : null;
     render();
@@ -644,35 +618,26 @@ async function onDrop(e, targetPartId) {
     } catch(err) { setSaveState("error"); console.error(err); }
 
   } else if (!sameFase) {
-    // ── COPY to different phase ───────────────────────────
     const srcEqId   = src.equipo_id;
     const srcEqData = eqMap[srcEqId] || null;
 
     if (isVirtual) {
-      // Target slot has no BD row yet — INSERT
       const tgtGrupoId = getGrupoIdFromVirtualSlot(targetPartId);
       setSaveState("saving");
       try {
-        // Determine es_local based on existing parts in target group
         const existingInTarget = participantes.filter(p => p.grupo_id === tgtGrupoId);
         const hasLocal = existingInTarget.some(p => p.es_local);
-        const esLocal  = !hasLocal; // first one is local, second is visitante
-
+        const esLocal  = !hasLocal;
         const newPart = await sbPost("participantes_grupo", {
-          grupo_id:  tgtGrupoId,
-          equipo_id: srcEqId,
-          es_local:  esLocal,
-          goles:     0,
-          puntos:    0,
+          grupo_id: tgtGrupoId, equipo_id: srcEqId,
+          es_local: esLocal, goles: 0, puntos: 0,
         });
-        // Add to local state with equipo data hydrated
         participantes.push({ ...newPart, equipos: srcEqData });
         render();
         setSaveState("saved");
         showToast("Clasificado a la siguiente fase ✓");
       } catch(err) { setSaveState("error"); console.error(err); }
     } else if (tgt) {
-      // Target slot exists — PATCH equipo_id
       tgt.equipo_id = srcEqId;
       tgt.equipos   = srcEqData;
       render();
@@ -686,7 +651,7 @@ async function onDrop(e, targetPartId) {
   }
 }
 
-// ── SCORE MODAL ────────────────────────────────────────────
+// ── SCORE MODAL ───────────────────────────────────────────
 function openScoreModal(grupoId) {
   const g = getGrupo(grupoId);
   const parts = byGrupo(grupoId);
@@ -695,9 +660,7 @@ function openScoreModal(grupoId) {
   if (!local || !visit) return;
   const eqL = local.equipos;
   const eqV = visit.equipos;
-  // Read from BD data (persisted) with fallback to in-memory
   const hasPen = g.penaltis || g._penaltis || false;
-  // Determine penWinner from penaltis_ganador_id
   let penWinner = g._pen_winner || "";
   if (!penWinner && g.penaltis_ganador_id) {
     if (local.equipo_id === g.penaltis_ganador_id) penWinner = "local";
@@ -725,13 +688,13 @@ function openScoreModal(grupoId) {
         </div>
       </div>
       <div id="pen-winner" style="display:none;flex-direction:column;gap:6px;margin:12px 0;">
-        <span style="font-size:12px;color:rgba(255,255,255,0.6);">Ganador en penaltis:</span>
+        <span style="font-size:12px;color:var(--text-muted);">Ganador en penaltis:</span>
         <div style="display:flex;gap:8px;">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text);">
             <input type="radio" name="pen-win" value="local" ${penWinner==='local'?'checked':''}>
             ${eqL?.nombre || "Local"}
           </label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text);">
             <input type="radio" name="pen-win" value="visitante" ${penWinner==='visitante'?'checked':''}>
             ${eqV?.nombre || "Visitante"}
           </label>
@@ -746,7 +709,6 @@ function openScoreModal(grupoId) {
   document.body.appendChild(div);
   document.getElementById("g-local").focus();
 
-  // Auto-show penalties selector when draw
   function _checkDraw() {
     const l = parseInt(document.getElementById("g-local")?.value) || 0;
     const v = parseInt(document.getElementById("g-visit")?.value) || 0;
@@ -755,13 +717,13 @@ function openScoreModal(grupoId) {
   }
   document.getElementById("g-local")?.addEventListener("input", _checkDraw);
   document.getElementById("g-visit")?.addEventListener("input", _checkDraw);
-  _checkDraw(); // run immediately in case of existing draw
+  _checkDraw();
 }
 
 async function saveScore(grupoId, localId, visitId) {
   const gL = parseInt(document.getElementById("g-local").value) || 0;
   const gV = parseInt(document.getElementById("g-visit").value) || 0;
-  const hasPen = gL === gV; // penaltis si hay empate en el marcador
+  const hasPen = gL === gV;
   const penWinVal = hasPen
     ? document.querySelector('input[name="pen-win"]:checked')?.value || ""
     : "";
@@ -771,67 +733,46 @@ async function saveScore(grupoId, localId, visitId) {
   if (lp) lp.goles = gL;
   if (vp) vp.goles = gV;
 
-  // Store penalties info on grupo object (in-memory only)
   const g = grupos.find(g => g.id === grupoId);
-  if (g) {
-    g._penaltis   = hasPen;
-    g._pen_winner = penWinVal;
-  }
+  if (g) { g._penaltis = hasPen; g._pen_winner = penWinVal; }
 
   document.getElementById("score-modal").remove();
   render();
-
   setSaveState("saving");
   try {
     const penGanadorId = hasPen
       ? (penWinVal === "local" ? lp?.equipo_id : vp?.equipo_id) || null
       : null;
 
-    // Save goles — always works
     await Promise.all([
       sbPatch("participantes_grupo", localId, { goles: gL }),
       sbPatch("participantes_grupo", visitId, { goles: gV }),
     ]);
 
-    // Save penaltis — separate try so a failure here doesn't break everything
     try {
-      await sbPatch("grupos", grupoId, {
-        penaltis: hasPen,
-        penaltis_ganador_id: penGanadorId,
-      });
-      if (g) {
-        g.penaltis = hasPen;
-        g.penaltis_ganador_id = penGanadorId;
-      }
+      await sbPatch("grupos", grupoId, { penaltis: hasPen, penaltis_ganador_id: penGanadorId });
+      if (g) { g.penaltis = hasPen; g.penaltis_ganador_id = penGanadorId; }
     } catch(penErr) {
       console.warn("No se pudieron guardar los penaltis:", penErr);
-      // Still keep in-memory for this session
-      if (g) {
-        g._penaltis = hasPen;
-        g._pen_winner = penWinVal;
-        g.penaltis_ganador_id = penGanadorId;
-      }
+      if (g) { g._penaltis = hasPen; g._pen_winner = penWinVal; g.penaltis_ganador_id = penGanadorId; }
     }
 
     setSaveState("saved");
     showToast("Resultado guardado");
     render();
 
-    // ── Avance automático del ganador ────────────────────
     let winnerPart = null;
     if (hasPen && gL === gV) {
       winnerPart = penWinVal === "local" ? lp : vp;
     } else if (gL !== gV) {
       winnerPart = gL > gV ? lp : vp;
     }
-
     if (winnerPart?.equipo_id && g?.siguiente_grupo_id) {
       await advanceWinner(g, winnerPart.equipo_id);
     }
   } catch(err) {
     setSaveState("error");
     console.error(err);
-    // Re-render to recover state
     render();
   }
 }
@@ -857,23 +798,10 @@ async function advanceWinner(grupo, winnerEqId) {
     return;
   }
 
-  // Clear previous winner from this slot if different
-  const prevEqId = targetPart.equipo_id;
-  if (prevEqId && prevEqId !== winnerEqId) {
-    // Remove classified mark from previous winner in this grupo
-    participantes.forEach(p => {
-      if (p.grupo_id === sigGrupoId && p.equipo_id === prevEqId) {
-        // already overwritten below
-      }
-    });
-  }
-
-  // Update local state
   targetPart.equipo_id = winnerEqId;
   targetPart.equipos   = eqMap[winnerEqId] || null;
   render();
 
-  // Persist
   try {
     await sbPatch("participantes_grupo", targetPart.id, { equipo_id: winnerEqId });
     showToast("Ganador avanzado a la siguiente ronda ✓");
@@ -882,37 +810,25 @@ async function advanceWinner(grupo, winnerEqId) {
   }
 }
 
-// ── SLOT LABEL HELPER ───────────────────────────────────────
-// Returns a human-readable label for an empty slot based on referencia_origen
-let _cualquierCount = {}; // reset each render
-
+// ── SLOT LABEL ────────────────────────────────────────────
+let _cualquierCount = {};
 function resetCualquierCount() { _cualquierCount = {}; }
 
 function slotLabel(partId) {
   const part = participantes.find(p => p.id === partId);
   if (!part || !part.referencia_origen) return "plaza vacía";
   const CUALQUIER = "Cualquier grupo";
-  if (part.referencia_origen !== CUALQUIER) {
-    return "Ganador " + part.referencia_origen;
-  } else {
-    // Count occurrences of "Cualquier grupo" per fase to number them
-    const grupo = grupos.find(g => g.id === part.grupo_id);
-    const faseKey = grupo ? grupo.fase_id : "?";
-    if (!_cualquierCount[faseKey]) _cualquierCount[faseKey] = 0;
-    _cualquierCount[faseKey]++;
-    return "Mejor 2º #" + _cualquierCount[faseKey];
-  }
+  if (part.referencia_origen !== CUALQUIER) return "Ganador " + part.referencia_origen;
+  const grupo = grupos.find(g => g.id === part.grupo_id);
+  const faseKey = grupo ? grupo.fase_id : "?";
+  if (!_cualquierCount[faseKey]) _cualquierCount[faseKey] = 0;
+  _cualquierCount[faseKey]++;
+  return "Mejor 2º #" + _cualquierCount[faseKey];
 }
 
-function slotLabelVirtual(grupoId, slotIndex) {
-  // For virtual slots (no BD row yet), no label available
-  return "plaza vacía";
-}
-
-// ── RENDER HELPERS ─────────────────────────────────────────
-
+// ── RENDER HELPERS ────────────────────────────────────────
 function escapeAttr(str) {
-  return (str || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return (str || "").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
 async function saveNotas(grupoId, value) {
@@ -925,32 +841,26 @@ async function saveNotas(grupoId, value) {
   try {
     await sbPatch("grupos", grupoId, { notas });
     setSaveState("saved");
-  } catch(err) {
-    setSaveState("error");
-    console.error(err);
-  }
+  } catch(err) { setSaveState("error"); console.error(err); }
 }
 
 function escudoEl(url, nombre) {
   if (url) return `<img src="${url}" class="escudo" alt="${nombre}">`;
   return `<div class="escudo-placeholder">
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-      <circle cx="6" cy="4" r="2.5" fill="white"/>
-      <path d="M1 11c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="white" stroke-width="1.2" fill="none"/>
-    </svg>
-  </div>`;
+      <circle cx="6" cy="4" r="2.5" fill="#cccccc"/>
+      <path d="M1 11c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="#cccccc" stroke-width="1.2" fill="none"/>
+    </svg></div>`;
 }
 
 function isClassified(equipoId, grupoId) {
-  // Returns true if this equipo appears in a group of a LATER phase than grupoId's phase
   if (!equipoId || !grupoId) return false;
   const srcGrupo = grupos.find(g => g.id === grupoId);
   if (!srcGrupo) return false;
   const srcFase = fases.find(f => f.id === srcGrupo.fase_id);
   if (!srcFase) return false;
   return participantes.some(p => {
-    if (p.equipo_id !== equipoId) return false;
-    if (p.grupo_id === grupoId) return false; // same group, skip
+    if (p.equipo_id !== equipoId || p.grupo_id === grupoId) return false;
     const g = grupos.find(g => g.id === p.grupo_id);
     if (!g) return false;
     const f = fases.find(f => f.id === g.fase_id);
@@ -963,48 +873,33 @@ function renderMatchHTML(g) {
   const es2 = g.tipo_grupo === 2;
   const notasHtml = `<input class="match-notes-input" type="text" value="${escapeAttr(g.notas)}" placeholder="📍 Campo · ⏰ Hora · 👤 Árbitro..." onblur="saveNotas('${g.id}',this.value)" onclick="event.stopPropagation()" ondblclick="event.stopPropagation()">`;
 
-  // Always render tipo_grupo slots — fill missing ones with empty drop targets
   function buildSlots(expectedCount, localFirst) {
     let filled;
     if (localFirst) {
       const local = parts.find(p => p.es_local);
       const visit = parts.find(p => !p.es_local);
-      // Fallback: if both have same es_local value, just use order
-      if (local && visit) {
-        filled = [local, visit];
-      } else if (parts.length >= 2) {
-        filled = [parts[0], parts[1]];
-      } else {
-        filled = parts;
-      }
+      if (local && visit) filled = [local, visit];
+      else if (parts.length >= 2) filled = [parts[0], parts[1]];
+      else filled = parts;
     } else {
       filled = parts;
     }
-
     const slots = [];
     for (let i = 0; i < expectedCount; i++) {
-      slots.push(filled[i] || { id: `vslot__${g.id}__${i}`, equipo_id: null, equipos: null, goles: 0, puntos: 0, _virtual: true, _grupoId: g.id });
+      slots.push(filled[i] || { id: `vslot__${g.id}__${i}`, equipo_id: null, equipos: null, goles: 0, puntos: 0, _virtual: true });
     }
     return slots;
   }
 
   function slotEl(part, isWin, isLose) {
     const eq = part.equipos;
-    const isVirtual = part._virtual;
     const draggable = eq ? `draggable="true" ondragstart="onDragStart(event,'${part.id}','${eq.id}')" ondragend="onDragEnd(event)"` : "";
-    // All slots are droppable — virtual slots use their own id for INSERT logic
     const dropAttrs = `ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${part.id}')"`;
-    const cls = ["slot",
-      eq ? "has-team" : "empty-slot",
-      isLose ? "loser" : ""
-    ].filter(Boolean).join(" ");
+    const cls = ["slot", eq ? "has-team" : "empty-slot", isLose ? "loser" : ""].filter(Boolean).join(" ");
 
     if (eq) {
       const classified = isClassified(eq.id, g.id) && !isWin && !isLose;
-      // Winner gets white card like classified
-      // Check if this slot won via penalties — read from BD or in-memory
       const hasPen = g.penaltis || g._penaltis || false;
-      // Resolve pen winner from penaltis_ganador_id (BD) or _pen_winner (in-memory)
       let penWin = g._pen_winner || "";
       if (!penWin && g.penaltis_ganador_id) {
         const lpart = parts.find(p => p.es_local);
@@ -1012,7 +907,6 @@ function renderMatchHTML(g) {
         if (lpart?.equipo_id === g.penaltis_ganador_id) penWin = "local";
         else if (vpart?.equipo_id === g.penaltis_ganador_id) penWin = "visitante";
       }
-      // Read goles from participantes state, not from saveScore locals
       const _local = parts.find(p => p.es_local);
       const _visit = parts.find(p => !p.es_local);
       const _gL = _local?.goles ?? 0;
@@ -1022,7 +916,6 @@ function renderMatchHTML(g) {
       const isPenLoser = hasPen && _gL === _gV && !isPenWinner && !!part.equipo_id;
       const effectiveWin = isWin || isPenWinner;
       const effectiveLose = isLose || isPenLoser;
-
       const isWhite = effectiveWin || classified;
       const badge = classified && !effectiveWin
         ? `<span style="font-size:10px;font-weight:800;color:#16a34a;margin-left:auto;flex-shrink:0;">✓</span>`
@@ -1031,8 +924,8 @@ function renderMatchHTML(g) {
         : "";
       return `<div class="${cls} ${isWhite ? 'classified' : ''}" ${draggable} ${dropAttrs}>
         ${escudoEl(eq.escudo_url, eq.nombre)}
-        <span class="team-name" style="color:${isWhite ? '#1a1a1a' : 'white'};font-weight:800;">${eq.nombre}</span>
-        ${(effectiveWin || effectiveLose || isWin || isLose) ? `<span class="score" style="color:${effectiveWin ? '#1a1a1a' : 'rgba(255,255,255,0.35)'};font-size:14px;font-weight:800;margin-left:auto;">${part.goles}</span>` : ""}
+        <span class="team-name" style="color:${isWhite ? '#1a1a1a' : '#1a1a1a'};font-weight:800;">${eq.nombre}</span>
+        ${(effectiveWin || effectiveLose || isWin || isLose) ? `<span class="score" style="color:${effectiveWin ? 'var(--win-green)' : '#cccccc'};font-size:14px;font-weight:800;margin-left:auto;">${part.goles}</span>` : ""}
         ${badge}
       </div>`;
     } else {
@@ -1040,8 +933,8 @@ function renderMatchHTML(g) {
       return `<div class="${cls}" ${dropAttrs}>
         <div class="drop-hint">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="opacity:0.3">
-            <circle cx="6" cy="6" r="5" stroke="white" stroke-width="1.2"/>
-            <path d="M6 3v6M3 6h6" stroke="white" stroke-width="1.2"/>
+            <circle cx="6" cy="6" r="5" stroke="#999" stroke-width="1.2"/>
+            <path d="M6 3v6M3 6h6" stroke="#999" stroke-width="1.2"/>
           </svg>
           <span class="team-name empty">${label}</span>
         </div>
@@ -1072,28 +965,23 @@ function renderMatchHTML(g) {
   }
 }
 
-// ── BRACKET LAYOUT ENGINE ─────────────────────────────────
-//
-// Uses CSS Grid absolute positioning:
-// - Phase 1 groups in corners (top-left, bottom-left, top-right, bottom-right)
-// - Later phases centered vertically between their source groups
-// - Final in the absolute center
-// - SVG connectors drawn after layout
-
+// ── BRACKET LAYOUT ────────────────────────────────────────
 function getPhasesSorted() {
   return [...fases].sort((a, b) => a.orden - b.orden);
 }
 
-function buildParentMap() {
-  // parentMap[grupoId] = list of grupos that feed into it
-  const map = {};
-  grupos.forEach(g => {
-    if (g.siguiente_grupo_id) {
-      if (!map[g.siguiente_grupo_id]) map[g.siguiente_grupo_id] = [];
-      map[g.siguiente_grupo_id].push(g);
-    }
-  });
-  return map;
+function buildCols(seeds) {
+  const cols = [seeds];
+  let current = seeds;
+  for (let i = 0; i < fases.length; i++) {
+    const nextIds = [...new Set(current.map(g => g.siguiente_grupo_id).filter(Boolean))];
+    if (!nextIds.length) break;
+    const next = nextIds.map(id => grupos.find(g => g.id === id)).filter(Boolean);
+    const unique = [...new Map(next.map(g => [g.id, g])).values()];
+    if (!unique.length) break;
+    cols.push(unique); current = unique;
+  }
+  return cols;
 }
 
 function render() {
@@ -1104,11 +992,8 @@ function render() {
   const phasesSorted = getPhasesSorted();
   if (!phasesSorted.length) return;
 
-  const firstPhase = phasesSorted[0];
-  const lastPhase  = phasesSorted[phasesSorted.length - 1];
-  // Sort phase1 groups by name numerically so Grupo 1,2,3... are in order
   const phase1Groups = grupos
-    .filter(g => g.fase_id === firstPhase.id)
+    .filter(g => g.fase_id === phasesSorted[0].id)
     .sort((a, b) => {
       const oA = (a.orden_cuadro != null) ? a.orden_cuadro : Infinity;
       const oB = (b.orden_cuadro != null) ? b.orden_cuadro : Infinity;
@@ -1121,70 +1006,34 @@ function render() {
   const leftGroups  = phase1Groups.slice(0, mid);
   const rightGroups = phase1Groups.slice(mid);
 
-  // Build phase columns for each side by following siguiente_grupo_id
-  function buildCols(seeds) {
-    const cols = [seeds];
-    let current = seeds;
-    for (let i = 0; i < phasesSorted.length; i++) {
-      const nextIds = [...new Set(current.map(g => g.siguiente_grupo_id).filter(Boolean))];
-      if (!nextIds.length) break;
-      const next = nextIds.map(id => grupos.find(g => g.id === id)).filter(Boolean);
-      const unique = [...new Map(next.map(g => [g.id, g])).values()];
-      if (!unique.length) break;
-      cols.push(unique);
-      current = unique;
-    }
-    return cols;
-  }
-
   const leftCols  = buildCols(leftGroups);
   const rightCols = buildCols(rightGroups);
 
-  // Find shared final (appears in both last cols)
-  const leftLast  = leftCols[leftCols.length - 1];
-  const rightLast = rightCols[rightCols.length - 1];
-  const leftLastIds = new Set(leftLast.map(g => g.id));
-  const sharedFinal = rightLast.filter(g => leftLastIds.has(g.id));
-
+  const leftLastIds = new Set(leftCols[leftCols.length - 1].map(g => g.id));
+  const sharedFinal = rightCols[rightCols.length - 1].filter(g => leftLastIds.has(g.id));
   let centerGroups = [];
-  if (sharedFinal.length) {
-    centerGroups = leftCols.pop(); // same groups
-    rightCols.pop();
-  }
+  if (sharedFinal.length) { centerGroups = leftCols.pop(); rightCols.pop(); }
 
-  // ── CONSTANTS ─────────────────────────────────────────
-  const MATCH_W      = 220;   // card width px
-  const COL_GAP      = 48;    // horizontal gap between columns
-  const CARD_H       = 90;    // approximate card height (2 slots)
-  const GROUP_CARD_H = (n) => 28 + n * 34; // header + n slots
-  const CARD_GAP     = 16;    // vertical gap between cards in same column
+  const MATCH_W      = 220;
+  const COL_GAP      = 48;
+  const GROUP_CARD_H = (n) => 28 + n * 34;
+  const CARD_GAP     = 16;
+  const LOGO_H       = 280;
+  const LOGO_PAD     = LOGO_H + 80;
+  const Y_OFFSET     = LOGO_PAD;
 
-  // Total columns: leftCols + center(1) + rightCols reversed
   const totalCols = leftCols.length + 1 + rightCols.length;
   const totalW = totalCols * MATCH_W + (totalCols - 1) * COL_GAP;
-
-  // Calculate vertical positions for each column
-  // Phase 1: distribute groups evenly top to bottom
-  // Later phases: center between their source groups
-
-  function getGroupY(gid, colGroups, colY) {
-    const idx = colGroups.findIndex(g => g.id === gid);
-    return colY[idx] || 0;
-  }
-
-  // Build y-positions for phase1 groups (spread them out)
-  // Total height is driven by phase1 groups
   const phase1H = leftGroups.reduce((s, g) => s + GROUP_CARD_H(g.tipo_grupo) + CARD_GAP, 0);
   const totalH  = Math.max(phase1H, 400);
 
-  // Compute y centers accounting for actual card heights
-  // Each group gets space proportional to its card height, not equal spacing
+  function colX(i) { return i * (MATCH_W + COL_GAP); }
+
   function computeYCenters(groups, totalHeight) {
     const totalCardsH = groups.reduce((s, g) => s + GROUP_CARD_H(g.tipo_grupo), 0);
     const totalGaps   = (groups.length - 1) * CARD_GAP;
     const extraSpace  = Math.max(0, totalHeight - totalCardsH - totalGaps);
     const extraPerGroup = extraSpace / groups.length;
-
     const centers = [];
     let y = 0;
     groups.forEach(g => {
@@ -1195,77 +1044,41 @@ function render() {
     return centers;
   }
 
-  const leftYCenters  = computeYCenters(leftGroups, totalH);
-  const rightYCenters = computeYCenters(rightGroups, totalH);
-
-  // For later phase columns: y = average of source group y-centers
   function computeColYCenters(col, prevCol, prevYCenters) {
     return col.map(g => {
       const sources = prevCol.filter(pg => pg.siguiente_grupo_id === g.id);
       if (!sources.length) return totalH / 2;
-      const ys = sources.map(s => {
-        const idx = prevCol.findIndex(pg => pg.id === s.id);
-        return prevYCenters[idx] ?? totalH / 2;
-      });
+      const ys = sources.map(s => { const idx = prevCol.findIndex(pg => pg.id === s.id); return prevYCenters[idx] ?? totalH / 2; });
       return ys.reduce((a, b) => a + b, 0) / ys.length;
     });
   }
 
-  // Build all y-centers per column
+  const leftYCenters  = computeYCenters(leftGroups, totalH);
+  const rightYCenters = computeYCenters(rightGroups, totalH);
   const leftColYCenters  = [leftYCenters];
   const rightColYCenters = [rightYCenters];
-
-  for (let i = 1; i < leftCols.length; i++) {
-    leftColYCenters.push(computeColYCenters(leftCols[i], leftCols[i-1], leftColYCenters[i-1]));
-  }
-  // rightCols[0] = phase1 (far right), rightCols[last] = closest to center
-  // y-centers: phase1 spreads top-to-bottom, later phases converge toward center
-  for (let i = 1; i < rightCols.length; i++) {
-    rightColYCenters.push(computeColYCenters(rightCols[i], rightCols[i-1], rightColYCenters[i-1]));
-  }
-  // When rendering reversed (center→right), invert the y-center arrays accordingly
-  // reversedRight[0] = rightCols[last], reversedRight[last] = rightCols[0]
-  // reversedRightYCenters computed above already matches reversedRight order via [...].reverse()
-
-  // Center column y
+  for (let i = 1; i < leftCols.length; i++) leftColYCenters.push(computeColYCenters(leftCols[i], leftCols[i-1], leftColYCenters[i-1]));
+  for (let i = 1; i < rightCols.length; i++) rightColYCenters.push(computeColYCenters(rightCols[i], rightCols[i-1], rightColYCenters[i-1]));
   const centerY = [totalH / 2];
-
-  // ── BUILD DOM ─────────────────────────────────────────
-  // Use a positioned container
-  const LOGO_H   = 280;
-  const LOGO_PAD = LOGO_H + 80;
-  const Y_OFFSET = LOGO_PAD;
 
   const container = document.createElement("div");
   container.style.cssText = `position:relative;width:${totalW}px;height:${totalH + 60 + LOGO_PAD}px;margin:0 auto;`;
 
-  // ── LOGO — lives inside container, positioned above final card ──
   const logoDiv = document.createElement("div");
   logoDiv.id = "bracket-logo";
   logoDiv.style.cssText = `position:absolute;display:flex;justify-content:center;align-items:center;pointer-events:none;z-index:10;`;
   logoDiv.innerHTML = `<img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png"
-    style="height:${LOGO_H}px;object-fit:contain;filter:drop-shadow(0 0 16px rgba(204,0,0,0.6));">`;
+    style="height:${LOGO_H}px;object-fit:contain;filter:drop-shadow(0 0 16px rgba(204,0,0,0.4));">`;
   container.appendChild(logoDiv);
 
   const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svgEl.setAttribute("width", totalW);
-  svgEl.setAttribute("height", totalH + 60);
+  svgEl.setAttribute("height", totalH + 60 + LOGO_PAD);
   svgEl.style.cssText = "position:absolute;top:0;left:0;pointer-events:none;";
   container.appendChild(svgEl);
 
-  function colX(colIndex) {
-    return colIndex * (MATCH_W + COL_GAP);
-  }
-
-  // Column indices:
-  // 0..leftCols.length-1 = left side
-  // leftCols.length = center
-  // leftCols.length+1 .. totalCols-1 = right side (reversed)
-
-  const LABEL_H = 0;
-
   function placeCard(g, x, yCenter, cardH) {
-    const y = yCenter - cardH / 2 + LABEL_H + Y_OFFSET;
+    const y = yCenter - cardH / 2 + Y_OFFSET;
     const div = document.createElement("div");
     div.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:${MATCH_W}px;`;
     div.innerHTML = renderMatchHTML(g);
@@ -1273,46 +1086,27 @@ function render() {
     return { x, y, yCenter: yCenter + Y_OFFSET, w: MATCH_W, h: cardH };
   }
 
-  function placeLabel(text, x, colIdx) {
-    // Find topmost card in this column to place label above it
-    const div = document.createElement("div");
-    div.className = "phase-label";
-    div.style.cssText = `position:absolute;left:${x}px;top:8px;width:${MATCH_W}px;text-align:center;`;
-    div.textContent = text;
-    container.appendChild(div);
-  }
-
   function drawConnector(x1, y1, x2, y2) {
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     const cx = (x1 + x2) / 2;
     path.setAttribute("d", `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`);
     path.setAttribute("stroke", "#cc0000");
-    path.setAttribute("stroke-width", "1.5");
+    path.setAttribute("stroke-width", "2");
     path.setAttribute("fill", "none");
-    path.setAttribute("stroke-opacity", "0.5");
+    path.setAttribute("stroke-opacity", "0.35");
     svgEl.appendChild(path);
   }
 
-
-
-  // ── PLACE LEFT COLUMNS ────────────────────────────────
-  const leftCardPositions = []; // [colIdx][groupIdx] = {x, yCenter}
+  // ── Left columns ──────────────────────────────────────
+  const leftCardPositions = [];
   for (let ci = 0; ci < leftCols.length; ci++) {
-    const col = leftCols[ci];
-    const yCenters = leftColYCenters[ci];
-    const x = colX(ci);
-    const phaseName = fases.find(f => f.id === col[0]?.fase_id)?.nombre || "";
-    
+    const col = leftCols[ci]; const yCenters = leftColYCenters[ci]; const x = colX(ci);
     const positions = [];
-    col.forEach((g, gi) => {
-      const cardH = GROUP_CARD_H(g.tipo_grupo);
-      const pos = placeCard(g, x, yCenters[gi], cardH);
-      positions.push({ x: x + MATCH_W, yCenter: pos.yCenter });
-    });
+    col.forEach((g, gi) => { const cardH = GROUP_CARD_H(g.tipo_grupo); const pos = placeCard(g, x, yCenters[gi], cardH); positions.push({ x: x + MATCH_W, yCenter: pos.yCenter }); });
     leftCardPositions.push(positions);
   }
 
-  // ── PLACE CENTER COLUMN ───────────────────────────────
+  // ── Center column ─────────────────────────────────────
   const centerColIdx = leftCols.length;
   if (centerGroups.length) {
     const x = colX(centerColIdx);
@@ -1320,118 +1114,87 @@ function render() {
       const cardH = GROUP_CARD_H(g.tipo_grupo);
       const yCenter = centerY[gi] || totalH / 2;
       placeCard(g, x, yCenter, cardH);
-      // Position logo: centered horizontally over final card, just above it
       const cardTopAbs = yCenter - cardH / 2 + Y_OFFSET;
       logoDiv.style.left   = x + "px";
       logoDiv.style.top    = (cardTopAbs - LOGO_H - 60) + "px";
       logoDiv.style.width  = MATCH_W + "px";
       logoDiv.style.height = LOGO_H + "px";
 
-      // ── CHAMPION SLOT below final card ──────────────────
+      // ── Champion slot ──────────────────────────────────
       const cardBottomAbs = yCenter + cardH / 2 + Y_OFFSET;
       const champDiv = document.createElement("div");
       champDiv.id = "champion-slot";
       const champEq = torneoData?.campeon_id ? equipos.find(e => e.id === torneoData.campeon_id) : null;
-      champDiv.style.cssText = `
-        position:absolute;
-        left:${x - 20}px;
-        top:${cardBottomAbs + 20}px;
-        width:${MATCH_W + 40}px;
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        gap:10px;
-      `;
+      champDiv.style.cssText = `position:absolute;left:${x - 20}px;top:${cardBottomAbs + 20}px;width:${MATCH_W + 40}px;display:flex;flex-direction:column;align-items:center;gap:10px;`;
       if (champEq) {
         champDiv.innerHTML = `
           <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
-                      text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);">
+                      text-transform:uppercase;letter-spacing:0.12em;color:#999;">
             Campeón
           </div>
-          <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;
-                      background:rgba(204,0,0,0.15);border:1px solid rgba(204,0,0,0.3);
-                      border-radius:16px;padding:20px 16px;width:100%;cursor:grab;"
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px;
+                      background:white;border:1px solid #d8d8d8;border-left:4px solid #cc0000;
+                      border-radius:8px;padding:20px 16px;width:100%;
+                      box-shadow:0 2px 10px rgba(0,0,0,0.08);cursor:grab;"
                draggable="true"
                ondragstart="onDragStartChamp(event,'${champEq.id}')"
                ondragend="onDragEnd(event)">
-            <img src="${champEq.escudo_url || ''}" style="width:90px;height:90px;object-fit:contain;
-                 filter:drop-shadow(0 0 12px rgba(255,200,0,0.4));">
+            <img src="${champEq.escudo_url || ''}" style="width:80px;height:80px;object-fit:contain;">
             <span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;
-                         text-transform:uppercase;letter-spacing:0.05em;color:white;text-align:center;
+                         text-transform:uppercase;letter-spacing:0.05em;color:#1a1a1a;text-align:center;
                          line-height:1.2;">${champEq.nombre}</span>
-            <span onclick="clearChampion()" style="font-size:9px;color:rgba(255,255,255,0.25);
-                  cursor:pointer;text-transform:uppercase;letter-spacing:0.06em;margin-top:4px;">✕ quitar</span>
+            <span onclick="clearChampion()" style="font-size:9px;color:#ccc;cursor:pointer;
+                  text-transform:uppercase;letter-spacing:0.06em;margin-top:4px;">✕ quitar</span>
           </div>`;
       } else {
         champDiv.innerHTML = `
           <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
-                      text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);">
+                      text-transform:uppercase;letter-spacing:0.12em;color:#999;">
             Campeón
           </div>
           <div id="champ-drop-target"
                ondragover="onDragOver(event)"
                ondragleave="onDragLeave(event)"
                ondrop="onDropChamp(event)"
-               style="width:100%;border:1.5px dashed rgba(255,200,0,0.3);border-radius:16px;
+               style="width:100%;border:1.5px dashed #e0d0a0;border-radius:8px;
                       padding:24px 16px;display:flex;flex-direction:column;align-items:center;gap:8px;
-                      background:rgba(255,200,0,0.04);cursor:default;transition:background 0.15s;">
+                      background:white;cursor:default;transition:background 0.15s;">
             <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style="opacity:0.3">
               <path d="M16 4l3.09 6.26L26 11.27l-5 4.87 1.18 6.86L16 19.77l-6.18 3.23L11 16.14 6 11.27l6.91-1.01L16 4z"
-                    stroke="#ffd700" stroke-width="1.5" fill="none"/>
+                    stroke="#cc9900" stroke-width="1.5" fill="none"/>
             </svg>
             <span style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;
-                         color:rgba(255,200,0,0.4);text-transform:uppercase;letter-spacing:0.06em;">
+                         color:#cccccc;text-transform:uppercase;letter-spacing:0.06em;">
               arrastra aquí al campeón
             </span>
           </div>`;
       }
       container.appendChild(champDiv);
-      // Extend container height to fit champion slot
       const champH = champEq ? 200 : 140;
       container.style.height = (parseInt(container.style.height) + champH + 40) + "px";
     });
   }
 
-  // ── PLACE RIGHT COLUMNS
-  // rightCols[0] = phase1 groups (far right), rightCols[last] = closest to center
-  // We render from center outward: rightCols reversed = [closest→center, ..., phase1]
-  // So column index: centerColIdx+1 = closest to center, centerColIdx+n = phase1 (far right)
-  const reversedRight     = [...rightCols].reverse();       // [closest-to-center ... phase1]
+  // ── Right columns ─────────────────────────────────────
+  const reversedRight      = [...rightCols].reverse();
   const reversedRightYCenters = [...rightColYCenters].reverse();
-  const rightCardPositions = []; // indexed same as reversedRight
-
+  const rightCardPositions = [];
   for (let ci = 0; ci < reversedRight.length; ci++) {
-    const col     = reversedRight[ci];
-    const yCenters = reversedRightYCenters[ci];
-    const colIdx  = centerColIdx + 1 + ci;
-    const x       = colX(colIdx);
-    const phaseName = fases.find(f => f.id === col[0]?.fase_id)?.nombre || "";
-    
+    const col = reversedRight[ci]; const yCenters = reversedRightYCenters[ci]; const colIdx = centerColIdx + 1 + ci; const x = colX(colIdx);
     const positions = [];
-    col.forEach((g, gi) => {
-      const cardH = GROUP_CARD_H(g.tipo_grupo);
-      const pos   = placeCard(g, x, yCenters[gi], cardH);
-      positions.push({ x, yCenter: pos.yCenter });
-    });
+    col.forEach((g, gi) => { const cardH = GROUP_CARD_H(g.tipo_grupo); const pos = placeCard(g, x, yCenters[gi], cardH); positions.push({ x, yCenter: pos.yCenter }); });
     rightCardPositions.push(positions);
   }
 
-  // ── DRAW CONNECTORS ───────────────────────────────────
-
-  // Left side: each group → its siguiente_grupo_id in next col
+  // ── Connectors ────────────────────────────────────────
   for (let ci = 0; ci < leftCols.length - 1; ci++) {
     leftCols[ci].forEach((g, gi) => {
       if (!g.siguiente_grupo_id) return;
       const toIdx = leftCols[ci + 1].findIndex(tg => tg.id === g.siguiente_grupo_id);
       if (toIdx < 0) return;
-      drawConnector(
-        leftCardPositions[ci][gi].x, leftCardPositions[ci][gi].yCenter,
-        colX(ci + 1), leftCardPositions[ci + 1][toIdx].yCenter
-      );
+      drawConnector(leftCardPositions[ci][gi].x, leftCardPositions[ci][gi].yCenter, colX(ci + 1), leftCardPositions[ci + 1][toIdx].yCenter);
     });
   }
-
-  // Left last col → center
   if (centerGroups.length && leftCols.length) {
     const lastLeftCol = leftCols[leftCols.length - 1];
     const lastLeftPos = leftCardPositions[leftCols.length - 1];
@@ -1439,38 +1202,19 @@ function render() {
       if (!g.siguiente_grupo_id) return;
       const toIdx = centerGroups.findIndex(cg => cg.id === g.siguiente_grupo_id);
       if (toIdx < 0) return;
-      drawConnector(
-        lastLeftPos[gi].x, lastLeftPos[gi].yCenter,
-        colX(centerColIdx), totalH / 2 + Y_OFFSET
-      );
+      drawConnector(lastLeftPos[gi].x, lastLeftPos[gi].yCenter, colX(centerColIdx), totalH / 2 + Y_OFFSET);
     });
   }
-
-  // Center → first right col (reversedRight[0] = closest to center)
-  // The right-side groups point TO the center via siguiente_grupo_id
   if (centerGroups.length && reversedRight.length) {
     reversedRight[0].forEach((g, gi) => {
-      // g.siguiente_grupo_id should point to a center group
-      const pointsToCenter = centerGroups.some(cg => cg.id === g.siguiente_grupo_id);
-      if (!pointsToCenter) return;
-      drawConnector(
-        colX(centerColIdx) + MATCH_W, totalH / 2 + Y_OFFSET,
-        colX(centerColIdx + 1), rightCardPositions[0][gi].yCenter
-      );
+      if (!centerGroups.some(cg => cg.id === g.siguiente_grupo_id)) return;
+      drawConnector(colX(centerColIdx) + MATCH_W, totalH / 2 + Y_OFFSET, colX(centerColIdx + 1), rightCardPositions[0][gi].yCenter);
     });
   }
-
-  // Right cols: from closer-to-center outward (reversedRight[ci] → reversedRight[ci+1])
   for (let ci = 0; ci < reversedRight.length - 1; ci++) {
     reversedRight[ci].forEach((g, gi) => {
-      // g feeds into reversedRight[ci+1] groups that have siguiente_grupo_id === g.id
       reversedRight[ci + 1].forEach((tg, tgi) => {
-        if (tg.siguiente_grupo_id === g.id) {
-          drawConnector(
-            colX(centerColIdx + 1 + ci) + MATCH_W, rightCardPositions[ci][gi].yCenter,
-            colX(centerColIdx + 1 + ci + 1), rightCardPositions[ci + 1][tgi].yCenter
-          );
-        }
+        if (tg.siguiente_grupo_id === g.id) drawConnector(colX(centerColIdx + 1 + ci) + MATCH_W, rightCardPositions[ci][gi].yCenter, colX(centerColIdx + 1 + ci + 1), rightCardPositions[ci + 1][tgi].yCenter);
       });
     });
   }
@@ -1478,7 +1222,7 @@ function render() {
   wrapper.appendChild(container);
 }
 
-// ── CHAMPION FUNCTIONS ───────────────────────────────────
+// ── CHAMPION ─────────────────────────────────────────────
 function onDragStartChamp(e, equipoId) {
   dragState = { partId: "champion", equipoId };
   e.dataTransfer.effectAllowed = "move";

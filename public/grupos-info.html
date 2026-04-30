@@ -230,7 +230,7 @@ async function loadData() {
 
   const [f, t] = await Promise.all([
     sbGet("fases", fasesParams),
-    torneoId ? sbGet("torneos", "select=id,nombre&id=eq." + torneoId) : Promise.resolve([]),
+    torneoId ? sbGet("torneos", "select=id,nombre,descripcion&id=eq." + torneoId) : Promise.resolve([]),
   ]);
 
   fases      = f;
@@ -532,24 +532,35 @@ async function descargarPDF() {
     const pageW = pdf.internal.pageSize.getWidth();   // 297 mm
     const pageH = pdf.internal.pageSize.getHeight();  // 210 mm
 
-    // Title at the top
+    // Title + description at the top
     const title = (document.getElementById("bracket-title").textContent || "").toUpperCase();
+    const desc  = (torneoData?.descripcion || "").trim();
+    const margin    = 8;   // mm
     const titleSize = 14;
-    const titleH    = 10; // mm reserved for title line
+    const descSize  = 9;
+    let headerH = 10;      // mm consumed by header block
+
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(titleSize);
     pdf.setTextColor(0, 0, 0);
-    pdf.text(title, pageW / 2, 8 + titleSize * 0.352 / 2, { align: "center" });
+    pdf.text(title, pageW / 2, margin - 1, { align: "center" });
+
+    if (desc) {
+      headerH = 15;
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(descSize);
+      pdf.setTextColor(80, 80, 80);
+      pdf.text(desc, pageW / 2, margin + 5, { align: "center" });
+    }
 
     // Scale bracket to fill remaining space, with margin
-    const margin = 8; // mm
     const maxW = pageW - margin * 2;
-    const maxH = pageH - margin - (margin + titleH);
+    const maxH = pageH - margin - (margin + headerH);
     const ratio = canvas.width / canvas.height;
     let imgW = maxW, imgH = imgW / ratio;
     if (imgH > maxH) { imgH = maxH; imgW = imgH * ratio; }
     const x = (pageW - imgW) / 2;
-    const y = margin + titleH;
+    const y = margin + headerH;
     pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", x, y, imgW, imgH);
 
     // Overlay shield (already base64 — bypasses any CORS restriction)

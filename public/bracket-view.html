@@ -2,72 +2,84 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=0.5, minimum-scale=0.25, maximum-scale=4.0, user-scalable=yes">
 <title>Cuadro RFFM — Consulta</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --red:       #cc0000;
-    --red-dark:  #8b0000;
-    --white:     #ffffff;
-    --win-green: #86efac;
-    --win-bg:    rgba(134,239,172,0.08);
+    --red:        #cc0000;
+    --red-dark:   #a00000;
+    --red-light:  #f9e6e6;
+    --bg:         #f0f2f5;
+    --white:      #ffffff;
+    --text:       #1a1a1a;
+    --text-muted: #777777;
+    --border:     #d8d8d8;
+    --win-red:  #970000;
+    --win-bg:     #f87a7a;
+    --win-border: #be1010;
+    --shadow:     0 2px 10px rgba(0,0,0,0.08);
     --font-display: 'Barlow Condensed', sans-serif;
     --font-body:    'Barlow', sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    background: #1a0000;
-    color: var(--white);
+    background: var(--bg);
+    color: var(--text);
     font-family: var(--font-body);
     min-height: 100vh;
     overflow-x: auto;
   }
 
+  /* ── Header ── */
   header {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: space-between;
-    padding: 18px 32px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    background: rgba(0,0,0,0.4);
+    padding: 0 14px;
+    height: 52px;
+    background: var(--red);
     position: sticky;
     top: 0;
     z-index: 50;
-    backdrop-filter: blur(6px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   }
-  .header-left { display: flex; align-items: center; gap: 14px; }
-  .logo-dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: var(--red); flex-shrink: 0;
-    box-shadow: 0 0 8px var(--red);
-  }
+  .header-left  { display: flex; align-items: center; justify-content: flex-start; }
+  .header-center { display: flex; align-items: center; justify-content: center; min-width: 0; }
+  .header-right { display: flex; align-items: center; justify-content: flex-end; }
+  .logo-img { height: 28px; width: 28px; object-fit: contain; flex-shrink: 0; }
   h1 {
     font-family: var(--font-display);
-    font-size: 22px; font-weight: 800;
-    text-transform: uppercase; letter-spacing: 0.08em;
+    font-size: clamp(13px, 3.5vw, 20px); font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: white;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .view-badge {
     font-family: var(--font-display);
     font-size: 10px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.1em;
-    color: rgba(255,255,255,0.35);
-    border: 1px solid rgba(255,255,255,0.15);
-    padding: 3px 8px; border-radius: 4px;
+    color: rgba(255,255,255,0.6);
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 2px 7px; border-radius: 3px;
+    white-space: nowrap;
   }
 
+  /* ── Bracket area ── */
   .bracket-outer {
-    padding: 40px 32px;
+    padding: 32px;
     overflow: auto;
-    min-height: calc(100vh - 65px);
+    min-height: calc(100vh - 80px);
   }
   .bracket { position: relative; min-width: max-content; }
 
+  /* ── Match cards ── */
   .match {
-    background: var(--red-dark);
-    border-radius: 10px;
+    background: var(--white);
+    border-radius: 8px;
     overflow: hidden;
-    border: 1px solid rgba(204,0,0,0.3);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
   }
   .match-header {
     background: var(--red);
@@ -78,7 +90,7 @@
   }
   .match-notes {
     font-size: 9px; font-weight: 400;
-    color: rgba(255,255,255,0.72);
+    color: rgba(255,255,255,0.75);
     font-style: italic;
     font-family: var(--font-body);
     text-transform: none; letter-spacing: normal;
@@ -89,28 +101,33 @@
     text-transform: uppercase; letter-spacing: 0.07em;
     color: white;
   }
+
+  /* ── Slots ── */
   .slot {
     display: flex;
     align-items: center;
     padding: 6px 10px;
     min-height: 34px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid #f0f0f0;
     gap: 8px;
+    background: white;
   }
   .slot:last-of-type { border-bottom: none; }
-  .slot.winner { background: var(--win-bg); }
-  .slot.loser  { opacity: 0.45; }
+  .slot.winner {
+    background: var(--win-bg);
+    border-left: 3px solid var(--win-border);
+  }
+  .slot.loser { opacity: 0.4; }
   .slot.classified {
-    background: white;
-    border-left: 3px solid #86efac;
+    background: var(--win-bg);
+    border-left: 3px solid var(--win-border);
   }
-  .slot.classified .team-name { color: #1a1a1a !important; font-weight: 800; }
   .slot.empty-slot {
-    border: 1.5px dashed rgba(255,255,255,0.1);
-    background: rgba(0,0,0,0.1);
+    background: #fafafa;
+    border-bottom: 1px solid #f0f0f0;
     min-height: 34px;
-    opacity: 0.4;
   }
+
   .escudo {
     width: 20px; height: 20px;
     object-fit: contain; border-radius: 2px; flex-shrink: 0;
@@ -118,43 +135,44 @@
   .escudo-placeholder {
     width: 20px; height: 20px;
     border-radius: 2px; flex-shrink: 0;
-    background: rgba(255,255,255,0.1);
+    background: #eeeeee;
     display: flex; align-items: center; justify-content: center;
   }
   .team-name {
     font-family: var(--font-display);
     font-size: 12px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.03em;
-    color: white;
+    color: var(--text);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     flex: 1;
   }
   .team-name.empty {
     font-family: var(--font-body);
-    font-size: 12px; font-weight: 500;
+    font-size: 11px; font-weight: 400;
     font-style: italic;
-    color: white;
+    color: #bbbbbb;
     text-transform: none;
   }
-  .team-name.winner-name { color: var(--win-green); }
   .score {
     font-family: var(--font-display);
     font-size: 14px; font-weight: 800;
-    min-width: 18px; text-align: center; color: white;
+    min-width: 18px; text-align: center;
+    color: var(--text);
   }
-  .score.win  { color: var(--win-green); }
-  .score.lose { color: rgba(255,255,255,0.3); }
+  .score.win  { color: var(--win-red); }
+  .score.lose { color: #cccccc; }
 
+  /* ── Loading ── */
   #loading {
     position: fixed; inset: 0;
-    background: #1a0000;
+    background: var(--bg);
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     gap: 16px; z-index: 200;
   }
   .spinner {
     width: 36px; height: 36px;
-    border: 3px solid rgba(204,0,0,0.2);
+    border: 3px solid rgba(204,0,0,0.15);
     border-top-color: var(--red);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
@@ -164,19 +182,115 @@
     font-family: var(--font-display);
     font-size: 13px; font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.1em;
-    color: rgba(255,255,255,0.4);
+    color: var(--text-muted);
   }
+
+  /* ── Error ── */
   #error-msg {
     margin: 32px; padding: 20px 24px;
-    background: rgba(204,0,0,0.15);
-    border: 1px solid rgba(204,0,0,0.4);
-    border-radius: 10px;
+    background: var(--red-light);
+    border: 1px solid rgba(204,0,0,0.25);
+    border-radius: 8px;
     font-size: 14px; line-height: 1.6;
-    color: rgba(255,255,255,0.7);
+    color: #660000;
     display: none;
   }
-  #error-msg strong { color: white; display: block; margin-bottom: 6px; font-size: 16px; }
+  #error-msg strong { color: var(--red); display: block; margin-bottom: 6px; font-size: 16px; }
+
+  /* ── Menú de torneos ── */
+  #menu-torneos {
+    display: none;
+    min-height: calc(100vh - 80px);
+    align-items: center;
+    justify-content: center;
+    padding: 48px 32px;
+  }
+  .menu-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    max-width: 520px;
+    width: 100%;
+  }
+  .menu-title {
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+  .torneo-btn {
+    width: 100%;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--red);
+    border-radius: 10px;
+    padding: 20px 25px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    cursor: pointer;
+    transition: box-shadow 0.15s, transform 0.1s, border-color 0.15s;
+    text-decoration: none;
+    color: var(--text);
+    box-shadow: var(--shadow);
+  }
+  .torneo-btn:hover {
+    box-shadow: 0 4px 18px rgba(204,0,0,0.15);
+    transform: translateY(-2px);
+    border-color: var(--red);
+  }
+  .torneo-btn-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--red);
+    flex-shrink: 0;
+  }
+  .torneo-btn-text { flex: 1; text-align: left; }
+  .torneo-btn-name {
+    font-family: var(--font-display);
+    font-size: 22px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text);
+    display: block;
+  }
+  .torneo-btn-desc {
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 3px;
+  }
+  .torneo-btn-arrow {
+    color: var(--red);
+    font-size: 28px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .menu-logo {
+    display: block;
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+    margin: 0 auto 20px;
+  }
+  /* ── Botón imagen ── */
+  #btn-imagen {
+    font-family: var(--font-display);
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.85);
+    background: none;
+    border: 1px solid rgba(255,255,255,0.4);
+    padding: 3px 10px; border-radius: 3px;
+    cursor: pointer; white-space: nowrap;
+    transition: background 0.15s;
+  }
+  #btn-imagen:hover { background: rgba(255,255,255,0.15); }
+  #btn-imagen.loading { opacity: 0.6; cursor: wait; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -189,11 +303,29 @@
 
 <header>
   <div class="header-left">
-    <div class="logo-dot"></div>
+    <a id="btn-volver" href="bracket-view.html"
+       style="display:none;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;
+              text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.85);
+              text-decoration:none;border:1px solid rgba(255,255,255,0.4);
+              padding:3px 10px;border-radius:3px;white-space:nowrap;">
+      ‹ Torneos
+    </a>
+  </div>
+  <div class="header-center">
+    <img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" class="logo-img" alt="RFFM" style="margin-right:8px;">
     <h1 id="bracket-title">Cuadro RFFM</h1>
   </div>
-  <span class="view-badge">Solo lectura</span>
+  <div class="header-right">
+    <button id="btn-imagen" onclick="exportarImagen()" title="Ver como imagen">📷 Imagen</button>
+  </div>
 </header>
+
+<div id="menu-torneos">
+  <div class="menu-inner">
+    <img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png" class="menu-logo" alt="RFFM">
+    <div id="menu-lista"></div>
+  </div>
+</div>
 
 <div class="bracket-outer">
   <div class="bracket" id="bracket"></div>
@@ -221,22 +353,57 @@ async function sbGet(table, params) {
   return res.json();
 }
 
+function showMenu(torneos) {
+  document.getElementById("loading").style.display = "none";
+  const menuEl = document.getElementById("menu-torneos");
+  menuEl.style.display = "flex";
+  document.querySelector(".bracket-outer").style.display = "none";
+
+  const lista = document.getElementById("menu-lista");
+  lista.innerHTML = "";
+  if (!torneos.length) {
+    lista.innerHTML = '<p style="color:rgba(255,255,255,0.4);font-size:14px;text-align:center;">No hay torneos configurados.</p>';
+    return;
+  }
+  torneos.forEach(t => {
+    const url = "bracket-view.html?torneo=" + t.id;
+    const desc = t.descripcion ? `<span class="torneo-btn-desc">${t.descripcion}</span>` : "";
+    const btn = document.createElement("a");
+    btn.href = url;
+    btn.className = "torneo-btn";
+    btn.innerHTML = `
+      <div class="torneo-btn-dot"></div>
+      <div class="torneo-btn-text">
+        <span class="torneo-btn-name">${t.nombre}</span>
+        ${desc}
+      </div>
+      <span class="torneo-btn-arrow">›</span>`;
+    lista.appendChild(btn);
+  });
+}
+
 async function init() {
   try {
     const torneoId = new URLSearchParams(window.location.search).get("torneo");
-    const fasesParams  = torneoId ? "select=*&order=orden&torneo_id=eq." + torneoId : "select=*&order=orden";
-    const equiposParams = torneoId ? "select=id,nombre,escudo_url&eliminado=eq.false&torneo_id=eq." + torneoId : "select=id,nombre,escudo_url&eliminado=eq.false";
+
+    // Sin parámetro → mostrar menú de torneos
+    if (!torneoId) {
+      const torneos = await sbGet("torneos", "select=id,nombre,descripcion&order=created_at");
+      showMenu(torneos);
+      return;
+    }
 
     const [f, e, t] = await Promise.all([
-      sbGet("fases", fasesParams),
-      sbGet("equipos", equiposParams),
-      torneoId ? sbGet("torneos", "select=id,nombre,campeon_id&id=eq." + torneoId) : Promise.resolve([]),
+      sbGet("fases", "select=*&order=orden&torneo_id=eq." + torneoId),
+      sbGet("equipos", "select=id,nombre,escudo_url&eliminado=eq.false&torneo_id=eq." + torneoId),
+      sbGet("torneos", "select=id,nombre,descripcion,campeon_id&id=eq." + torneoId),
     ]);
     fases = f; equipos = e;
     torneoData = (t && t.length) ? t[0] : null;
+    document.getElementById("btn-volver").style.display = "inline-block";
     if (torneoData?.nombre) {
       document.getElementById("bracket-title").textContent = torneoData.nombre;
-      document.title = torneoData.nombre;
+      document.title = torneoData.nombre + " — Cuadro RFFM";
     }
     if (fases.length) {
       const faseIds = fases.map(f => f.id).join(",");
@@ -252,7 +419,7 @@ async function init() {
       participantes = pFiltered.map(part => ({ ...part, equipos: part.equipo_id ? (eqMap[part.equipo_id] || null) : null }));
     }
     document.getElementById("loading").style.display = "none";
-    if (!fases.length) { showError("No hay fases configuradas."); return; }
+    if (!fases.length) { showError("No hay fases configuradas para este torneo."); return; }
     render();
   } catch(err) {
     document.getElementById("loading").style.display = "none";
@@ -308,8 +475,8 @@ function escudoEl(url, nombre) {
   if (url) return `<img src="${url}" class="escudo" alt="${nombre || ''}">`;
   return `<div class="escudo-placeholder">
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-      <circle cx="6" cy="4" r="2.5" fill="white"/>
-      <path d="M1 11c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="white" stroke-width="1.2" fill="none"/>
+      <circle cx="6" cy="4" r="2.5" fill="#cccccc"/>
+      <path d="M1 11c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="#cccccc" stroke-width="1.2" fill="none"/>
     </svg></div>`;
 }
 
@@ -353,7 +520,7 @@ function renderMatchHTML(g) {
       : "";
     return `<div class="${cls}">
       ${escudoEl(eq.escudo_url, eq.nombre)}
-      <span class="team-name" style="color:${isWhite ? '#1a1a1a' : 'white'};font-weight:800;">${eq.nombre}</span>
+      <span class="team-name" style="color:#1a1a1a;font-weight:800;">${eq.nombre}</span>
       ${(effectiveWin || effectiveLose || isWin || isLose) ? `<span class="score" style="color:${effectiveWin ? '#1a1a1a' : 'rgba(255,255,255,0.35)'};font-size:14px;font-weight:800;margin-left:auto;">${part.goles}</span>` : ""}
       ${badge}
     </div>`;
@@ -513,9 +680,9 @@ function render() {
     const cx = (x1 + x2) / 2;
     path.setAttribute("d", `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`);
     path.setAttribute("stroke", "#cc0000");
-    path.setAttribute("stroke-width", "1.5");
+    path.setAttribute("stroke-width", "2");
     path.setAttribute("fill", "none");
-    path.setAttribute("stroke-opacity", "0.5");
+    path.setAttribute("stroke-opacity", "0.35");
     svgEl.appendChild(path);
   }
 
@@ -545,33 +712,33 @@ function render() {
       if (champEq) {
         champDiv.innerHTML = `
           <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
-                      text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);">
+                      text-transform:uppercase;letter-spacing:0.12em;color:#999;">
             Campeón
           </div>
           <div style="display:flex;flex-direction:column;align-items:center;gap:8px;
-                      background:rgba(204,0,0,0.15);border:1px solid rgba(204,0,0,0.3);
-                      border-radius:16px;padding:20px 16px;width:100%;">
-            <img src="${champEq.escudo_url || ''}" style="width:90px;height:90px;object-fit:contain;
-                 filter:drop-shadow(0 0 12px rgba(255,200,0,0.4));">
+                      background:white;border:1px solid #d8d8d8;border-left:4px solid #cc0000;
+                      border-radius:8px;padding:20px 16px;width:100%;
+                      box-shadow:0 2px 10px rgba(0,0,0,0.08);">
+            <img src="${champEq.escudo_url || ''}" style="width:80px;height:80px;object-fit:contain;">
             <span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;
-                         text-transform:uppercase;letter-spacing:0.05em;color:white;text-align:center;
+                         text-transform:uppercase;letter-spacing:0.05em;color:#1a1a1a;text-align:center;
                          line-height:1.2;">${champEq.nombre}</span>
           </div>`;
       } else {
         champDiv.innerHTML = `
           <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
-                      text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.35);">
+                      text-transform:uppercase;letter-spacing:0.12em;color:#999;">
             Campeón
           </div>
-          <div style="width:100%;border:1.5px dashed rgba(255,200,0,0.15);border-radius:16px;
+          <div style="width:100%;border:1.5px dashed #d8d8d8;border-radius:8px;
                       padding:24px 16px;display:flex;flex-direction:column;align-items:center;gap:8px;
-                      background:rgba(255,200,0,0.02);">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style="opacity:0.2">
+                      background:white;">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style="opacity:0.25">
               <path d="M16 4l3.09 6.26L26 11.27l-5 4.87 1.18 6.86L16 19.77l-6.18 3.23L11 16.14 6 11.27l6.91-1.01L16 4z"
-                    stroke="#ffd700" stroke-width="1.5" fill="none"/>
+                    stroke="#cc0000" stroke-width="1.5" fill="none"/>
             </svg>
             <span style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;
-                         color:rgba(255,200,0,0.25);text-transform:uppercase;letter-spacing:0.06em;">
+                         color:#cccccc;text-transform:uppercase;letter-spacing:0.06em;">
               Por determinar
             </span>
           </div>`;
@@ -628,6 +795,39 @@ function render() {
   }
 
   bracket.appendChild(container);
+}
+
+async function exportarImagen() {
+  const btn = document.getElementById("btn-imagen");
+  const target = document.getElementById("bracket");
+  if (!target || !window.html2canvas) return;
+  btn.classList.add("loading");
+  btn.textContent = "⏳ Generando...";
+  try {
+    const canvas = await html2canvas(target, {
+      backgroundColor: "#f0f2f5",
+      scale: 4.0,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+    });
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = (document.getElementById("bracket-title")?.textContent || "cuadro") + ".jpg";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }, "image/jpeg", 0.92);
+  } catch(e) {
+    console.error(e);
+    alert("No se pudo generar la imagen: " + e.message);
+  } finally {
+    btn.classList.remove("loading");
+    btn.textContent = "📷 Imagen";
+  }
 }
 
 init();

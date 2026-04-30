@@ -20,6 +20,15 @@ from src.database import (
     contar_grupos_fase,
     actualizar_grupo,
     eliminar_grupo,
+    actualizar_num_vueltas,
+    hay_partidos_fase,
+    eliminar_partidos_fase,
+    generar_partidos_fase,
+    get_partidos_fase,
+    actualizar_partidos_batch,
+    sincronizar_equipos_partidos_fase,
+    get_campos_distintos,
+    get_partidos_agenda,
 )
 from src.logic import seccion_sorteo_manual
 from src.components import (
@@ -54,39 +63,92 @@ LOGO_RFFM_URL = "https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.
 # --- Configuración de página (solo una vez) ---
 st.set_page_config(page_title="Gestor Torneo RFFM", layout="wide")
 
-# CSS global — corrige colores de alertas, botones y bordes de focus
+# CSS global — tema corporativo RFFM
 st.markdown("""
 <style>
-/* Botones primarios — negro, legible sobre cualquier fondo */
+
+/* ── Botones primarios — rojo RFFM ──────────────────────────────────────── */
 button[kind="primary"], button[kind="primaryFormSubmit"] {
-    background-color: #1a1a1a !important;
+    background-color: #cc0000 !important;
     color: white !important;
     border: none !important;
 }
 button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover {
-    background-color: #333 !important;
+    background-color: #a00000 !important;
     color: white !important;
 }
-/* Info/warning/success boxes — fondo oscuro, texto blanco */
-div[data-testid="stNotification"] {
-    background-color: rgba(0,0,0,0.25) !important;
+
+/* ── Sidebar — texto blanco solo en elementos de texto, no en portales ─── */
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3,
+section[data-testid="stSidebar"] small,
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"],
+section[data-testid="stSidebar"] [data-testid="stSelectbox"] [role="combobox"],
+section[data-testid="stSidebar"] [data-testid="stSelectbox"] [data-value],
+section[data-testid="stSidebar"] [data-testid="stSelectbox"] svg {
     color: white !important;
-    border: 1px solid rgba(255,255,255,0.3) !important;
+    fill: white !important;
 }
-div[data-testid="stNotification"] p,
-div[data-testid="stNotification"] li {
+
+/* Inputs del sidebar */
+section[data-testid="stSidebar"] input,
+section[data-testid="stSidebar"] textarea {
+    border-color: rgba(255,255,255,0.4) !important;
+    background-color: rgba(255,255,255,0.1) !important;
     color: white !important;
 }
-/* Quitar borde cyan de focus */
-div[data-baseweb] *:focus {
+section[data-testid="stSidebar"] input::placeholder {
+    color: rgba(255,255,255,0.5) !important;
+}
+
+/* Hover en botones del sidebar (no botones primarios) */
+section[data-testid="stSidebar"] button:not([kind="primary"]):hover {
+    background-color: #a00000 !important;
+    border-radius: 4px;
+}
+
+/* Separadores y expanders del sidebar */
+section[data-testid="stSidebar"] hr {
+    border-color: rgba(255,255,255,0.25) !important;
+}
+section[data-testid="stSidebar"] details summary:hover {
+    background-color: #a00000 !important;
+    border-radius: 4px;
+}
+
+/* ── Dropdowns / selectbox — asegurar colores correctos en los popups ────── */
+/* Popup de opciones (se renderiza fuera del sidebar, en el body) */
+[data-baseweb="popover"] [role="option"],
+[data-baseweb="menu"] [role="option"] {
+    color: #1a1a1a !important;
+    background-color: white !important;
+}
+[data-baseweb="popover"] [role="option"]:hover,
+[data-baseweb="menu"] [role="option"]:hover {
+    background-color: #f5e6e6 !important;
+    color: #1a1a1a !important;
+}
+[data-baseweb="popover"] [role="option"][aria-selected="true"],
+[data-baseweb="menu"] [role="option"][aria-selected="true"] {
+    background-color: #cc0000 !important;
+    color: white !important;
+}
+
+/* ── Focus — solo quitar el cyan en inputs, no en listas ────────────────── */
+input:focus, textarea:focus {
     outline: none !important;
     box-shadow: none !important;
 }
 div[data-testid="stNumberInput"] input:focus,
 div[data-testid="stTextInput"] input:focus {
-    border-color: rgba(255,255,255,0.5) !important;
+    border-color: #cc0000 !important;
     box-shadow: none !important;
 }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -101,15 +163,15 @@ def check_login():
     # CSS específico para el login
     st.markdown("""
     <style>
-    /* Botón Entrar — negro sobre blanco para máximo contraste */
+    /* Botón Entrar — rojo RFFM */
     div[data-testid="stForm"] button[kind="primaryFormSubmit"],
     div[data-testid="stForm"] button[kind="primary"] {
-        background-color: #1a1a1a !important;
+        background-color: #cc0000 !important;
         color: white !important;
         border: none !important;
     }
     div[data-testid="stForm"] button:hover {
-        background-color: #333 !important;
+        background-color: #a00000 !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -121,8 +183,8 @@ def check_login():
             f"""
             <div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:24px;">
                 <img src="{LOGO_RFFM_URL}" style="width:80px;margin-bottom:12px;">
-                <h2 style="margin:0;font-size:1.5rem;text-align:center;color:white;">Gestión de Campeonato RFFM</h2>
-                <p style="color:rgba(255,255,255,0.7);margin:0;font-size:0.9rem;">Acceso restringido</p>
+                <h2 style="margin:0;font-size:1.5rem;text-align:center;color:#1a1a1a;">Gestión de Campeonato RFFM</h2>
+                <p style="color:#666666;margin:0;font-size:0.9rem;">Acceso restringido</p>
             </div>
             """,
             unsafe_allow_html=True,
@@ -172,9 +234,38 @@ if "view" in query_params and query_params["view"] == "tv":
 
     st.markdown("""
         <style>
-            [data-testid="stSidebar"] {display: none;}
-            .main {background-color: #0e1117; color: white;}
-            h1, h2, h3 {text-align: center; font-size: 4rem !important;}
+            [data-testid="stSidebar"] { display: none !important; }
+            /* Fondo rojo RFFM en todos los contenedores del modo TV */
+            .stApp,
+            [data-testid="stAppViewContainer"],
+            [data-testid="stMain"],
+            [data-testid="stMainBlockContainer"],
+            section.main, .main,
+            .block-container {
+                background-color: #8b0000 !important;
+                color: white !important;
+            }
+            /* Eliminar padding excesivo */
+            [data-testid="stMainBlockContainer"] {
+                padding-top: 2rem !important;
+                max-width: 100% !important;
+            }
+            /* Botones de navegación de grupos */
+            section[data-testid="stMain"] button[kind="secondary"] {
+                background-color: rgba(255,255,255,0.15) !important;
+                color: white !important;
+                border: 1px solid rgba(255,255,255,0.3) !important;
+            }
+            section[data-testid="stMain"] button[kind="secondary"]:hover {
+                background-color: rgba(255,255,255,0.25) !important;
+            }
+            section[data-testid="stMain"] button[kind="primary"] {
+                background-color: white !important;
+                color: #8b0000 !important;
+            }
+            /* Ocultar header de Streamlit */
+            [data-testid="stHeader"] { display: none !important; }
+            hr { border-color: rgba(255,255,255,0.2) !important; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -219,6 +310,9 @@ else:
     if "torneo_idx" not in st.session_state:
         st.session_state.torneo_idx = 0
 
+    # Clampear por si se borró el torneo seleccionado
+    st.session_state.torneo_idx = min(st.session_state.torneo_idx, len(nombres_torneos) - 1)
+
     torneo_sel = st.sidebar.selectbox(
         "Seleccionar torneo",
         nombres_torneos,
@@ -250,7 +344,7 @@ st.sidebar.markdown("---")
 # -------------------------------------------------------
 menu = st.sidebar.selectbox(
     "Menú",
-    ["Dashboard", "Configurador", "Cuadro Visual", "Sorteo", "Ajustes"],
+    ["Dashboard", "Configurador", "Cuadro Visual", "Partidos", "Agenda", "Sorteo", "Ajustes"],
 )
 
 # -------------------------------------------------------
@@ -272,14 +366,14 @@ if menu == "Ajustes":
     fases_torneo = supabase.table("fases").select("id").eq("torneo_id", tid).eq("orden", 1).execute().data
     url_tv = None
     if fases_torneo:
-        grupos_raw = supabase.table("grupos").select("nombre, orden_cuadro").eq("fase_id", fases_torneo[0]["id"]).execute().data
+        grupos_raw = supabase.table("grupos").select("id, nombre, orden_cuadro").eq("fase_id", fases_torneo[0]["id"]).execute().data
         grupos_tv_ord = sorted(
             grupos_raw,
             key=lambda g: (g["orden_cuadro"] if g.get("orden_cuadro") is not None else float("inf"),
                            int(m.group()) if (m := _re.search(r"\d+", g["nombre"])) else 0)
         )
         if grupos_tv_ord:
-            url_tv = f"/?view=tv&grupo={urllib.parse.quote(grupos_tv_ord[0]['nombre'])}&torneo={tid}"
+            url_tv = f"/?view=tv&grupo={grupos_tv_ord[0]['id']}&torneo={tid}"
 
     cards = [
         ("⚙️", "Bracket Gestión",   "Edita resultados y mueve equipos entre grupos", url_gestion),
@@ -491,6 +585,25 @@ if menu == "Configurador":
             fase_id = fase_actual["id"]
             es_fase_progresion = fase_actual["orden"] > 1
 
+            # ── Formato de partidos ──────────────────────────
+            num_vueltas_actual = fase_actual.get("num_vueltas") or 1
+            col_v, col_aviso = st.columns([2, 3])
+            vuelta_sel = col_v.radio(
+                "Formato de partidos",
+                options=[1, 2],
+                format_func=lambda x: "Ida (1 partido)" if x == 1 else "Ida y vuelta (2 partidos)",
+                index=num_vueltas_actual - 1,
+                horizontal=True,
+                key=f"num_vueltas_{fase_id}",
+            )
+            if vuelta_sel != num_vueltas_actual:
+                actualizar_num_vueltas(fase_id, vuelta_sel)
+                if hay_partidos_fase(fase_id):
+                    col_aviso.warning("⚠️ Formato cambiado. Ve a **Partidos** y regenera el calendario.")
+                st.rerun()
+            elif hay_partidos_fase(fase_id):
+                col_aviso.info("ℹ️ Esta fase ya tiene partidos generados. Si cambias equipos o grupos, ve a **Partidos** y regenera.")
+
             st.write("---")
             col1, col2, col3 = st.columns([2, 2, 1], vertical_alignment="bottom")
             with col1:
@@ -620,6 +733,9 @@ if menu == "Cuadro Visual":
         grupos = _sort_grupos(get_grupos_por_fase(fase_id))
         ids_grupos = [g["id"] for g in grupos]
 
+        if hay_partidos_fase(fase_id):
+            st.warning("⚠️ Esta fase ya tiene partidos generados. Si modificas equipos o progresiones, ve a **Partidos** y regenera el calendario.")
+
         todos_participantes = []
         if ids_grupos:
             try:
@@ -700,6 +816,247 @@ if menu == "Cuadro Visual":
                 fases=fases,
                 fase_actual=fase_actual,
                 supabase=supabase,
+            )
+
+# -------------------------------------------------------
+# PARTIDOS
+# -------------------------------------------------------
+if menu == "Partidos":
+    st.subheader("Calendario de Partidos")
+
+    fases = get_fases(torneo_id)
+    if not fases:
+        st.info("No hay fases configuradas.")
+        st.stop()
+
+    fase_sel = st.selectbox("Fase", [f["nombre"] for f in fases])
+    fase_actual = next(f for f in fases if f["nombre"] == fase_sel)
+    fase_id     = fase_actual["id"]
+    num_vueltas = fase_actual.get("num_vueltas") or 1
+
+    tiene_partidos = hay_partidos_fase(fase_id)
+
+    # ── Generar / Regenerar / Sincronizar ───────────────
+    col_gen, col_sync, col_filtro = st.columns([2, 2, 3])
+    with col_gen:
+        lbl = "🔄 Regenerar partidos" if tiene_partidos else "⚡ Generar partidos"
+        if st.button(lbl, type="primary", use_container_width=True):
+            if tiene_partidos:
+                st.session_state[f"confirm_regen_{fase_id}"] = True
+            else:
+                try:
+                    with st.spinner("Generando partidos..."):
+                        n = generar_partidos_fase(fase_id, num_vueltas)
+                    if n == 0:
+                        st.warning("No se generaron partidos. Revisa que los grupos tienen al menos 2 plazas (campo 'Equipos por grupo').")
+                    else:
+                        st.success(f"✅ {n} partidos generados.")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Error al generar partidos: {e}")
+
+    with col_sync:
+        if tiene_partidos:
+            if st.button("🔗 Sincronizar equipos", use_container_width=True,
+                         help="Actualiza los partidos con los equipos que ya han ocupado su plaza en el sorteo"):
+                try:
+                    with st.spinner("Sincronizando..."):
+                        n = sincronizar_equipos_partidos_fase(fase_id)
+                    st.success(f"✅ {n} partidos actualizados con equipos reales.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al sincronizar: {e}")
+
+    filtro_campo = col_filtro.text_input(
+        "Filtrar por campo", placeholder="Escribe el nombre del campo...",
+        label_visibility="collapsed",
+    )
+
+    if st.session_state.get(f"confirm_regen_{fase_id}"):
+        st.warning(
+            "⚠️ Ya existen partidos para esta fase. Se borrarán todos y se regenerarán "
+            "con los equipos y el formato actuales."
+        )
+        c1, c2 = st.columns(2)
+        if c1.button("Sí, regenerar", type="primary", key=f"si_regen_{fase_id}"):
+            try:
+                with st.spinner("Regenerando..."):
+                    eliminar_partidos_fase(fase_id)
+                    n = generar_partidos_fase(fase_id, num_vueltas)
+                st.session_state.pop(f"confirm_regen_{fase_id}", None)
+                if n == 0:
+                    st.warning("Se borraron los partidos anteriores, pero no se generaron nuevos. Revisa que los grupos tienen al menos 2 plazas configuradas.")
+                else:
+                    st.success(f"✅ {n} partidos generados.")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Error al regenerar partidos: {e}")
+        c2.button(
+            "Cancelar", key=f"no_regen_{fase_id}",
+            on_click=st.session_state.pop,
+            args=[f"confirm_regen_{fase_id}", None],
+        )
+
+    st.write("---")
+
+    # ── Listado editable por grupo ───────────────────────
+    partidos_por_grupo = get_partidos_fase(fase_id)
+
+    if not partidos_por_grupo:
+        st.info("No hay partidos generados para esta fase. Usa el botón de arriba para crearlos.")
+    else:
+        grupos_ordenados = sorted(
+            partidos_por_grupo.items(),
+            key=lambda kv: (kv[1]["orden_cuadro"] is None, kv[1]["orden_cuadro"] or 0, kv[1]["nombre"]),
+        )
+        for grupo_id, info in grupos_ordenados:
+            partidos = info["partidos"]
+            if filtro_campo.strip():
+                partidos = [
+                    p for p in partidos
+                    if filtro_campo.strip().lower() in (p.get("campo") or "").lower()
+                ]
+                if not partidos:
+                    continue
+
+            with st.expander(f"**{info['nombre']}** — {len(partidos)} partido(s)", expanded=True):
+                df_vista = pd.DataFrame([
+                    {
+                        "Jornada":   p["jornada"],
+                        "Local":     p["nombre_local"],
+                        "Visitante": p["nombre_visitante"],
+                        "Fecha":     pd.to_datetime(p["fecha"]).date() if p.get("fecha") else None,
+                        "Hora":      p.get("hora") or "",
+                        "Campo":     p.get("campo") or "",
+                        "Goles L":   p.get("resultado_local"),
+                        "Goles V":   p.get("resultado_visitante"),
+                    }
+                    for p in partidos
+                ])
+
+                edited = st.data_editor(
+                    df_vista,
+                    column_config={
+                        "Jornada":   st.column_config.NumberColumn(disabled=True, width="small"),
+                        "Local":     st.column_config.TextColumn(disabled=True),
+                        "Visitante": st.column_config.TextColumn(disabled=True),
+                        "Fecha":     st.column_config.DateColumn(width="medium", format="DD/MM/YYYY"),
+                        "Hora":      st.column_config.TextColumn(width="small", help="Formato HH:MM"),
+                        "Campo":     st.column_config.TextColumn(width="medium"),
+                        "Goles L":   st.column_config.NumberColumn(min_value=0, step=1, width="small"),
+                        "Goles V":   st.column_config.NumberColumn(min_value=0, step=1, width="small"),
+                    },
+                    hide_index=True,
+                    use_container_width=True,
+                    key=f"editor_partidos_{grupo_id}",
+                )
+
+                if st.button("💾 Guardar cambios", key=f"guardar_{grupo_id}", type="primary"):
+                    updates = []
+                    for i, row in edited.iterrows():
+                        goles_l = row["Goles L"]
+                        goles_v = row["Goles V"]
+                        fecha   = row["Fecha"]
+                        updates.append({
+                            "id":                  partidos[i]["id"],
+                            "fecha":               str(fecha) if pd.notna(fecha) and fecha is not None else None,
+                            "hora":                row["Hora"] or None,
+                            "campo":               row["Campo"] or None,
+                            "resultado_local":     int(goles_l) if pd.notna(goles_l) and goles_l != "" else None,
+                            "resultado_visitante": int(goles_v) if pd.notna(goles_v) and goles_v != "" else None,
+                        })
+                    actualizar_partidos_batch(updates)
+                    st.success("Guardado.")
+                    st.rerun()
+
+# -------------------------------------------------------
+# AGENDA
+# -------------------------------------------------------
+if menu == "Agenda":
+    import datetime
+
+    st.subheader("Agenda de Partidos")
+
+    # ── Carga previa de opciones de filtro ───────────────
+    todos_torneos  = get_torneos()
+    todos_campos   = get_campos_distintos()
+
+    # ── Filtros ──────────────────────────────────────────
+    hoy = datetime.date.today()
+    fc1, fc2, fc3 = st.columns([1, 2, 2])
+    fecha_sel = fc1.date_input("Fecha", value=hoy, format="DD/MM/YYYY")
+
+    campos_sel = fc2.multiselect(
+        "Campo(s)",
+        options=todos_campos,
+        placeholder="Todos los campos",
+    )
+    torneos_sel = fc3.multiselect(
+        "Torneo(s)",
+        options=[t["nombre"] for t in todos_torneos],
+        placeholder="Todos los torneos",
+    )
+
+    torneo_ids_filtro = (
+        [t["id"] for t in todos_torneos if t["nombre"] in torneos_sel]
+        if torneos_sel else None
+    )
+    campos_filtro = campos_sel if campos_sel else None
+
+    # ── Consulta ─────────────────────────────────────────
+    with st.spinner("Cargando partidos..."):
+        partidos = get_partidos_agenda(
+            fecha_desde=fecha_sel,
+            fecha_hasta=fecha_sel,
+            campos=campos_filtro,
+            torneo_ids=torneo_ids_filtro,
+        )
+
+    DIAS_ES   = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    MESES_ES  = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+                 "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+    titulo_dia = f"{DIAS_ES[fecha_sel.weekday()]} {fecha_sel.day} de {MESES_ES[fecha_sel.month - 1]} de {fecha_sel.year}"
+    st.markdown(f"### {titulo_dia}")
+    st.markdown("---")
+
+    if not partidos:
+        st.info("No hay partidos programados para este día con los filtros seleccionados.")
+        st.stop()
+
+    # ── Agrupar por campo y listar ordenado por hora ──────
+    from collections import defaultdict
+    por_campo = defaultdict(list)
+    for p in sorted(partidos, key=lambda x: x.get("hora") or ""):
+        por_campo[p.get("campo") or "Sin campo"].append(p)
+
+    for campo_nombre, ps in sorted(por_campo.items()):
+        st.markdown(f"#### 📍 {campo_nombre}")
+        cols = st.columns(min(len(ps), 4))
+        for i, p in enumerate(ps):
+            hora   = p.get("hora") or "–"
+            local  = p["nombre_local"]
+            visit  = p["nombre_visitante"]
+            torneo = p["nombre_torneo"]
+            grupo  = p["nombre_grupo"]
+            res_l  = p.get("resultado_local")
+            res_v  = p.get("resultado_visitante")
+
+            if res_l is not None and res_v is not None:
+                marcador = f"{res_l} – {res_v}"
+                marcador_html = f'<span style="color:#cc0000;font-weight:700;font-size:1rem;">{marcador}</span>'
+            else:
+                marcador_html = '<span style="color:#999;font-size:0.85rem;">vs</span>'
+
+            cols[i % 4].markdown(
+                f"""<div style="background:#ffffff;border:1px solid #d0d0d0;border-left:4px solid #cc0000;
+                border-radius:4px;padding:10px 12px;margin-bottom:8px;font-size:0.83rem;line-height:1.6;">
+                <div style="font-weight:700;font-size:0.95rem;color:#1a1a1a;">🕐 {hora}</div>
+                <div style="margin:4px 0;">{local}</div>
+                <div style="margin:2px 0;">{marcador_html}</div>
+                <div style="margin:0 0 4px 0;">{visit}</div>
+                <div style="font-size:0.72rem;color:#aaaaaa;">{torneo} · {grupo}</div>
+                </div>""",
+                unsafe_allow_html=True,
             )
 
 # -------------------------------------------------------

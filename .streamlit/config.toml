@@ -1,10 +1,61 @@
 [theme]
-base                    = "dark"
-primaryColor            = "#ffffff"
-backgroundColor         = "#8b0000"
-secondaryBackgroundColor = "#6b0000"
-textColor               = "#ffffff"
-font                    = "sans-serif"
+base                      = "light"
+
+# ── Paleta principal ─────────────────────────────────────────────────────────
+primaryColor              = "#cc0000"
+backgroundColor           = "#f0f2f5"
+secondaryBackgroundColor  = "#ffffff"
+textColor                 = "#1a1a1a"
+
+# ── Tipografía ───────────────────────────────────────────────────────────────
+font                      = "sans-serif"
+headingFont               = "sans-serif"
+baseFontSize              = 14
+baseFontWeight            = 400
+
+# ── Geometría / bordes ───────────────────────────────────────────────────────
+baseRadius                = "small"
+buttonRadius              = "small"
+borderColor               = "#d0d0d0"
+showWidgetBorder          = true
+showSidebarBorder         = true
+
+# ── Links ────────────────────────────────────────────────────────────────────
+linkColor                 = "#cc0000"
+linkUnderline             = false
+
+# ── Colores semánticos ───────────────────────────────────────────────────────
+redColor                  = "#cc0000"
+greenColor                = "#1a8a3e"
+blueColor                 = "#0057a8"
+orangeColor               = "#e07800"
+yellowColor               = "#c9a000"
+
+# ── DataFrames ───────────────────────────────────────────────────────────────
+dataframeBorderColor              = "#d0d0d0"
+dataframeHeaderBackgroundColor    = "#cc0000"
+
+# ── Gráficos ─────────────────────────────────────────────────────────────────
+chartCategoricalColors    = [
+    "#cc0000", "#3a3a3a", "#999999",
+    "#e64d4d", "#800000", "#cccccc",
+    "#ff3333", "#666666"
+]
+chartSequentialColors     = [
+    "#ffe6e6", "#ffb3b3", "#ff8080", "#ff4d4d", "#ff1a1a",
+    "#e60000", "#b30000", "#800000", "#4d0000", "#1a0000"
+]
+chartDivergingColors      = [
+    "#0057a8", "#4d8fcc", "#99c0e6", "#cce0f5", "#f0f0f0",
+    "#f5d0d0", "#e69999", "#d94d4d", "#cc0000", "#800000"
+]
+
+# ── Sidebar rojo RFFM ────────────────────────────────────────────────────────
+[theme.sidebar]
+backgroundColor           = "#cc0000"
+secondaryBackgroundColor  = "#b30000"
+borderColor               = "#a00000"
+textColor                 = "#ffffff"
 
 [server]
 headless = true

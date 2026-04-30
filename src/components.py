@@ -24,36 +24,29 @@ LOGO_TV_URL = "https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea619
 # VISTA TV
 # -------------------------------------------------------
 
-def mostrar_grupo_tv(nombre_grupo_url, torneo_id=None):
+def mostrar_grupo_tv(grupo_id_param, torneo_id=None):
     """Vista para pantalla de TV: fichas blancas sobre fondo rojo."""
     supabase = get_supabase()
 
     try:
-        # ── Datos del grupo (se cargan una vez por navegación) ──────────────
-        ids_fases_torneo = None
-        if torneo_id:
-            fases_res = supabase.table("fases").select("id").eq("torneo_id", torneo_id).execute()
-            ids_fases_torneo = [f["id"] for f in fases_res.data]
-
-        q = (
+        # ── Datos del grupo — búsqueda directa por ID ───────────────────────
+        res_grupo = (
             supabase.table("grupos")
             .select("id, nombre, tipo_grupo, fase_id, notas")
-            .eq("nombre", nombre_grupo_url)
+            .eq("id", grupo_id_param)
+            .limit(1)
+            .execute()
         )
-        if ids_fases_torneo:
-            q = q.in_("fase_id", ids_fases_torneo)
-
-        res_grupo = q.execute()
         if not res_grupo.data:
-            st.error(f"Grupo '{nombre_grupo_url}' no encontrado.")
+            st.error(f"Grupo no encontrado (id: {grupo_id_param}).")
             return
 
-        datos_grupo = res_grupo.data[0]
-        grupo_id    = datos_grupo["id"]
-        fase_id     = datos_grupo["fase_id"]
+        datos_grupo    = res_grupo.data[0]
+        grupo_id       = datos_grupo["id"]
+        fase_id        = datos_grupo["fase_id"]
         nombre_display = datos_grupo["nombre"]
-        tipo_grupo  = datos_grupo["tipo_grupo"]
-        notas_grupo = datos_grupo.get("notas") or ""
+        tipo_grupo     = datos_grupo["tipo_grupo"]
+        notas_grupo    = datos_grupo.get("notas") or ""
 
         # ── Cabecera estática ────────────────────────────────────────────────
         notas_tv_html = (
@@ -81,52 +74,72 @@ def mostrar_grupo_tv(nombre_grupo_url, torneo_id=None):
         def _participantes():
             res_part = (
                 supabase.table("participantes_grupo")
-                .select("equipos(nombre, escudo_url)")
+                .select("equipo_id")
                 .eq("grupo_id", grupo_id)
                 .execute()
             )
-            participantes = res_part.data or []
+            participantes_raw = res_part.data or []
+
+            eq_ids = [p["equipo_id"] for p in participantes_raw if p.get("equipo_id")]
+
+            eq_map = {}
+            if eq_ids:
+                res_eq = (
+                    supabase.table("equipos")
+                    .select("id, nombre, escudo_url")
+                    .in_("id", eq_ids)
+                    .execute()
+                )
+                eq_map = {e["id"]: e for e in (res_eq.data or [])}
+
+            participantes = []
+            for p in participantes_raw:
+                eq = eq_map.get(p.get("equipo_id"))
+                participantes.append({"equipo_id": p.get("equipo_id"), "equipo": eq})
+
+            # Equipos asignados primero, huecos vacíos al final
+            participantes = sorted(participantes, key=lambda p: (0 if p.get("equipo") else 1))
+            participantes = participantes[:tipo_grupo]
 
             for i in range(tipo_grupo):
-                if i < len(participantes) and participantes[i].get("equipos"):
-                    nombre_equipo = participantes[i]["equipos"]["nombre"]
-                    escudo = participantes[i]["equipos"]["escudo_url"] or ""
+                if i < len(participantes) and participantes[i].get("equipo"):
+                    nombre_equipo = participantes[i]["equipo"]["nombre"]
+                    escudo = participantes[i]["equipo"]["escudo_url"] or ""
                     img = (
-                        f'<img src="{escudo}" style="height:70px;width:70px;'
-                        f'object-fit:contain;margin-right:30px;">'
+                        f'<img src="{escudo}" style="height:80px;width:80px;'
+                        f'object-fit:contain;margin-right:32px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.15));">'
                         if escudo else ""
                     )
                     st.markdown(f"""
-                        <div style="background-color:white;padding:15px 40px;
-                                    border-radius:15px;margin-bottom:15px;
+                        <div style="background:white;padding:18px 48px;
+                                    border-radius:12px;margin-bottom:12px;
                                     display:flex;align-items:center;
-                                    justify-content: center;
-                                    box-shadow:0px 4px 15px rgba(0,0,0,0.2);
-                                    border:1px solid #eee;">
+                                    justify-content:center;
+                                    box-shadow:0 6px 24px rgba(0,0,0,0.35);">
                             {img}
-                            <span style="font-size:3.5rem;font-weight:900;color:#1a1c24;
-                                         text-transform:uppercase;">
+                            <span style="font-size:3.5rem;font-weight:900;color:#1a0000;
+                                         text-transform:uppercase;letter-spacing:0.02em;">
                                 {nombre_equipo}
                             </span>
                         </div>
                     """, unsafe_allow_html=True)
                 else:
                     st.markdown("""
-                        <div style="background-color:rgba(255,255,255,0.1);padding:20px;
-                                    border:3px dashed rgba(255,255,255,0.4);
-                                    border-radius:15px;margin-bottom:15px;text-align:center;">
-                            <span style="font-size:2.2rem;color:rgba(255,255,255,0.6);
-                                         font-style:italic;font-weight:bold;">
-                                ESPERANDO SORTEO...
+                        <div style="background:rgba(0,0,0,0.20);padding:22px 48px;
+                                    border:2px dashed rgba(255,255,255,0.35);
+                                    border-radius:12px;margin-bottom:12px;
+                                    display:flex;align-items:center;justify-content:center;">
+                            <span style="font-size:2rem;color:rgba(255,255,255,0.45);
+                                         font-style:italic;font-weight:700;letter-spacing:0.08em;">
+                                ESPERANDO SORTEO…
                             </span>
                         </div>
                     """, unsafe_allow_html=True)
 
         _participantes()
 
-        # ── Navegador de grupos — fuera del fragment, rerun completo al clic ─
+        # ── Navegador de grupos (solo fase orden=1) ─────────────────────────
         st.write("---")
-        fase1_id = fase_id
         if torneo_id:
             res_fase1 = (
                 supabase.table("fases")
@@ -136,45 +149,47 @@ def mostrar_grupo_tv(nombre_grupo_url, torneo_id=None):
                 .limit(1)
                 .execute()
             )
-            if res_fase1.data:
-                fase1_id = res_fase1.data[0]["id"]
+            fase1_id = res_fase1.data[0]["id"] if res_fase1.data else None
+        else:
+            fase1_id = fase_id
 
-        res_hermanos = (
-            supabase.table("grupos")
-            .select("nombre, orden_cuadro")
-            .eq("fase_id", fase1_id)
-            .execute()
-        )
-
-        if res_hermanos.data:
-            def extraer_num(n):
-                nums = re.findall(r"\d+", n)
-                return int(nums[0]) if nums else 0
-
-            grupos_nav = sorted(
-                res_hermanos.data,
-                key=lambda g: (
-                    g["orden_cuadro"] if g.get("orden_cuadro") is not None else float("inf"),
-                    extraer_num(g["nombre"]),
-                ),
+        if fase1_id:
+            res_hermanos = (
+                supabase.table("grupos")
+                .select("id, nombre, orden_cuadro")
+                .eq("fase_id", fase1_id)
+                .execute()
             )
-            cols_nav = st.columns(len(grupos_nav))
-            for idx, g_nav in enumerate(grupos_nav):
-                nombre_btn = g_nav["nombre"]
-                palabras = re.findall(r"[A-Za-zÀ-ÿ]+", nombre_btn)
-                primera = palabras[0][0].upper() if palabras else "G"
-                nums = re.findall(r"\d+", nombre_btn)
-                label = f"{primera}{nums[-1]}" if nums else primera
-                es_actual = nombre_btn == nombre_grupo_url
 
-                if cols_nav[idx].button(
-                    label,
-                    key=f"btn_nav_tv_{nombre_btn}",
-                    use_container_width=True,
-                    type="primary" if es_actual else "secondary",
-                ):
-                    st.query_params["grupo"] = nombre_btn
-                    st.rerun()
+            if res_hermanos.data:
+                def extraer_num(n):
+                    nums = re.findall(r"\d+", n)
+                    return int(nums[0]) if nums else 0
+
+                grupos_nav = sorted(
+                    res_hermanos.data,
+                    key=lambda g: (
+                        g["orden_cuadro"] if g.get("orden_cuadro") is not None else float("inf"),
+                        extraer_num(g["nombre"]),
+                    ),
+                )
+                cols_nav = st.columns(len(grupos_nav))
+                for idx, g_nav in enumerate(grupos_nav):
+                    nombre_btn = g_nav["nombre"]
+                    palabras = re.findall(r"[A-Za-zÀ-ÿ]+", nombre_btn)
+                    primera = palabras[0][0].upper() if palabras else "G"
+                    nums = re.findall(r"\d+", nombre_btn)
+                    label = f"{primera}{nums[-1]}" if nums else primera
+                    es_actual = g_nav["id"] == grupo_id
+
+                    if cols_nav[idx].button(
+                        label,
+                        key=f"btn_nav_tv_{g_nav['id']}",
+                        use_container_width=True,
+                        type="primary" if es_actual else "secondary",
+                    ):
+                        st.query_params["grupo"] = g_nav["id"]
+                        st.rerun()
 
     except Exception as e:
         st.error(f"Error en la visualización: {e}")
