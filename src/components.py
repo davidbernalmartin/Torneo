@@ -376,7 +376,7 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
                                         {"siguiente_grupo_id": None}
                                     ).eq("id", g_ant["id"]).execute()
                         else:
-                            supabase.table("participantes_grupo").insert(payload).execute()
+                            supabase.table("participantes_grupo").insert({**payload, "puntos": 0, "goles": 0}).execute()
 
                         # Asignar siguiente_grupo_id al grupo origen
                         if seleccion != CUALQUIER:
@@ -391,20 +391,6 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
                                     st.warning(f"No se pudo actualizar siguiente_grupo_id para {seleccion}")
                     except Exception as e:
                         st.error(f"Error al guardar plaza {i+1}: {e}")
-
-                # Reparación: si la plaza existe con referencia concreta pero
-                # el grupo origen no tiene siguiente_grupo_id apuntando aquí, corregirlo
-                elif seleccion != CUALQUIER and plaza:
-                    g_orig_match = next(
-                        (g for g in grupos_origen if g["nombre"] == seleccion), None
-                    )
-                    if g_orig_match and g_orig_match.get("siguiente_grupo_id") != g_id:
-                        try:
-                            supabase.table("grupos").update(
-                                {"siguiente_grupo_id": g_id}
-                            ).eq("id", g_orig_match["id"]).execute()
-                        except Exception:
-                            pass
 
             st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
 
@@ -688,6 +674,8 @@ def renderizar_tarjeta_grupo_minimalista(
                             "grupo_id": grupo_id,
                             "equipo_id": e_match["id"],
                             "referencia_origen": "Sorteo",
+                            "puntos": 0,
+                            "goles":  0,
                         }).execute()
                         st.rerun()
                 except Exception as e:

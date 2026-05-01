@@ -43,17 +43,38 @@ from src.components import (
 # ── QR helper ──────────────────────────────────────────
 def generar_qr(url: str):
     import qrcode
+    from PIL import Image
+    import urllib.request as _urlreq
+
     qr = qrcode.QRCode(
         version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_M,
-        box_size=8,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,  # H=30% tolerancia para incrustar logo
+        box_size=10,
         border=2,
     )
     qr.add_data(url)
     qr.make(fit=True)
-    img = qr.make_image(fill_color="#1a0000", back_color="white")
+    img = qr.make_image(fill_color="#7b0000", back_color="white").convert("RGBA")
+
+    # Incrustar el escudo RFFM centrado
+    try:
+        with _urlreq.urlopen(LOGO_RFFM_URL, timeout=5) as resp:
+            logo = Image.open(io.BytesIO(resp.read())).convert("RGBA")
+        qr_w, qr_h = img.size
+        logo_size = qr_w // 4  # ocupa el 25% del ancho del QR
+        logo = logo.resize((logo_size, logo_size), Image.LANCZOS)
+        # Fondo blanco con margen alrededor del logo
+        pad = 6
+        bg = Image.new("RGBA", (logo_size + pad * 2, logo_size + pad * 2), (255, 255, 255, 255))
+        bg_pos = ((qr_w - bg.width) // 2, (qr_h - bg.height) // 2)
+        img.paste(bg, bg_pos)
+        logo_pos = ((qr_w - logo_size) // 2, (qr_h - logo_size) // 2)
+        img.paste(logo, logo_pos, logo)
+    except Exception:
+        pass  # si falla la descarga el QR sigue siendo válido
+
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
+    img.convert("RGB").save(buf, format="PNG")
     buf.seek(0)
     return buf
 
@@ -297,16 +318,9 @@ if st.sidebar.button("🔒 Cerrar sesión", use_container_width=True):
     st.rerun()
 
 # QR de acceso al menú de cuadros (URL global, no ligada a ningún torneo)
-_URL_CUADRO = "https://cuadro-rffm-consulta-029991936871-eu-west-3-an.s3.eu-west-3.amazonaws.com/bracket-view.html"
+_URL_CUADRO = "https://bit.ly/cuadro-torneo-rffm"
 with st.sidebar.expander("QR Cuadro Visual"):
-    import qrcode
-    _qr = qrcode.QRCode(box_size=6, border=2)
-    _qr.add_data(_URL_CUADRO)
-    _qr.make(fit=True)
-    _img = _qr.make_image(fill_color="#7b0000", back_color="white")
-    _buf = io.BytesIO()
-    _img.save(_buf, format="PNG")
-    _buf.seek(0)
+    _buf = generar_qr(_URL_CUADRO)
     st.image(_buf, use_container_width=True)
     _buf.seek(0)
     st.download_button(
@@ -367,6 +381,11 @@ menu = st.sidebar.selectbox(
     "Menú",
     ["Dashboard", "Configurador", "Cuadro Visual", "Partidos", "Agenda", "Sorteo", "Ajustes"],
 )
+
+# Guard: todas las secciones requieren un torneo seleccionado
+if not torneo_actual:
+    st.warning("Selecciona o crea un torneo en el sidebar para continuar.")
+    st.stop()
 
 # -------------------------------------------------------
 # AJUSTES
@@ -471,13 +490,6 @@ if menu == "Ajustes":
                 on_click=st.session_state.pop,
                 args=[f"confirm_del_{tid}", None],
             )
-
-# Guard: todas las secciones requieren un torneo seleccionado
-if not torneo_actual:
-    st.warning("Selecciona o crea un torneo en el sidebar para continuar.")
-    st.stop()
-    torneo_id = torneo_actual["id"]
-    st.caption(f"Torneo activo: **{torneo_actual['nombre']}**")
 
 # -------------------------------------------------------
 # MODAL CARGA DE EQUIPOS

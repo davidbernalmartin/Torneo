@@ -30,6 +30,7 @@ def crear_torneo(nombre, descripcion=""):
 def eliminar_torneo(torneo_id):
     supabase = get_supabase()
     supabase.table("torneos").delete().eq("id", torneo_id).execute()
+    st.cache_data.clear()
 
 
 # -------------------------------------------------------
@@ -313,6 +314,8 @@ def generar_partidos_fase(fase_id, num_vueltas):
                         "equipo_id": None,
                         "posicion":  pos,
                         "label":     label,
+                        "puntos":    0,
+                        "goles":     0,
                     }).execute()
                 else:
                     # Actualizar label por si el nombre del grupo cambió

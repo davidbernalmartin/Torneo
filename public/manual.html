@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual de Usuario — Gestor de Torneos RFFM</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red:       #cc0000;
+  --red-dark:  #a00000;
+  --red-light: #fdf2f2;
+  --bg:        #f4f5f7;
+  --white:     #ffffff;
+  --text:      #1a1a1a;
+  --muted:     #666666;
+  --border:    #e0e0e0;
+  --sidebar:   #7b0000;
+  --sidebar2:  #5a0000;
+  --shadow:    0 2px 12px rgba(0,0,0,0.08);
+  --font-d:    'Barlow Condensed', sans-serif;
+  --font-b:    'Barlow', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--font-b); font-size: 15px; line-height: 1.7; }
+
+/* ── Portada ── */
+.cover {
+  background: linear-gradient(135deg, var(--sidebar2) 0%, var(--red) 60%, #e05050 100%);
+  color: white;
+  padding: 80px 60px 70px;
+  display: flex; align-items: center; gap: 48px;
+  min-height: 340px;
+}
+.cover-logo { width: 120px; height: 120px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 4px 16px rgba(0,0,0,0.3)); }
+.cover-text h1 { font-family: var(--font-d); font-size: 3.2rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.1; }
+.cover-text .sub { font-family: var(--font-d); font-size: 1.4rem; font-weight: 400; opacity: 0.8; margin-top: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+.cover-text .ver { margin-top: 20px; font-size: 0.85rem; opacity: 0.55; letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* ── Layout ── */
+.page { max-width: 1060px; margin: 0 auto; padding: 0 32px 80px; }
+
+/* ── Índice ── */
+.toc { background: white; border-radius: 12px; padding: 36px 40px; margin: 40px 0 0; box-shadow: var(--shadow); }
+.toc h2 { font-family: var(--font-d); font-size: 1.6rem; font-weight: 800; text-transform: uppercase; color: var(--red); margin-bottom: 20px; border-bottom: 2px solid var(--red); padding-bottom: 10px; }
+.toc ol { list-style: none; counter-reset: toc; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 32px; }
+.toc ol li { counter-increment: toc; display: flex; align-items: baseline; gap: 8px; padding: 4px 0; }
+.toc ol li::before { content: counter(toc) "."; font-family: var(--font-d); font-weight: 700; color: var(--red); font-size: 1.1rem; min-width: 24px; }
+.toc ol li a { color: var(--text); text-decoration: none; font-weight: 500; }
+.toc ol li a:hover { color: var(--red); }
+
+/* ── Secciones ── */
+.section { margin-top: 56px; }
+.section-header {
+  display: flex; align-items: center; gap: 16px;
+  background: linear-gradient(90deg, var(--sidebar2), var(--red));
+  color: white; padding: 18px 28px; border-radius: 10px 10px 0 0;
+}
+.section-header .sec-icon { font-size: 2rem; }
+.section-header h2 { font-family: var(--font-d); font-size: 1.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+.section-body { background: white; border-radius: 0 0 10px 10px; padding: 32px 36px; box-shadow: var(--shadow); }
+
+/* ── Subsecciones ── */
+.subsec { margin-top: 32px; }
+.subsec:first-child { margin-top: 0; }
+.subsec h3 { font-family: var(--font-d); font-size: 1.25rem; font-weight: 700; text-transform: uppercase; color: var(--red); letter-spacing: 0.04em; margin-bottom: 12px; padding-left: 12px; border-left: 4px solid var(--red); }
+.subsec p { margin-bottom: 10px; }
+.subsec ul, .subsec ol { padding-left: 22px; margin: 8px 0 12px; }
+.subsec li { margin-bottom: 5px; }
+
+/* ── Mockups de pantalla ── */
+.mockup {
+  border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.10);
+  margin: 20px 0 28px;
+  font-size: 13px;
+}
+.mockup-bar {
+  background: #2c2c2c; padding: 8px 14px;
+  display: flex; align-items: center; gap: 7px;
+}
+.mockup-bar .dot { width: 11px; height: 11px; border-radius: 50%; }
+.mockup-bar .dot.r { background: #ff5f57; }
+.mockup-bar .dot.y { background: #febc2e; }
+.mockup-bar .dot.g { background: #28c840; }
+.mockup-bar .url { flex: 1; background: #3c3c3c; color: #ccc; border-radius: 4px; padding: 3px 10px; font-size: 11px; text-align: center; margin: 0 12px; font-family: monospace; }
+.mockup-inner { display: flex; min-height: 320px; }
+
+/* ── Sidebar mockup ── */
+.mock-sidebar {
+  width: 230px; flex-shrink: 0;
+  background: linear-gradient(180deg, var(--sidebar2) 0%, var(--sidebar) 100%);
+  padding: 16px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+  color: white; font-size: 12px;
+}
+.mock-sidebar .sb-logo { display: flex; align-items: center; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.15); margin-bottom: 6px; }
+.mock-sidebar .sb-logo img { width: 28px; height: 28px; }
+.mock-sidebar .sb-logo span { font-family: var(--font-d); font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; }
+.mock-sidebar .sb-btn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 5px; padding: 7px 10px; font-size: 11.5px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.mock-sidebar .sb-btn.active { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); font-weight: 600; }
+.mock-sidebar .sb-btn.danger { background: rgba(255,80,80,0.15); border-color: rgba(255,80,80,0.3); }
+.mock-sidebar .sb-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.45); margin: 8px 0 2px 4px; }
+.mock-sidebar .sb-select { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; padding: 6px 10px; font-size: 11.5px; color: white; width: 100%; }
+.mock-sidebar .sb-sep { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 6px 0; }
+
+/* ── Main content mockup ── */
+.mock-main { flex: 1; background: #f4f5f7; padding: 20px 22px; overflow: hidden; }
+.mock-main .mock-title { font-family: var(--font-d); font-size: 20px; font-weight: 800; text-transform: uppercase; color: var(--text); margin-bottom: 16px; }
+.mock-metric-row { display: flex; gap: 12px; margin-bottom: 14px; }
+.mock-metric { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; flex: 1; }
+.mock-metric .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.mock-metric .value { font-family: var(--font-d); font-size: 26px; font-weight: 800; color: var(--text); line-height: 1; margin-top: 4px; }
+.mock-card { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+.mock-card .esc { width: 28px; height: 28px; background: #eee; border-radius: 4px; flex-shrink: 0; display:flex; align-items:center; justify-content: center; font-size: 16px; }
+.mock-card .nm { font-weight: 600; font-size: 13px; }
+.mock-card .tag { margin-left: auto; background: #eef; font-size: 10px; padding: 2px 7px; border-radius: 3px; color: #448; }
+.mock-btn { background: var(--red); color: white; border: none; border-radius: 5px; padding: 8px 16px; font-size: 12px; font-family: var(--font-d); font-weight: 700; text-transform: uppercase; cursor: pointer; }
+.mock-btn.sec { background: white; color: var(--red); border: 1px solid var(--red); }
+.mock-input { border: 1px solid var(--border); border-radius: 5px; padding: 7px 10px; font-size: 12px; width: 100%; background: white; color: var(--text); }
+.mock-sep { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+.mock-info { background: #e8f4fd; border: 1px solid #b8d9f0; border-radius: 6px; padding: 9px 13px; font-size: 12px; color: #1a5070; margin-bottom: 10px; }
+.mock-warn { background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 9px 13px; font-size: 12px; color: #5d4000; margin-bottom: 10px; }
+.mock-success { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 6px; padding: 9px 13px; font-size: 12px; color: #1b5e20; margin-bottom: 10px; }
+
+/* ── Grupo mockup ── */
+.mock-grupo { background: white; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+.mock-grupo-header { background: var(--red); color: white; padding: 8px 12px; font-family: var(--font-d); font-weight: 700; font-size: 13px; text-transform: uppercase; }
+.mock-grupo-row { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+.mock-grupo-row:last-child { border-bottom: none; }
+.mock-grupo-row .slot-dot { width: 8px; height: 8px; border-radius: 50%; background: #ddd; flex-shrink: 0; }
+.mock-grupo-row .slot-dot.filled { background: var(--red); }
+
+/* ── Partido mockup ── */
+.mock-partido { background: white; border: 1px solid var(--border); border-left: 4px solid var(--red); border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; font-size: 12px; }
+.mock-partido .hora { font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.mock-partido .equipo { color: var(--muted); }
+.mock-partido .vs { color: var(--red); font-weight: 700; }
+
+/* ── Bracket mockup ── */
+.mock-bracket-header { background: var(--red); color: white; padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
+.mock-bracket-header img { width: 32px; height: 32px; }
+.mock-bracket-header h3 { font-family: var(--font-d); font-size: 18px; font-weight: 800; text-transform: uppercase; }
+.mock-bracket-body { background: #f0f2f5; padding: 20px; display: flex; gap: 16px; flex-wrap: wrap; }
+.mock-match { background: white; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; width: 160px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+.mock-match-h { background: var(--red); padding: 5px 10px; font-family: var(--font-d); font-size: 10px; font-weight: 700; color: white; text-transform: uppercase; letter-spacing: 0.06em; }
+.mock-match-slot { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; font-size: 11px; font-family: var(--font-d); font-weight: 700; color: #1a1a1a; text-transform: uppercase; display: flex; justify-content: space-between; }
+.mock-match-slot:last-child { border-bottom: none; }
+.mock-match-slot.win { background: #f87a7a; }
+.mock-match-slot .sc { color: var(--red-dark); font-weight: 800; }
+
+/* ── TV mockup ── */
+.mock-tv { background: #1a0000; color: white; padding: 20px; border-radius: 8px; }
+.mock-tv-title { font-family: var(--font-d); font-size: 18px; font-weight: 800; text-transform: uppercase; color: rgba(255,255,255,0.9); margin-bottom: 16px; text-align: center; letter-spacing: 0.1em; }
+.mock-tv-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.mock-tv-slot { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.mock-tv-slot .tv-esc { width: 36px; height: 36px; background: rgba(255,255,255,0.15); border-radius: 50%; }
+.mock-tv-slot .tv-name { font-family: var(--font-d); font-size: 12px; font-weight: 700; text-transform: uppercase; color: white; text-align: center; }
+.mock-tv-slot .tv-name.empty { color: rgba(255,255,255,0.3); font-weight: 400; font-style: italic; text-transform: none; font-size: 11px; font-family: var(--font-b); }
+.mock-tv-slot.filled { border-color: rgba(204,0,0,0.5); background: rgba(204,0,0,0.15); }
+
+/* ── Callout boxes ── */
+.callout { border-radius: 8px; padding: 14px 18px; margin: 16px 0; display: flex; gap: 12px; align-items: flex-start; }
+.callout.tip { background: #e8f5e9; border-left: 4px solid #43a047; }
+.callout.tip .ico { color: #43a047; font-size: 1.2rem; flex-shrink: 0; margin-top: 2px; }
+.callout.warn { background: #fff8e1; border-left: 4px solid #f9a825; }
+.callout.warn .ico { color: #f9a825; font-size: 1.2rem; flex-shrink: 0; margin-top: 2px; }
+.callout.info { background: #e3f2fd; border-left: 4px solid #1976d2; }
+.callout.info .ico { color: #1976d2; font-size: 1.2rem; flex-shrink: 0; margin-top: 2px; }
+.callout.danger { background: #fce4e4; border-left: 4px solid var(--red); }
+.callout.danger .ico { color: var(--red); font-size: 1.2rem; flex-shrink: 0; margin-top: 2px; }
+.callout p { margin: 0; font-size: 13.5px; line-height: 1.6; }
+.callout strong { font-weight: 700; }
+
+/* ── Steps ── */
+.steps { counter-reset: steps; margin: 14px 0; }
+.step { counter-increment: steps; display: flex; gap: 16px; margin-bottom: 18px; align-items: flex-start; }
+.step-num { background: var(--red); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-family: var(--font-d); font-weight: 800; font-size: 15px; flex-shrink: 0; margin-top: 2px; }
+.step-content { flex: 1; }
+.step-content strong { display: block; font-weight: 700; margin-bottom: 3px; }
+.step-content p { font-size: 13.5px; color: var(--muted); margin: 0; }
+
+/* ── Table ── */
+table.nice { width: 100%; border-collapse: collapse; margin: 12px 0 18px; font-size: 13.5px; }
+table.nice th { background: var(--sidebar2); color: white; padding: 9px 14px; text-align: left; font-family: var(--font-d); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 12px; }
+table.nice td { padding: 8px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+table.nice tr:last-child td { border-bottom: none; }
+table.nice tr:nth-child(even) td { background: #fafafa; }
+
+/* ── Field pills ── */
+.field-pill { display: inline-block; background: #f0f0f0; border: 1px solid var(--border); border-radius: 4px; padding: 2px 9px; font-family: monospace; font-size: 12px; color: var(--sidebar2); margin: 1px 2px; }
+
+/* ── Footer ── */
+footer { background: var(--sidebar2); color: rgba(255,255,255,0.6); text-align: center; padding: 28px; font-size: 12px; margin-top: 60px; }
+footer img { width: 36px; height: 36px; opacity: 0.7; display: block; margin: 0 auto 10px; }
+
+/* ── Print ── */
+@media print {
+  .toc ol { grid-template-columns: 1fr; }
+  .mockup { break-inside: avoid; }
+  .section { break-before: page; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ PORTADA -->
+<div class="cover">
+  <img class="cover-logo" src="https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png" alt="RFFM">
+  <div class="cover-text">
+    <h1>Gestor de Torneos<br>RFFM</h1>
+    <div class="sub">Manual de Usuario Completo</div>
+    <div class="ver">Versión 2.0 &nbsp;·&nbsp; Real Federación de Fútbol de Madrid</div>
+  </div>
+</div>
+
+<div class="page">
+
+<!-- ═══════════════════════════════════════════════════════ ÍNDICE -->
+<div class="toc">
+  <h2>Contenidos</h2>
+  <ol>
+    <li><a href="#acceso">Acceso y autenticación</a></li>
+    <li><a href="#sidebar">Barra lateral y navegación</a></li>
+    <li><a href="#dashboard">Dashboard — Plantilla de equipos</a></li>
+    <li><a href="#configurador">Configurador — Fases y grupos</a></li>
+    <li><a href="#cuadro-visual">Cuadro Visual — Asignación de equipos</a></li>
+    <li><a href="#partidos">Partidos — Calendario y resultados</a></li>
+    <li><a href="#agenda">Agenda — Vista diaria de partidos</a></li>
+    <li><a href="#sorteo">Sorteo — Mesa de sorteo en directo</a></li>
+    <li><a href="#ajustes">Ajustes — Accesos y URLs del torneo</a></li>
+    <li><a href="#bracket-gestion">Bracket de Gestión (editor)</a></li>
+    <li><a href="#bracket-vista">Bracket de Vista (consulta pública)</a></li>
+    <li><a href="#vista-tv">Vista TV — Pantalla de sorteo</a></li>
+    <li><a href="#qr">Código QR del cuadro público</a></li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ 1. ACCESO -->
+<div class="section" id="acceso">
+  <div class="section-header">
+    <span class="sec-icon">🔐</span>
+    <h2>1. Acceso y autenticación</h2>
+  </div>
+  <div class="section-body">
+    <div class="subsec">
+      <p>La aplicación está protegida con usuario y contraseña. Solo el personal autorizado puede acceder al área de gestión.</p>
+
+      <div class="mockup">
+        <div class="mockup-bar">
+          <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+          <div class="url">localhost:8501</div>
+        </div>
+        <div style="background:#f4f5f7;padding:60px 20px;display:flex;justify-content:center;">
+          <div style="background:white;border-radius:12px;padding:40px 48px;width:360px;box-shadow:0 4px 24px rgba(0,0,0,0.12);text-align:center;">
+            <img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" style="width:64px;height:64px;margin-bottom:14px;">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:800;text-transform:uppercase;margin-bottom:4px;">Gestión de Campeonato RFFM</div>
+            <div style="font-size:0.8rem;color:#888;margin-bottom:24px;">Acceso restringido</div>
+            <div style="text-align:left;">
+              <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Usuario</div>
+              <div style="border:1px solid #d0d0d0;border-radius:5px;padding:8px 12px;font-size:13px;color:#1a1a1a;margin-bottom:12px;background:#fafafa;">admin</div>
+              <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Contraseña</div>
+              <div style="border:1px solid #d0d0d0;border-radius:5px;padding:8px 12px;font-size:13px;color:#1a1a1a;margin-bottom:20px;background:#fafafa;">••••••••••</div>
+              <div style="background:#cc0000;color:white;border-radius:5px;padding:10px;font-family:'Barlow Condensed',sans-serif;font-weight:700;text-transform:uppercase;text-align:center;letter-spacing:0.06em;">Entrar</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <strong>Abre la aplicación</strong>
+            <p>Accede a la URL de la app Streamlit (ej: <code>localhost:8501</code> en local o la URL de producción en AWS/Streamlit Cloud).</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <strong>Introduce las credenciales</strong>
+            <p>Escribe el usuario y contraseña configurados en el archivo <code>secrets.toml</code> y pulsa <strong>Entrar</strong>.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <strong>Sesión activa</strong>
+            <p>La sesión permanece activa mientras el navegador esté abierto. Para cerrarla, pulsa el botón <strong>Cerrar sesión</strong> en la barra lateral.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ 2. SIDEBAR -->
+<div class="section" id="sidebar">
+  <div class="section-header">
+    <span class="sec-icon">🗂️</span>
+    <h2>2. Barra lateral y navegación</h2>
+  </div>
+  <div class="section-body">
+    <p>La barra lateral (sidebar) es el punto de control central de la aplicación. Desde aquí se gestiona la sesión, se selecciona o crea el torneo activo y se navega entre las distintas secciones.</p>
+
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <div class="url">Gestor Torneo RFFM</div>
+      </div>
+      <div class="mockup-inner">
+        <div class="mock-sidebar" style="width:220px;min-height:500px;">
+          <div class="sb-logo">
+            <img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" alt="">
+            <span>RFFM Torneos</span>
+          </div>
+          <div class="sb-btn danger">🔒 Cerrar sesión</div>
+          <div class="sb-btn" style="background:rgba(255,255,255,0.05);justify-content:space-between;">QR Cuadro Visual <span style="opacity:0.5;">▼</span></div>
+          <hr class="sb-sep">
+          <div class="sb-label">Torneo activo</div>
+          <div class="sb-select">Copa RFFM 2026 ▼</div>
+          <div class="sb-btn" style="background:rgba(255,255,255,0.05);justify-content:space-between;">➕ Nuevo torneo <span style="opacity:0.5;">▼</span></div>
+          <hr class="sb-sep">
+          <div class="sb-label">Menú</div>
+          <div class="sb-select">Dashboard ▼</div>
+          <div style="margin-top:4px;font-size:10px;opacity:0.4;padding:2px 4px;">Dashboard · Configurador · Cuadro Visual · Partidos · Agenda · Sorteo · Ajustes</div>
+        </div>
+        <div class="mock-main" style="display:flex;align-items:center;justify-content:center;color:#aaa;font-size:13px;">
+          Contenido principal según la sección seleccionada
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Elementos de la barra lateral</h3>
+      <table class="nice">
+        <tr><th>Elemento</th><th>Descripción</th></tr>
+        <tr><td><strong>🔒 Cerrar sesión</strong></td><td>Finaliza la sesión actual y vuelve a la pantalla de login.</td></tr>
+        <tr><td><strong>QR Cuadro Visual</strong></td><td>Expander que muestra y permite descargar el código QR de acceso al menú público de cuadros (sin autenticación).</td></tr>
+        <tr><td><strong>Selector de torneo</strong></td><td>Desplegable con todos los torneos existentes. El torneo seleccionado determina todos los datos que se muestran en el área principal.</td></tr>
+        <tr><td><strong>➕ Nuevo torneo</strong></td><td>Expander para crear un torneo nuevo introduciendo nombre y descripción opcional.</td></tr>
+        <tr><td><strong>Menú</strong></td><td>Selector de sección: Dashboard, Configurador, Cuadro Visual, Partidos, Agenda, Sorteo, Ajustes.</td></tr>
+      </table>
+    </div>
+
+    <div class="subsec">
+      <h3>Crear un torneo nuevo</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <strong>Despliega "➕ Nuevo torneo"</strong>
+            <p>Haz clic en el expander en la barra lateral.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <strong>Rellena los campos</strong>
+            <p>Introduce el <strong>Nombre</strong> (obligatorio, ej: "Copa RFFM 2026") y la <strong>Descripción</strong> (opcional).</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <strong>Pulsa "Crear"</strong>
+            <p>El torneo se crea y queda seleccionado automáticamente como torneo activo.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ 3. DASHBOARD -->
+<div class="section" id="dashboard">
+  <div class="section-header">
+    <span class="sec-icon">📊</span>
+    <h2>3. Dashboard — Plantilla de equipos</h2>
+  </div>
+  <div class="section-body">
+    <p>El Dashboard es la pantalla de inicio del torneo. Muestra el resumen de equipos y permite importar la plantilla completa mediante Excel o CSV.</p>
+
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <div class="url">Gestor Torneo RFFM — Dashboard</div>
+      </div>
+      <div class="mockup-inner">
+        <div class="mock-sidebar" style="min-height:360px;">
+          <div class="sb-logo"><img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" alt=""><span>RFFM</span></div>
+          <div class="sb-btn danger" style="font-size:10px;">🔒 Cerrar sesión</div>
+          <hr class="sb-sep">
+          <div class="sb-select">Copa RFFM 2026 ▼</div>
+          <hr class="sb-sep">
+          <div class="sb-btn active">📊 Dashboard</div>
+          <div class="sb-btn">⚙️ Configurador</div>
+          <div class="sb-btn">🗂️ Cuadro Visual</div>
+        </div>
+        <div class="mock-main">
+          <div class="mock-title">Dashboard</div>
+          <div class="mock-metric-row">
+            <div class="mock-metric"><div class="label">Total Equipos</div><div class="value">24</div></div>
+            <div class="mock-metric"><div class="label">En Competición</div><div class="value">24</div></div>
+            <div style="flex:1;display:flex;align-items:flex-end;"><button class="mock-btn" style="width:100%;">Añadir equipos</button></div>
+          </div>
+          <div class="mock-sep"></div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;text-transform:uppercase;margin-bottom:10px;">Plantilla de Equipos</div>
+          <input class="mock-input" placeholder="Filtrar por nombre..." style="margin-bottom:10px;">
+          <div class="mock-card"><div class="esc">⚽</div><div class="nm">AD Alcalá</div><div class="tag">En competición</div></div>
+          <div class="mock-card"><div class="esc">⚽</div><div class="nm">CF Pozuelo</div><div class="tag">En competición</div></div>
+          <div class="mock-card"><div class="esc">⚽</div><div class="nm">UD Leganés B</div><div class="tag">En competición</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Métricas</h3>
+      <ul>
+        <li><strong>Total Equipos:</strong> número total de equipos registrados en el torneo.</li>
+        <li><strong>En Competición:</strong> equipos no eliminados (activos en la competición).</li>
+      </ul>
+    </div>
+
+    <div class="subsec">
+      <h3>Importar equipos desde Excel / CSV</h3>
+      <p>Pulsa <strong>Añadir equipos</strong> para abrir el modal de importación masiva.</p>
+
+      <table class="nice">
+        <tr><th>Columna</th><th>Obligatorio</th><th>Descripción</th></tr>
+        <tr><td><span class="field-pill">nombre</span></td><td>Sí</td><td>Nombre del equipo (texto libre)</td></tr>
+        <tr><td><span class="field-pill">escudo_url</span></td><td>Sí (puede estar vacía)</td><td>URL pública de la imagen del escudo (.png, .jpg). Puede dejarse en blanco.</td></tr>
+      </table>
+
+      <div class="callout warn">
+        <span class="ico">⚠️</span>
+        <p>La primera fila del archivo debe ser la <strong>cabecera</strong> con los nombres exactos <code>nombre</code> y <code>escudo_url</code> en minúsculas. Si el archivo usa otros nombres de columna, la importación fallará.</p>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <strong>Descarga la plantilla</strong>
+            <p>En el modal, expande "Ver formato esperado y descargar plantilla" y descarga el CSV de ejemplo para rellenarlo.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <strong>Sube el archivo</strong>
+            <p>Arrastra o selecciona tu archivo <code>.xlsx</code> o <code>.csv</code>. Se mostrará una vista previa de los datos.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <strong>Confirma la importación</strong>
+            <p>Los equipos duplicados (ya existentes en el torneo) se omiten automáticamente. Pulsa <strong>Confirmar y subir</strong> para completar la carga.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ico">💡</span>
+        <p>Puedes realizar varias importaciones sucesivas. Los equipos ya existentes nunca se duplican.</p>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Buscar equipos</h3>
+      <p>El campo de búsqueda filtra la lista de tarjetas en tiempo real por nombre. No distingue entre mayúsculas y minúsculas.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ 4. CONFIGURADOR -->
+<div class="section" id="configurador">
+  <div class="section-header">
+    <span class="sec-icon">⚙️</span>
+    <h2>4. Configurador — Fases y grupos</h2>
+  </div>
+  <div class="section-body">
+    <p>El Configurador define la <strong>estructura del torneo</strong>: cuántas fases tiene, cuántos grupos hay en cada fase, cuántos equipos caben en cada grupo y cómo se conectan las fases entre sí (progresión).</p>
+
+    <div class="callout info">
+      <span class="ico">ℹ️</span>
+      <p>Debes configurar el torneo <strong>antes</strong> de realizar el sorteo o generar partidos. La estructura (fases y grupos) puede modificarse más tarde, pero requerirá regenerar el calendario de partidos.</p>
+    </div>
+
+    <div class="subsec">
+      <h3>Crear una fase</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <strong>Despliega "➕ Crear Nueva Fase"</strong>
+            <p>Haz clic en el expander en la parte superior de la sección Configurador.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <strong>Introduce nombre y orden</strong>
+            <p>El <strong>Nombre</strong> describe la fase (ej: "Fase de Grupos", "Semifinales", "Final"). El campo <strong>Orden</strong> (número entero) determina la secuencia: la fase de orden 1 es la primera y la única que usa el sorteo. Las fases de orden 2+ reciben equipos de la fase anterior.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <strong>Pulsa "Guardar Fase"</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Añadir grupos a una fase</h3>
+
+      <div class="mockup">
+        <div class="mockup-bar">
+          <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+          <div class="url">Configurador — Fase de Grupos</div>
+        </div>
+        <div class="mockup-inner">
+          <div class="mock-sidebar" style="min-height:280px;">
+            <div class="sb-logo"><img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" alt=""><span>RFFM</span></div>
+            <div class="sb-btn">🔒 Cerrar sesión</div>
+            <hr class="sb-sep">
+            <div class="sb-select">Copa RFFM 2026 ▼</div>
+            <hr class="sb-sep">
+            <div class="sb-btn">📊 Dashboard</div>
+            <div class="sb-btn active">⚙️ Configurador</div>
+          </div>
+          <div class="mock-main">
+            <div class="mock-title">Definición de Grupos por Fase</div>
+            <div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-end;">
+              <div style="flex:1;"><div style="font-size:11px;margin-bottom:3px;font-weight:600;">Añadir N grupos</div><div style="border:1px solid #ddd;border-radius:5px;padding:6px 10px;font-size:12px;background:white;">4</div></div>
+              <div style="flex:1;"><div style="font-size:11px;margin-bottom:3px;font-weight:600;">Equipos por grupo</div><div style="border:1px solid #ddd;border-radius:5px;padding:6px 10px;font-size:12px;background:white;">6</div></div>
+              <button class="mock-btn" style="padding:7px 18px;">Añadir</button>
+            </div>
+            <div class="mock-sep"></div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:8px;color:#5a0000;">Estructura y Origen de Plazas</div>
+            <div class="mock-info">Fase 1: las plazas se llenan por sorteo, no requiere configuración de origen.</div>
+            <div style="border:1px solid #ddd;border-radius:6px;padding:0;overflow:hidden;background:white;">
+              <div style="display:grid;grid-template-columns:2fr 1fr 1fr;background:#5a0000;color:white;padding:7px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;gap:8px;">
+                <span>Nombre</span><span>Equipos</span><span>Posición</span>
+              </div>
+              <div style="display:grid;grid-template-columns:2fr 1fr 1fr;padding:7px 12px;font-size:12px;border-bottom:1px solid #f0f0f0;gap:8px;"><span>Fase de Grupos 1</span><span>6</span><span>1</span></div>
+              <div style="display:grid;grid-template-columns:2fr 1fr 1fr;padding:7px 12px;font-size:12px;border-bottom:1px solid #f0f0f0;gap:8px;background:#fafafa;"><span>Fase de Grupos 2</span><span>6</span><span>2</span></div>
+              <div style="display:grid;grid-template-columns:2fr 1fr 1fr;padding:7px 12px;font-size:12px;border-bottom:1px solid #f0f0f0;gap:8px;"><span>Fase de Grupos 3</span><span>6</span><span>3</span></div>
+              <div style="display:grid;grid-template-columns:2fr 1fr 1fr;padding:7px 12px;font-size:12px;gap:8px;background:#fafafa;"><span>Fase de Grupos 4</span><span>6</span><span>4</span></div>
+            </div>
+            <button class="mock-btn" style="margin-top:10px;">Guardar cambios</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <strong>Selecciona la fase</strong>
+            <p>Usa el desplegable "Selecciona la Fase a configurar".</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <strong>Introduce cuántos grupos y cuántos equipos por grupo</strong>
+            <p>Por ejemplo: 4 grupos con 6 equipos cada uno crea una fase con capacidad para 24 equipos.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <strong>Pulsa "Añadir"</strong>
+            <p>Los grupos se nombran automáticamente (ej: "Fase de Grupos 1", "Fase de Grupos 2", …).</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <strong>Edita nombres, número de equipos y posición en el cuadro (expander)</strong>
+            <p>En el expander <strong>"Orden y nombres en el cuadro visual"</strong> puedes renombrar cada grupo, ajustar su capacidad y asignar el número de <strong>Posición</strong> (orden en el bracket gráfico). Pulsa <strong>Guardar cambios</strong> cuando termines.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ico">💡</span>
+        <p>El campo <strong>Posición</strong> determina el orden en que aparecen los grupos en el cuadro visual (bracket). El grupo con posición 1 aparece primero (arriba a la izquierda), el 2 debajo, etc.</p>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Formato de partidos</h3>
+      <p>Elige si cada enfrentamiento se juega a <strong>ida</strong> (1 partido) o <strong>ida y vuelta</strong> (2 partidos). Este ajuste afecta al calendario generado en la sección Partidos.</p>
+
+      <div class="callout warn">
+        <span class="ico">⚠️</span>
+        <p>Si cambias el formato <strong>después de generar partidos</strong>, deberás ir a la sección Partidos y pulsar <strong>Regenerar partidos</strong> para que el nuevo formato surta efecto.</p>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Progresión entre fases (fases 2, 3…)</h3>
+      <p>Para fases de orden 2 o superior, el Configurador muestra el <strong>Cuadro de Progresión Visual</strong>, que permite especificar exactamente qué clasificados de la fase anterior ocupan cada plaza de cada grupo de la siguiente fase.</p>
+      <p>Ejemplo: "El 1.º clasificado del Grupo A pasa al Grupo X de la Semifinal". Esta configuración define las reglas de avance automático que se aplican cuando un equipo es marcado como clasificado en el Cuadro Visual.</p>
+    </div>
+
+    <div class="subsec">
+      <h3>Eliminar un grupo</h3>
+      <p>Expande <strong>"🗑️ Eliminar un grupo"</strong>, localiza el grupo deseado y pulsa el icono 🗑️. Aparecerá un mensaje de confirmación. Esta acción borra el grupo y todos sus participantes y <strong>no se puede deshacer</strong>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ 5. CUADRO VISUAL -->
+<div class="section" id="cuadro-visual">
+  <div class="section-header">
+    <span class="sec-icon">🗂️</span>
+    <h2>5. Cuadro Visual — Asignación de equipos</h2>
+  </div>
+  <div class="section-body">
+    <p>El Cuadro Visual muestra las tarjetas de todos los grupos de una fase y permite asignar equipos a las plazas disponibles de forma manual.</p>
+
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <div class="url">Cuadro Visual — Fase de Grupos</div>
+      </div>
+      <div class="mockup-inner">
+        <div class="mock-sidebar" style="min-height:260px;">
+          <div class="sb-logo"><img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" alt=""><span>RFFM</span></div>
+          <div class="sb-btn">🔒 Cerrar sesión</div>
+          <hr class="sb-sep">
+          <div class="sb-select">Copa RFFM 2026 ▼</div>
+          <hr class="sb-sep">
+          <div class="sb-btn active">🗂️ Cuadro Visual</div>
+        </div>
+        <div class="mock-main">
+          <div class="mock-title">Gestión de Equipos por Grupo</div>
+          <div style="margin-bottom:12px;"><span style="background:#5a0000;color:white;font-size:11px;padding:5px 12px;border-radius:5px;font-family:'Barlow Condensed',sans-serif;font-weight:700;text-transform:uppercase;">Fase de Grupos ▼</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+            <div class="mock-grupo">
+              <div class="mock-grupo-header">Grupo A</div>
+              <div class="mock-grupo-row"><div class="slot-dot filled"></div>AD Alcalá</div>
+              <div class="mock-grupo-row"><div class="slot-dot filled"></div>CF Pozuelo</div>
+              <div class="mock-grupo-row"><div class="slot-dot"></div><span style="color:#bbb;font-size:11px;font-style:italic;">Plaza vacía</span></div>
+              <div style="padding:8px 10px;border-top:1px solid #f0f0f0;"><select style="font-size:11px;width:100%;border:1px solid #ddd;border-radius:4px;padding:4px;">
+                <option>Seleccionar equipo...</option>
+              </select></div>
+            </div>
+            <div class="mock-grupo">
+              <div class="mock-grupo-header">Grupo B</div>
+              <div class="mock-grupo-row"><div class="slot-dot filled"></div>UD Leganés B</div>
+              <div class="mock-grupo-row"><div class="slot-dot filled"></div>Atlético Villalba</div>
+              <div class="mock-grupo-row"><div class="slot-dot filled"></div>CD Móstoles</div>
+            </div>
+            <div class="mock-grupo">
+              <div class="mock-grupo-header">Grupo C</div>
+              <div class="mock-grupo-row"><div class="slot-dot"></div><span style="color:#bbb;font-size:11px;font-style:italic;">Plaza vacía</span></div>
+              <div class="mock-grupo-row"><div class="slot-dot"></div><span style="color:#bbb;font-size:11px;font-style:italic;">Plaza vacía</span></div>
+              <div class="mock-grupo-row"><div class="slot-dot"></div><span style="color:#bbb;font-size:11px;font-style:italic;">Plaza vacía</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Asignar un equipo a un grupo (fase 1)</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <strong>Selecciona la fase</strong>
+            <p>Elige la fase en el desplegable superior.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <strong>Localiza el grupo y la plaza vacía</strong>
+            <p>Cada tarjeta muestra los equipos asignados (punto rojo) y las plazas vacías (punto gris).</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <strong>Selecciona el equipo en el desplegable de la tarjeta</strong>
+            <p>El equipo asignado desaparece de la lista de disponibles y queda marcado en su grupo.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Progresión entre fases (fase 2+)</h3>
+      <p>En fases de progresión, el Cuadro Visual muestra dos columnas: los grupos de la fase anterior (con sus clasificados marcados) y los grupos de la fase actual (donde se asignan los clasificados).</p>
+      <p>Las reglas de progresión configuradas en el Configurador se aplican automáticamente cuando se marcan equipos como clasificados.</p>
+    </div>
+
+    <div class="callout warn">
+      <span class="ico">⚠️</span>
+      <p>Si esta fase ya tiene partidos generados y modificas la asignación de equipos, necesitarás ir a <strong>Partidos</strong> y <strong>Sincronizar equipos</strong> o regenerar el calendario.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ 6. PARTIDOS -->
+<div class="section" id="partidos">
+  <div class="section-header">
+    <span class="sec-icon">⚽</span>
+    <h2>6. Partidos — Calendario y resultados</h2>
+  </div>
+  <div class="section-body">
+    <p>La sección Partidos genera automáticamente el calendario de enfrentamientos para cada fase y permite editar fecha, hora, campo y resultados de cada partido.</p>
+
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <div class="url">Partidos — Calendario</div>
+      </div>
+      <div class="mockup-inner">
+        <div class="mock-sidebar" style="min-height:260px;">
+          <div class="sb-logo"><img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" alt=""><span>RFFM</span></div>
+          <hr class="sb-sep">
+          <div class="sb-select">Copa RFFM 2026 ▼</div>
+          <hr class="sb-sep">
+          <div class="sb-btn active">⚽ Partidos</div>
+        </div>
+        <div class="mock-main">
+          <div class="mock-title">Calendario de Partidos</div>
+          <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;">
+            <button class="mock-btn" style="flex:1;">⚡ Generar partidos</button>
+            <button class="mock-btn sec" style="flex:1;">🔗 Sincronizar equipos</button>
+            <input class="mock-input" placeholder="Filtrar por campo..." style="flex:1.5;">
+          </div>
+          <div class="mock-sep"></div>
+          <div style="background:white;border:1px solid #ddd;border-radius:8px;overflow:hidden;margin-bottom:10px;">
+            <div style="background:#f0f0f0;padding:8px 14px;font-size:12px;font-weight:700;display:flex;justify-content:space-between;"><span>▶ Grupo A — 3 partidos</span></div>
+            <div style="overflow:auto;">
+              <table style="width:100%;border-collapse:collapse;font-size:11px;">
+                <tr style="background:#5a0000;color:white;">
+                  <th style="padding:6px 10px;text-align:left;">Jornada</th><th style="padding:6px 10px;">Local</th><th style="padding:6px 10px;">Visitante</th><th style="padding:6px 10px;">Fecha</th><th style="padding:6px 10px;">Hora</th><th style="padding:6px 10px;">Campo</th><th style="padding:6px 10px;">G.L.</th><th style="padding:6px 10px;">G.V.</th>
+                </tr>
+                <tr style="border-bottom:1px solid #f0f0f0;">
+                  <td style="padding:6px 10px;text-align:center;">1</td><td style="padding:6px 10px;">AD Alcalá</td><td style="padding:6px 10px;">CF Pozuelo</td><td style="padding:6px 10px;">15/06/2026</td><td style="padding:6px 10px;">10:00</td><td style="padding:6px 10px;">Campo 1</td><td style="padding:6px 10px;text-align:center;">2</td><td style="padding:6px 10px;text-align:center;">1</td>
+                </tr>
+                <tr style="background:#fafafa;border-bottom:1px solid #f0f0f0;">
+                  <td style="padding:6px 10px;text-align:center;">2</td><td style="padding:6px 10px;">AD Alcalá</td><td style="padding:6px 10px;">UD Leganés</td><td style="padding:6px 10px;color:#bbb;">—</td><td style="padding:6px 10px;color:#bbb;">—</td><td style="padding:6px 10px;color:#bbb;">—</td><td style="padding:6px 10px;color:#bbb;text-align:center;">—</td><td style="padding:6px 10px;color:#bbb;text-align:center;">—</td>
+                </tr>
+              </table>
+            </div>
+            <div style="padding:8px 12px;"><button class="mock-btn" style="font-size:11px;padding:5px 14px;">Guardar cambios</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Generar el calendario</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <strong>Selecciona la fase</strong>
+            <p>Elige la fase en el desplegable.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <strong>Pulsa "⚡ Generar partidos"</strong>
+            <p>La app crea automáticamente todos los partidos de todos los grupos con el formato configurado (ida o ida y vuelta). Los enfrentamientos usan nombres de plaza (ej: "Grupo A_E1 vs Grupo A_E2") hasta que se asignen equipos reales.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <strong>Sincroniza equipos (opcional pero recomendado)</strong>
+            <p>Una vez realizados el sorteo o las asignaciones, pulsa <strong>"🔗 Sincronizar equipos"</strong> para que los nombres reales de los equipos aparezcan en el calendario.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Editar partidos</h3>
+      <p>Cada grupo muestra una tabla editable. Puedes modificar directamente en las celdas:</p>
+      <table class="nice">
+        <tr><th>Campo</th><th>Descripción</th></tr>
+        <tr><td><strong>Fecha</strong></td><td>Fecha del partido (selector de calendario, formato DD/MM/YYYY)</td></tr>
+        <tr><td><strong>Hora</strong></td><td>Hora del partido (texto libre, recomendado formato HH:MM)</td></tr>
+        <tr><td><strong>Campo</strong></td><td>Nombre del campo o instalación donde se juega</td></tr>
+        <tr><td><strong>Goles L / Goles V</strong></td><td>Resultado: goles del equipo local y visitante</td></tr>
+      </table>
+      <p>Al terminar de editar, pulsa <strong>Guardar cambios</strong> en el grupo correspondiente.</p>
+    </div>
+
+    <div class="subsec">
+      <h3>Regenerar el calendario</h3>
+      <p>Si hay partidos previos y quieres regenerar (por cambio de formato o de equipos), el botón cambia a <strong>"🔄 Regenerar partidos"</strong>. Aparecerá un mensaje de confirmación antes de borrar el calendario anterior.</p>
+      <div class="callout danger">
+        <span class="ico">🚨</span>
+        <p>Regenerar borra <strong>todos los resultados y datos de agenda</strong> introducidos previamente para esa fase. Esta acción no se puede deshacer.</p>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Filtrar por campo</h3>
+      <p>El campo de texto "Filtrar por campo" oculta los grupos cuyos partidos no coincidan con el texto introducido, facilitando la edición cuando hay muchos grupos.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ 7. AGENDA -->
+<div class="section" id="agenda">
+  <div class="section-header">
+    <span class="sec-icon">📅</span>
+    <h2>7. Agenda — Vista diaria de partidos</h2>
+  </div>
+  <div class="section-body">
+    <p>La Agenda muestra todos los partidos programados para un día concreto, agrupados por campo de juego. Es útil para coordinar la jornada y consultar el programa del día.</p>
+
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <div class="url">Agenda de Partidos</div>
+      </div>
+      <div class="mockup-inner">
+        <div class="mock-sidebar" style="min-height:240px;">
+          <div class="sb-logo"><img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" alt=""><span>RFFM</span></div>
+          <hr class="sb-sep">
+          <div class="sb-select">Copa RFFM 2026 ▼</div>
+          <hr class="sb-sep">
+          <div class="sb-btn active">📅 Agenda</div>
+        </div>
+        <div class="mock-main">
+          <div class="mock-title">Agenda de Partidos</div>
+          <div style="display:flex;gap:10px;margin-bottom:14px;">
+            <div style="flex:0.8;"><div style="font-size:11px;font-weight:600;margin-bottom:3px;">Fecha</div><div style="border:1px solid #ddd;border-radius:5px;padding:6px 10px;font-size:12px;background:white;">15/06/2026</div></div>
+            <div style="flex:1.2;"><div style="font-size:11px;font-weight:600;margin-bottom:3px;">Campo(s)</div><div style="border:1px solid #ddd;border-radius:5px;padding:6px 10px;font-size:12px;background:white;color:#bbb;">Todos los campos</div></div>
+            <div style="flex:1.2;"><div style="font-size:11px;font-weight:600;margin-bottom:3px;">Torneo(s)</div><div style="border:1px solid #ddd;border-radius:5px;padding:6px 10px;font-size:12px;background:white;color:#bbb;">Todos los torneos</div></div>
+          </div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:800;text-transform:uppercase;margin-bottom:6px;">Domingo 15 de junio de 2026</div>
+          <div class="mock-sep"></div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:#5a0000;">📍 Campo Principal</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div class="mock-partido"><div class="hora">🕐 10:00</div><div class="equipo">AD Alcalá</div><div class="vs">2 – 1</div><div class="equipo">CF Pozuelo</div><div style="font-size:10px;color:#aaa;margin-top:3px;">Copa RFFM 2026 · Grupo A</div></div>
+            <div class="mock-partido"><div class="hora">🕐 11:30</div><div class="equipo">UD Leganés B</div><div class="vs">vs</div><div class="equipo">CD Móstoles</div><div style="font-size:10px;color:#aaa;margin-top:3px;">Copa RFFM 2026 · Grupo B</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Filtros disponibles</h3>
+      <table class="nice">
+        <tr><th>Filtro</th><th>Descripción</th></tr>
+        <tr><td><strong>Fecha</strong></td><td>Día a consultar (selector de calendario). Por defecto: hoy.</td></tr>
+        <tr><td><strong>Campo(s)</strong></td><td>Filtra por uno o varios campos de juego. Vacío = todos los campos.</td></tr>
+        <tr><td><strong>Torneo(s)</strong></td><td>Filtra por uno o varios torneos. Vacío = todos los torneos activos.</td></tr>
+      </table>
+    </div>
+
+    <div class="subsec">
+      <h3>Interpretación de la vista</h3>
+      <ul>
+        <li>Los partidos se agrupan por <strong>campo</strong> y se ordenan por <strong>hora</strong> dentro de cada campo.</li>
+        <li>Si el partido tiene resultado, se muestra en rojo (ej: <strong style="color:#cc0000;">2 – 1</strong>).</li>
+        <li>Si no tiene resultado aún, se muestra <em>vs</em> en gris.</li>
+        <li>Cada tarjeta indica el torneo y grupo al que pertenece el partido.</li>
+      </ul>
+    </div>
+
+    <div class="callout info">
+      <span class="ico">ℹ️</span>
+      <p>La Agenda es <strong>solo de consulta</strong>. Para editar fechas, horas, campos o resultados, ve a la sección <strong>Partidos</strong>.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ 8. SORTEO -->
+<div class="section" id="sorteo">
+  <div class="section-header">
+    <span class="sec-icon">🎲</span>
+    <h2>8. Sorteo — Mesa de sorteo en directo</h2>
+  </div>
+  <div class="section-body">
+    <p>La sección Sorteo permite asignar equipos a grupos de forma manual, uno a uno, en tiempo real durante el acto de sorteo. Opera siempre sobre la <strong>fase de orden 1</strong> (la fase inicial del torneo).</p>
+
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <div class="url">Sorteo — Mesa de Sorteo (Fase Inicial)</div>
+      </div>
+      <div class="mockup-inner">
+        <div class="mock-sidebar" style="min-height:240px;">
+          <div class="sb-logo"><img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" alt=""><span>RFFM</span></div>
+          <hr class="sb-sep">
+          <div class="sb-select">Copa RFFM 2026 ▼</div>
+          <hr class="sb-sep">
+          <div class="sb-btn active">🎲 Sorteo</div>
+        </div>
+        <div class="mock-main">
+          <div class="mock-title">Mesa de Sorteo (Fase Inicial)</div>
+          <div style="font-size:12px;color:#666;margin-bottom:14px;">Configurando sorteo para: <strong>Fase de Grupos</strong></div>
+          <div style="background:white;border:1px solid #ddd;border-radius:8px;padding:14px;margin-bottom:12px;">
+            <div style="display:flex;gap:10px;align-items:flex-end;">
+              <div style="flex:1.5;"><div style="font-size:11px;font-weight:600;margin-bottom:3px;">Equipo:</div><div style="border:1px solid #ddd;border-radius:5px;padding:6px 10px;font-size:12px;background:white;">AD Alcalá ▼</div></div>
+              <div style="flex:1.5;"><div style="font-size:11px;font-weight:600;margin-bottom:3px;">Grupo:</div><div style="border:1px solid #ddd;border-radius:5px;padding:6px 10px;font-size:12px;background:white;">Grupo A (3 huecos) ▼</div></div>
+              <button class="mock-btn" style="flex:0.6;">Confirmar</button>
+            </div>
+          </div>
+          <div class="mock-info">Faltan por asignar <strong>18</strong> equipos.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Proceso de sorteo paso a paso</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <strong>Selecciona el equipo</strong>
+            <p>El desplegable "Equipo:" lista únicamente los equipos <strong>aún no asignados</strong> a ningún grupo.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <strong>Selecciona el grupo de destino</strong>
+            <p>El desplegable "Grupo:" lista solo los grupos con plazas libres, ordenados por su posición en el cuadro (<code>orden_cuadro</code>). Entre paréntesis se indica cuántas plazas quedan disponibles.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <strong>Pulsa "Confirmar"</strong>
+            <p>Aparece una notificación tipo toast con la asignación realizada y la pantalla se actualiza automáticamente.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <strong>Repite hasta agotar los equipos</strong>
+            <p>Cuando todos los equipos estén asignados, aparece el mensaje "¡Sorteo completado!" y la sección deja de mostrar el formulario.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <span class="ico">💡</span>
+      <p>Mientras el sorteo se realiza en esta pantalla, la <strong>Vista TV</strong> (proyectada en pantalla grande) se actualiza automáticamente cada pocos segundos mostrando los equipos a medida que se van asignando a sus grupos.</p>
+    </div>
+
+    <div class="callout info">
+      <span class="ico">ℹ️</span>
+      <p>Si necesitas deshacer una asignación de sorteo, hazlo desde el <strong>Cuadro Visual</strong>: localiza el equipo en su grupo y elimínalo de la plaza. Volverá a aparecer disponible en el Sorteo.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ 9. AJUSTES -->
+<div class="section" id="ajustes">
+  <div class="section-header">
+    <span class="sec-icon">🔗</span>
+    <h2>9. Ajustes — Accesos y URLs del torneo</h2>
+  </div>
+  <div class="section-body">
+    <p>La sección Ajustes centraliza todos los enlaces de acceso para el torneo activo y permite eliminarlo si ya no es necesario.</p>
+
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <div class="url">Ajustes — Copa RFFM 2026</div>
+      </div>
+      <div class="mockup-inner">
+        <div class="mock-sidebar" style="min-height:200px;">
+          <div class="sb-logo"><img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" alt=""><span>RFFM</span></div>
+          <hr class="sb-sep">
+          <div class="sb-select">Copa RFFM 2026 ▼</div>
+          <hr class="sb-sep">
+          <div class="sb-btn active">⚙️ Ajustes</div>
+        </div>
+        <div class="mock-main">
+          <div class="mock-title">Ajustes — Copa RFFM 2026</div>
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;margin-bottom:10px;color:#5a0000;">Accesos</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
+            <div style="background:white;border:1px solid #ddd;border-radius:8px;padding:14px;text-align:center;">
+              <div style="font-size:1.8rem;padding:8px 0 4px;">⚙️</div>
+              <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Bracket Gestión</div>
+              <div style="font-size:10px;color:#aaa;margin-bottom:12px;">Edita resultados y mueve equipos</div>
+              <div style="background:#cc0000;color:white;border-radius:4px;padding:5px;font-size:11px;font-weight:700;margin-bottom:5px;">🔗 URL y QR</div>
+              <div style="border:1px solid #cc0000;color:#cc0000;border-radius:4px;padding:5px;font-size:11px;font-weight:700;">↗ Abrir</div>
+            </div>
+            <div style="background:white;border:1px solid #ddd;border-radius:8px;padding:14px;text-align:center;">
+              <div style="font-size:1.8rem;padding:8px 0 4px;">👁️</div>
+              <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Bracket Vista</div>
+              <div style="font-size:10px;color:#aaa;margin-bottom:12px;">Consulta pública, sin edición</div>
+              <div style="background:#cc0000;color:white;border-radius:4px;padding:5px;font-size:11px;font-weight:700;margin-bottom:5px;">🔗 URL y QR</div>
+              <div style="border:1px solid #cc0000;color:#cc0000;border-radius:4px;padding:5px;font-size:11px;font-weight:700;">↗ Abrir</div>
+            </div>
+            <div style="background:white;border:1px solid #ddd;border-radius:8px;padding:14px;text-align:center;">
+              <div style="font-size:1.8rem;padding:8px 0 4px;">📋</div>
+              <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Cabeceras Grupos</div>
+              <div style="font-size:10px;color:#aaa;margin-bottom:12px;">Árbol de grupos con nombre</div>
+              <div style="background:#cc0000;color:white;border-radius:4px;padding:5px;font-size:11px;font-weight:700;margin-bottom:5px;">🔗 URL y QR</div>
+              <div style="border:1px solid #cc0000;color:#cc0000;border-radius:4px;padding:5px;font-size:11px;font-weight:700;">↗ Abrir</div>
+            </div>
+            <div style="background:white;border:1px solid #ddd;border-radius:8px;padding:14px;text-align:center;">
+              <div style="font-size:1.8rem;padding:8px 0 4px;">📺</div>
+              <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Vista TV</div>
+              <div style="font-size:10px;color:#aaa;margin-bottom:12px;">Pantalla de sorteo en tiempo real</div>
+              <div style="background:#cc0000;color:white;border-radius:4px;padding:5px;font-size:11px;font-weight:700;margin-bottom:5px;">🔗 URL y QR</div>
+              <div style="border:1px solid #cc0000;color:#cc0000;border-radius:4px;padding:5px;font-size:11px;font-weight:700;">↗ Abrir</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Accesos disponibles</h3>
+      <table class="nice">
+        <tr><th>Acceso</th><th>Para quién</th><th>Descripción</th></tr>
+        <tr><td><strong>⚙️ Bracket Gestión</strong></td><td>Administradores</td><td>Editor del cuadro con drag-and-drop de equipos y edición de resultados. Requiere acceso protegido.</td></tr>
+        <tr><td><strong>👁️ Bracket Vista</strong></td><td>Público general</td><td>Versión de solo lectura del cuadro. No requiere contraseña. Incluye botón de descarga como imagen.</td></tr>
+        <tr><td><strong>📋 Cabeceras de Grupos</strong></td><td>Público / árbitros</td><td>Vista simplificada con los grupos y sus anotaciones.</td></tr>
+        <tr><td><strong>📺 Vista TV</strong></td><td>Pantalla del acto de sorteo</td><td>Pantalla de proyección que muestra los equipos asignados a un grupo en tiempo real durante el sorteo.</td></tr>
+      </table>
+    </div>
+
+    <div class="subsec">
+      <h3>Obtener URL y QR de un acceso</h3>
+      <p>Pulsa el botón <strong>"🔗 URL y QR"</strong> en cualquiera de las tarjetas. Se abrirá un modal con:</p>
+      <ul>
+        <li>La URL completa (copiable con un clic).</li>
+        <li>El código QR generado, listo para escanear o descargar como PNG.</li>
+      </ul>
+    </div>
+
+    <div class="subsec">
+      <h3>Eliminar un torneo</h3>
+      <div class="callout danger">
+        <span class="ico">🚨</span>
+        <p>Eliminar un torneo borra <strong>permanentemente</strong> todas sus fases, grupos, equipos, participantes y partidos. Esta acción <strong>no se puede deshacer</strong>.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <strong>Pulsa "🗑️ Eliminar" en la Zona de Peligro</strong>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <strong>Confirma la eliminación</strong>
+            <p>Aparece un aviso de confirmación. Pulsa <strong>"Sí, eliminar definitivamente"</strong> para proceder o <strong>"Cancelar"</strong> para abortar.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ 10. BRACKET GESTIÓN -->
+<div class="section" id="bracket-gestion">
+  <div class="section-header">
+    <span class="sec-icon">⚙️</span>
+    <h2>10. Bracket de Gestión (editor)</h2>
+  </div>
+  <div class="section-body">
+    <p>El Bracket de Gestión es una página web independiente (fichero <code>bracket.html</code>) que permite editar el cuadro de competición de forma visual: mover equipos entre grupos arrastrando y soltando, y editar resultados de partidos haciendo clic.</p>
+
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <div class="url">bracket.html?torneo=…</div>
+      </div>
+      <div>
+        <div class="mock-bracket-header">
+          <img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" alt="">
+          <h3>Copa RFFM 2026 — Cuadro</h3>
+          <div style="margin-left:auto;font-size:11px;color:rgba(255,255,255,0.7);font-family:'Barlow Condensed',sans-serif;letter-spacing:0.06em;">● Guardado</div>
+        </div>
+        <div class="mock-bracket-body">
+          <div class="mock-match">
+            <div class="mock-match-h">Partido 1 · Campo 1</div>
+            <div class="mock-match-slot win">AD Alcalá <span class="sc">2</span></div>
+            <div class="mock-match-slot">CF Pozuelo <span class="sc" style="color:#ccc;">1</span></div>
+          </div>
+          <div class="mock-match">
+            <div class="mock-match-h">Partido 2</div>
+            <div class="mock-match-slot">UD Leganés <span style="color:#ccc;">–</span></div>
+            <div class="mock-match-slot">CD Móstoles <span style="color:#ccc;">–</span></div>
+          </div>
+          <div class="mock-match">
+            <div class="mock-match-h">Partido 3</div>
+            <div class="mock-match-slot">Atlético Villalba <span style="color:#ccc;">–</span></div>
+            <div class="mock-match-slot">Rayo B <span style="color:#ccc;">–</span></div>
+          </div>
+        </div>
+        <div style="background:#f0f2f5;padding:8px 20px;font-size:11px;color:#999;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:0.06em;">← Torneos</div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Funcionalidades del editor</h3>
+      <table class="nice">
+        <tr><th>Acción</th><th>Cómo hacerlo</th></tr>
+        <tr><td><strong>Editar resultado de un partido</strong></td><td>Haz clic sobre la tarjeta del partido. Se abre un modal con los campos de goles para cada equipo. Introduce los valores y guarda.</td></tr>
+        <tr><td><strong>Mover un equipo (drag-and-drop)</strong></td><td>Arrastra el nombre del equipo desde su plaza actual y suéltalo en otra plaza vacía. El cambio se guarda automáticamente en la base de datos.</td></tr>
+        <tr><td><strong>Editar el campeón</strong></td><td>Haz clic en la casilla de campeón (última ronda) para asignar manualmente el equipo ganador.</td></tr>
+        <tr><td><strong>Navegar al menú de torneos</strong></td><td>Pulsa "‹ Torneos" en la esquina superior izquierda.</td></tr>
+      </table>
+    </div>
+
+    <div class="subsec">
+      <h3>Indicador de guardado</h3>
+      <p>En la esquina superior derecha aparece el estado del guardado: <strong>"● Guardando…"</strong> mientras se procesa y <strong>"● Guardado"</strong> al completarse. Si hay error de conexión, aparece <strong>"⚠ Error"</strong> en rojo.</p>
+    </div>
+
+    <div class="callout warn">
+      <span class="ico">⚠️</span>
+      <p>El Bracket de Gestión <strong>no tiene autenticación propia</strong>. Protege el acceso a su URL compartiéndola únicamente con el personal autorizado, o aplica políticas RLS en Supabase para restringir la escritura a usuarios autenticados.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ 11. BRACKET VISTA -->
+<div class="section" id="bracket-vista">
+  <div class="section-header">
+    <span class="sec-icon">👁️</span>
+    <h2>11. Bracket de Vista (consulta pública)</h2>
+  </div>
+  <div class="section-body">
+    <p>El Bracket de Vista (<code>bracket-view.html</code>) es la versión pública del cuadro: cualquier persona con el enlace o el QR puede consultarlo sin contraseña y sin posibilidad de modificar nada.</p>
+
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <div class="url">bracket-view.html</div>
+      </div>
+      <div>
+        <div style="background:#cc0000;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 24px;height:104px;">
+          <div style="display:flex;align-items:center;">
+            <div style="color:white;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;border:1px solid rgba(255,255,255,0.4);padding:8px 20px;border-radius:5px;">‹ Torneos</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;">
+            <img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" style="width:56px;height:56px;">
+            <span style="font-family:'Barlow Condensed',sans-serif;font-size:34px;font-weight:800;text-transform:uppercase;color:white;letter-spacing:0.04em;">Copa RFFM 2026</span>
+          </div>
+          <div style="display:flex;justify-content:flex-end;">
+            <div style="color:white;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;border:1px solid rgba(255,255,255,0.4);padding:8px 20px;border-radius:5px;">Descargar</div>
+          </div>
+        </div>
+        <div class="mock-bracket-body" style="min-height:160px;">
+          <div class="mock-match">
+            <div class="mock-match-h">Partido 1</div>
+            <div class="mock-match-slot win">AD Alcalá <span class="sc">2</span></div>
+            <div class="mock-match-slot">CF Pozuelo <span class="sc" style="color:#ccc;">1</span></div>
+          </div>
+          <div class="mock-match">
+            <div class="mock-match-h">Partido 2</div>
+            <div class="mock-match-slot">UD Leganés <span style="color:#ccc;">–</span></div>
+            <div class="mock-match-slot">CD Móstoles <span style="color:#ccc;">–</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Menú de torneos</h3>
+      <p>Al abrir la URL sin parámetro <code>?torneo=</code>, aparece el menú de selección de torneo: tarjetas con todos los torneos disponibles. Al pulsar una, se carga el cuadro de ese torneo.</p>
+      <div style="background:#f0f2f5;padding:20px;border-radius:8px;margin:16px 0;text-align:center;">
+        <img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png" style="width:108px;height:108px;display:block;margin:0 auto 20px;">
+        <div style="background:white;border:1px solid #d8d8d8;border-left:6px solid #cc0000;border-radius:10px;padding:20px 30px;margin:0 auto;max-width:400px;display:flex;align-items:center;gap:16px;text-align:left;box-shadow:0 2px 10px rgba(0,0,0,0.08);">
+          <div style="flex:1;"><div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;text-transform:uppercase;">Copa RFFM 2026</div><div style="font-size:13px;color:#777;margin-top:3px;">Campeonato regional</div></div>
+          <div style="color:#cc0000;font-size:24px;font-weight:700;">›</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Descargar el cuadro como imagen</h3>
+      <p>Pulsa el botón <strong>"Descargar"</strong> en la esquina superior derecha. Se genera automáticamente una imagen JPG del cuadro completo y se descarga al dispositivo. Esto permite compartirla por WhatsApp, redes sociales o imprimirla.</p>
+    </div>
+
+    <div class="subsec">
+      <h3>Zoom y navegación en móvil</h3>
+      <p>La vista pública carga con un zoom inicial reducido para que se vea el cuadro completo en pantallas pequeñas. Puedes hacer <strong>pinch-to-zoom</strong> para ampliar cualquier zona, hasta un máximo de 4×.</p>
+    </div>
+
+    <div class="subsec">
+      <h3>Botón "‹ Torneos"</h3>
+      <p>Solo visible cuando se ha seleccionado un torneo concreto. Vuelve al menú de selección de torneos.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ 12. VISTA TV -->
+<div class="section" id="vista-tv">
+  <div class="section-header">
+    <span class="sec-icon">📺</span>
+    <h2>12. Vista TV — Pantalla de sorteo en tiempo real</h2>
+  </div>
+  <div class="section-body">
+    <p>La Vista TV está diseñada para proyectarse en una pantalla grande durante el acto de sorteo. Muestra los equipos asignados a un grupo concreto y se actualiza automáticamente cada 3 segundos sin necesidad de refrescar manualmente.</p>
+
+    <div class="mockup">
+      <div class="mockup-bar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <div class="url">/?view=tv&amp;grupo=UUID&amp;torneo=UUID</div>
+      </div>
+      <div style="background:#0f0000;padding:24px 20px;">
+        <div style="text-align:center;margin-bottom:10px;">
+          <img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" style="width:60px;height:60px;opacity:0.9;">
+        </div>
+        <div class="mock-tv-title">Grupo A — Copa RFFM 2026</div>
+        <div style="display:flex;gap:10px;justify-content:center;margin-bottom:16px;">
+          <div style="background:rgba(204,0,0,0.3);border:1px solid rgba(204,0,0,0.5);color:rgba(255,255,255,0.8);padding:5px 16px;border-radius:20px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;">Grupo A</div>
+          <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);padding:5px 16px;border-radius:20px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;">Grupo B</div>
+          <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);padding:5px 16px;border-radius:20px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;">Grupo C</div>
+        </div>
+        <div class="mock-tv-grid">
+          <div class="mock-tv-slot filled"><div class="tv-esc"></div><div class="tv-name">AD Alcalá</div></div>
+          <div class="mock-tv-slot filled"><div class="tv-esc"></div><div class="tv-name">CF Pozuelo</div></div>
+          <div class="mock-tv-slot"><div class="tv-esc" style="opacity:0.3;"></div><div class="tv-name empty">Esperando sorteo...</div></div>
+          <div class="mock-tv-slot"><div class="tv-esc" style="opacity:0.3;"></div><div class="tv-name empty">Esperando sorteo...</div></div>
+          <div class="mock-tv-slot"><div class="tv-esc" style="opacity:0.3;"></div><div class="tv-name empty">Esperando sorteo...</div></div>
+          <div class="mock-tv-slot"><div class="tv-esc" style="opacity:0.3;"></div><div class="tv-name empty">Esperando sorteo...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Cómo activar la Vista TV</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <strong>Ve a Ajustes del torneo</strong>
+            <p>En la app de gestión, selecciona el torneo y abre la sección <strong>Ajustes</strong>.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <strong>Pulsa "↗ Abrir" en la tarjeta "📺 Vista TV"</strong>
+            <p>Se abre la vista TV del primer grupo de la fase inicial. Proyecta esta URL en el televisor o pantalla del acto.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <strong>Navega entre grupos con los botones</strong>
+            <p>La Vista TV muestra botones de navegación con los nombres de todos los grupos de la fase inicial. Al pulsar un grupo, la pantalla cambia a ese grupo sin recargar.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Comportamiento de actualización</h3>
+      <ul>
+        <li>La vista se <strong>refresca automáticamente cada 3 segundos</strong>.</li>
+        <li>Los equipos ya asignados aparecen <strong>primero</strong> (con su escudo y nombre).</li>
+        <li>Las plazas vacías aparecen al <strong>final</strong> con el texto "Esperando sorteo…".</li>
+        <li>Al asignar un equipo desde la mesa de sorteo, aparece en pantalla en el siguiente ciclo de actualización.</li>
+      </ul>
+    </div>
+
+    <div class="callout tip">
+      <span class="ico">💡</span>
+      <p>Para el acto de sorteo: abre la <strong>Vista TV</strong> en el ordenador conectado al proyector y la <strong>Mesa de Sorteo</strong> (sección Sorteo) en otro ordenador o tablet. Ambas pantallas se sincronizan solas.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ 13. QR -->
+<div class="section" id="qr">
+  <div class="section-header">
+    <span class="sec-icon">📱</span>
+    <h2>13. Código QR del cuadro público</h2>
+  </div>
+  <div class="section-body">
+    <p>La barra lateral incluye un generador de QR que apunta al menú público de cuadros (sin autenticación). Cualquier asistente al torneo puede escanearlo con su móvil para acceder al cuadro de resultados en tiempo real.</p>
+
+    <div class="subsec">
+      <h3>Acceder al QR global</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <strong>Despliega "QR Cuadro Visual" en el sidebar</strong>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <strong>Muestra o descarga el QR</strong>
+            <p>El QR aparece como imagen en el expander. Pulsa <strong>"Descargar"</strong> para guardar el PNG y usarlo en carteles, pantallas o WhatsApp.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>QR por torneo específico</h3>
+      <p>Desde <strong>Ajustes → Bracket Vista → 🔗 URL y QR</strong> se genera un QR que lleva directamente al cuadro de ese torneo concreto, sin pasar por el menú de selección.</p>
+    </div>
+
+    <div class="callout tip">
+      <span class="ico">💡</span>
+      <p>Imprime el QR del <strong>menú global</strong> en un cartel en la entrada del recinto. Los asistentes podrán escanear para seguir los resultados de cualquier torneo en curso desde su móvil.</p>
+    </div>
+  </div>
+</div>
+
+</div><!-- /page -->
+
+<footer>
+  <img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png" alt="RFFM">
+  Real Federación de Fútbol de Madrid &nbsp;·&nbsp; Manual de Usuario Gestor de Torneos &nbsp;·&nbsp; v2.0
+</footer>
+
+</body>
+</html>
