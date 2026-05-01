@@ -3,6 +3,8 @@ import streamlit as st
 
 from src.database import get_supabase
 
+_CUALQUIER_GRUPO = "Cualquier grupo"
+
 
 def _cancelar_confirm(clave):
     st.session_state.pop(clave, None)
@@ -207,8 +209,6 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
     """
     import re
 
-    CUALQUIER = "Cualquier grupo"
-
     def _num(nombre):
         m = re.search(r"\d+", nombre)
         return int(m.group()) if m else 0
@@ -236,7 +236,7 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
             if ss_key not in st.session_state:
                 plaza = plazas[i] if i < len(plazas) else None
                 ref = plaza.get("referencia_origen") if plaza else None
-                st.session_state[ss_key] = ref or CUALQUIER
+                st.session_state[ss_key] = ref or _CUALQUIER_GRUPO
 
     # Grupos ya asignados según session_state (fuente de verdad)
     def get_asignados(excluir_key=None):
@@ -247,8 +247,8 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
                 k = f"pcfg_{g_id}_{i}"
                 if k == excluir_key:
                     continue
-                val = st.session_state.get(k, CUALQUIER)
-                if val and val != CUALQUIER:
+                val = st.session_state.get(k, _CUALQUIER_GRUPO)
+                if val and val != _CUALQUIER_GRUPO:
                     asignados.add(val)
         return asignados
 
@@ -336,7 +336,7 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
 
                 # Opciones: Cualquier grupo + libres + el de esta plaza
                 asignados_otros = get_asignados(excluir_key=ss_key)
-                opciones = [CUALQUIER] + sorted(
+                opciones = [_CUALQUIER_GRUPO] + sorted(
                     [g["nombre"] for g in grupos_origen
                      if g["nombre"] not in asignados_otros],
                     key=_num
@@ -344,7 +344,7 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
 
                 # Si el valor actual no está en opciones, resetear
                 if st.session_state[ss_key] not in opciones:
-                    st.session_state[ss_key] = CUALQUIER
+                    st.session_state[ss_key] = _CUALQUIER_GRUPO
 
                 seleccion = st.selectbox(
                     f"Plaza {i+1}",
@@ -367,7 +367,7 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
                                 "id", plaza["id"]
                             ).execute()
                             # Liberar siguiente_grupo_id del grupo anterior
-                            if ref_bd and ref_bd != CUALQUIER:
+                            if ref_bd and ref_bd != _CUALQUIER_GRUPO:
                                 g_ant = next(
                                     (g for g in grupos_origen if g["nombre"] == ref_bd), None
                                 )
@@ -379,7 +379,7 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
                             supabase.table("participantes_grupo").insert({**payload, "puntos": 0, "goles": 0}).execute()
 
                         # Asignar siguiente_grupo_id al grupo origen
-                        if seleccion != CUALQUIER:
+                        if seleccion != _CUALQUIER_GRUPO:
                             g_orig_match = next(
                                 (g for g in grupos_origen if g["nombre"] == seleccion), None
                             )
@@ -406,8 +406,6 @@ def renderizar_cuadro_progresion(
     fase_actual,
     supabase,
 ):
-    CUALQUIER = "Cualquier grupo"
-
     def _fila_equipo(nombre, escudo, ya_paso):
         bg = "rgba(255,255,255,0.04)" if ya_paso else "white"
         color = "#aaa" if ya_paso else "#1a1a1a"
@@ -511,9 +509,9 @@ def renderizar_cuadro_progresion(
                     st.caption("Sin plazas configuradas. Ve al Configurador.")
                 else:
                     p_actual = plazas_vacias[0]
-                    ref = p_actual.get("referencia_origen") or CUALQUIER
+                    ref = p_actual.get("referencia_origen") or _CUALQUIER_GRUPO
                     try:
-                        if ref == CUALQUIER:
+                        if ref == _CUALQUIER_GRUPO:
                             todos_ant = [
                                 p for plist in participantes_por_grupo_origen.values()
                                 for p in plist
@@ -688,11 +686,10 @@ def renderizar_tarjeta_grupo_minimalista(
             ]
             for i, p_actual in plazas_vacias:
                 if p_actual and p_actual.get("referencia_origen"):
-                    ref = p_actual["referencia_origen"]  # nombre del grupo o "Cualquier grupo"
-                    CUALQUIER = "Cualquier grupo"
+                    ref = p_actual["referencia_origen"]
                     try:
                         f_ant = next(f for f in fases if f["orden"] == fase_actual["orden"] - 1)
-                        if ref == CUALQUIER:
+                        if ref == _CUALQUIER_GRUPO:
                             # Todos los equipos de la fase anterior no asignados aún
                             grupos_ant = (
                                 supabase.table("grupos")

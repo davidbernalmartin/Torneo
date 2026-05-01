@@ -1,6 +1,8 @@
 import io
 import re as _re
 import urllib.parse
+import datetime
+from collections import defaultdict
 
 import streamlit as st
 import pandas as pd
@@ -11,10 +13,12 @@ from src.database import (
     crear_torneo,
     eliminar_torneo,
     get_equipos,
+    get_equipos_libres,
     subir_equipos_batch,
     get_fases,
     get_grupos_por_fase,
     get_participantes_grupo,
+    get_participantes_grupos,
     crear_fase,
     crear_grupos,
     contar_grupos_fase,
@@ -769,17 +773,7 @@ if menu == "Cuadro Visual":
         if hay_partidos_fase(fase_id):
             st.warning("⚠️ Esta fase ya tiene partidos generados. Si modificas equipos o progresiones, ve a **Partidos** y regenera el calendario.")
 
-        todos_participantes = []
-        if ids_grupos:
-            try:
-                todos_participantes = (
-                    supabase.table("participantes_grupo")
-                    .select("*, equipos(id, nombre, escudo_url)")
-                    .in_("grupo_id", ids_grupos)
-                    .execute()
-                ).data
-            except Exception as e:
-                st.error(f"Error cargando participantes: {e}")
+        todos_participantes = get_participantes_grupos(ids_grupos) if ids_grupos else []
 
         participantes_por_grupo: dict = {}
         for p in todos_participantes:
@@ -788,19 +782,8 @@ if menu == "Cuadro Visual":
 
 
         if not es_progresion:
-            equipos_libres = []
-            try:
-                res_eq = (
-                    supabase.table("equipos")
-                    .select("id, nombre")
-                    .eq("eliminado", False)
-                    .eq("torneo_id", torneo_id)
-                    .execute()
-                )
-                ocupados_ids = {p["equipo_id"] for p in todos_participantes if p["equipo_id"]}
-                equipos_libres = [e for e in res_eq.data if e["id"] not in ocupados_ids]
-            except Exception as e:
-                st.error(f"Error cargando equipos libres: {e}")
+            ocupados_ids = {p["equipo_id"] for p in todos_participantes if p["equipo_id"]}
+            equipos_libres = get_equipos_libres(torneo_id, ocupados_ids)
 
             cols_grupos = st.columns(3)
             for idx, grupo in enumerate(grupos):
@@ -822,17 +805,7 @@ if menu == "Cuadro Visual":
             grupos_fase_anterior = _sort_grupos(get_grupos_por_fase(fase_anterior["id"])) if fase_anterior else []
             ids_grupos_ant = [g["id"] for g in grupos_fase_anterior]
 
-            participantes_fase_ant = []
-            if ids_grupos_ant:
-                try:
-                    participantes_fase_ant = (
-                        supabase.table("participantes_grupo")
-                        .select("*, equipos(id, nombre, escudo_url)")
-                        .in_("grupo_id", ids_grupos_ant)
-                        .execute()
-                    ).data
-                except Exception as e:
-                    st.error(f"Error cargando fase anterior: {e}")
+            participantes_fase_ant = get_participantes_grupos(ids_grupos_ant) if ids_grupos_ant else []
 
             participantes_ant_por_grupo: dict = {}
             for p in participantes_fase_ant:
@@ -1006,8 +979,6 @@ if menu == "Partidos":
 # AGENDA
 # -------------------------------------------------------
 if menu == "Agenda":
-    import datetime
-
     st.subheader("Agenda de Partidos")
 
     # ── Carga previa de opciones de filtro ───────────────
@@ -1057,7 +1028,6 @@ if menu == "Agenda":
         st.stop()
 
     # ── Agrupar por campo y listar ordenado por hora ──────
-    from collections import defaultdict
     por_campo = defaultdict(list)
     for p in sorted(partidos, key=lambda x: x.get("hora") or ""):
         por_campo[p.get("campo") or "Sin campo"].append(p)
