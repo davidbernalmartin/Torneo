@@ -322,7 +322,7 @@ if st.sidebar.button("🔒 Cerrar sesión", use_container_width=True):
     st.rerun()
 
 # QR de acceso al menú de cuadros (URL global, no ligada a ningún torneo)
-_URL_CUADRO = "https://bit.ly/cuadro-torneo-rffm"
+_URL_CUADRO = "https://cuadro-rffm-consulta-029991936871-eu-west-3-an.s3.eu-west-3.amazonaws.com/bracket-view.html"
 with st.sidebar.expander("QR Cuadro Visual"):
     _buf = generar_qr(_URL_CUADRO)
     st.image(_buf, use_container_width=True)
