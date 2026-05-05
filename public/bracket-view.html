@@ -801,6 +801,21 @@ async function exportarImagen() {
   const btn = document.getElementById("btn-imagen");
   const target = document.getElementById("bracket");
   if (!target || !window.html2canvas) return;
+
+  // iOS Safari ignora <a download> en blob URLs — hay que abrir la ventana
+  // ANTES del await para que no la bloquee el popup-blocker.
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  let win = null;
+  if (isIOS) {
+    win = window.open("", "_blank");
+    if (win) win.document.write(
+      "<body style='margin:0;background:#111;display:flex;align-items:center;" +
+      "justify-content:center;min-height:100vh;font-family:sans-serif;color:#fff;'>" +
+      "<p>⏳ Generando imagen…</p></body>"
+    );
+  }
+
   btn.classList.add("loading");
   btn.textContent = "⏳ Generando...";
   try {
@@ -811,18 +826,32 @@ async function exportarImagen() {
       allowTaint: true,
       logging: false,
     });
-    canvas.toBlob(blob => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = (document.getElementById("bracket-title")?.textContent || "cuadro") + ".jpg";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-    }, "image/jpeg", 0.92);
+
+    if (isIOS) {
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      if (win) {
+        win.document.body.innerHTML =
+          "<div style='background:#111;min-height:100vh;padding:20px;box-sizing:border-box;text-align:center;'>" +
+          "<p style='color:#aaa;font-family:sans-serif;font-size:14px;margin:0 0 16px;'>" +
+          "Mantén pulsada la imagen para guardarla</p>" +
+          "<img src='" + dataUrl + "' style='max-width:100%;border-radius:8px;'>" +
+          "</div>";
+      }
+    } else {
+      canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = (document.getElementById("bracket-title")?.textContent || "cuadro") + ".jpg";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }, "image/jpeg", 0.92);
+    }
   } catch(e) {
     console.error(e);
+    if (win) win.close();
     alert("No se pudo generar la imagen: " + e.message);
   } finally {
     btn.classList.remove("loading");

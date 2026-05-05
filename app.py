@@ -58,7 +58,7 @@ def generar_qr(url: str):
     )
     qr.add_data(url)
     qr.make(fit=True)
-    img = qr.make_image(fill_color="#7b0000", back_color="white").convert("RGBA")
+    img = qr.make_image(fill_color="#000000", back_color="white").convert("RGBA")
 
     # Incrustar el escudo RFFM centrado
     try:
