@@ -3,4 +3,5 @@ supabase
 pandas
 openpyxl
 qrcode[pil]
+reportlab
 pytest

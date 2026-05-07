@@ -15,6 +15,8 @@ from src.database import (
     get_equipos,
     get_equipos_libres,
     subir_equipos_batch,
+    update_equipo,
+    patch_equipo,
     get_fases,
     get_grupos_por_fase,
     get_participantes_grupo,
@@ -504,18 +506,23 @@ def _modal_carga_equipos(torneo_id):
 
     with st.expander("Ver formato esperado y descargar plantilla"):
         st.markdown("""
-El archivo debe ser **Excel (.xlsx)** o **CSV (.csv)** con exactamente estas dos columnas:
+El archivo debe ser **Excel (.xlsx)** o **CSV (.csv)** con estas columnas:
 
 | Columna | Obligatorio | Descripción |
 |---|---|---|
 | `nombre` | ✅ Sí | Nombre del equipo |
-| `escudo_url` | ✅ Sí | URL pública de la imagen del escudo (puede dejarse vacía) |
+| `escudo_url` | ❌ No | URL pública de la imagen del escudo |
+| `competicion` | ❌ No | Competición de procedencia |
+| `grupo` | ❌ No | Grupo dentro de la competición |
 
 La primera fila debe ser la cabecera con esos nombres exactos (en minúsculas).
+Si el equipo ya existe, **solo se actualizan los campos que vengan rellenos**; los vacíos conservan el valor que hay en base de datos.
         """)
         plantilla_df = pd.DataFrame({
-            "nombre":     ["Real Madrid", "Barcelona", "Atlético de Madrid"],
-            "escudo_url": ["https://ejemplo.com/rm.png", "https://ejemplo.com/fcb.png", ""],
+            "nombre":      ["Real Madrid", "Barcelona", "Atlético de Madrid"],
+            "escudo_url":  ["https://ejemplo.com/rm.png", "https://ejemplo.com/fcb.png", ""],
+            "competicion": ["Liga Nacional", "Liga Nacional", "Primera División"],
+            "grupo":       ["Grupo A", "Grupo B", ""],
         })
         st.dataframe(plantilla_df, use_container_width=True, hide_index=True)
         csv_plantilla = plantilla_df.to_csv(index=False).encode("utf-8")
@@ -524,6 +531,14 @@ La primera fila debe ser la cabecera con esos nombres exactos (en minúsculas).
     if archivo:
         try:
             df = pd.read_excel(archivo) if archivo.name.endswith("xlsx") else pd.read_csv(archivo)
+            # Normalizar nombres de columna: minúsculas, sin espacios, sin acentos
+            import unicodedata
+            def _norm_col(s):
+                s = str(s).strip().lower()
+                s = unicodedata.normalize("NFD", s)
+                s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+                return s
+            df.columns = [_norm_col(c) for c in df.columns]
         except Exception as e:
             st.error(f"No se pudo leer el archivo: {e}")
             st.info("Asegúrate de que el archivo no está corrupto y es un Excel o CSV válido.")
@@ -533,42 +548,79 @@ La primera fila debe ser la cabecera con esos nombres exactos (en minúsculas).
             st.write("### Vista previa")
             st.dataframe(df, use_container_width=True)
 
-            tiene_nombre = "nombre"     in df.columns
-            tiene_escudo = "escudo_url" in df.columns
-
-            if not tiene_nombre or not tiene_escudo:
-                faltantes = []
-                if not tiene_nombre: faltantes.append("`nombre`")
-                if not tiene_escudo: faltantes.append("`escudo_url`")
-                st.error(f"Faltan las columnas obligatorias: {', '.join(faltantes)}")
+            if "nombre" not in df.columns:
+                st.error("Falta la columna obligatoria: `nombre`")
                 cols_encontradas = [f"`{c}`" for c in df.columns.tolist()]
                 st.markdown(
                     f"**Columnas encontradas:** {', '.join(cols_encontradas) if cols_encontradas else '_(ninguna)_'}\n\n"
-                    "Revisa que la primera fila contiene exactamente `nombre` y `escudo_url` (en minúsculas)."
+                    "La primera fila debe contener al menos la columna `nombre` (en minúsculas)."
                 )
             elif df["nombre"].isna().all() or df.empty:
                 st.error("El archivo está vacío o la columna `nombre` no tiene datos.")
             else:
-                nombres_existentes = {e["nombre"].strip().upper() for e in get_equipos(torneo_id)}
-                df["_nuevo"] = ~df["nombre"].str.strip().str.upper().isin(nombres_existentes)
-                duplicados = df[~df["_nuevo"]]["nombre"].tolist()
-                df_nuevos  = df[df["_nuevo"]].drop(columns=["_nuevo"])
+                # Columnas opcionales presentes en el archivo
+                COLS_OPC = ["escudo_url", "competicion", "grupo"]
+                cols_opc_presentes = [c for c in COLS_OPC if c in df.columns]
 
-                if duplicados:
-                    st.warning(f"⚠️ Ya existen y se omitirán: **{', '.join(duplicados)}**")
+                # Limpiar: quitar filas sin nombre
+                df = df[df["nombre"].notna() & (df["nombre"].astype(str).str.strip() != "")].copy()
+                df["nombre"] = df["nombre"].astype(str).str.strip()
 
-                if df_nuevos.empty:
-                    st.error("Todos los equipos ya existen en el torneo.")
+                # Lookup BD: nombre_upper -> equipo completo
+                equipos_bd   = get_equipos(torneo_id)
+                bd_por_nombre = {e["nombre"].strip().upper(): e for e in equipos_bd}
+
+                df["_upper"] = df["nombre"].str.upper()
+                df_nuevos     = df[~df["_upper"].isin(bd_por_nombre)].drop(columns=["_upper"])
+                df_existentes = df[ df["_upper"].isin(bd_por_nombre)].copy()
+
+                # Resumen
+                partes = []
+                if not df_nuevos.empty:
+                    partes.append(f"**{len(df_nuevos)} nuevo(s)**")
+                if not df_existentes.empty:
+                    partes.append(f"**{len(df_existentes)} existente(s)** (se actualizarán por merge)")
+                if partes:
+                    st.info("Se procesarán: " + " · ".join(partes))
+
+                if df_nuevos.empty and df_existentes.empty:
+                    st.error("No hay filas válidas para procesar.")
                 else:
-                    label = f"Confirmar y subir {len(df_nuevos)} equipo(s)" if duplicados else "Confirmar y subir"
-                    if st.button(label, type="primary", use_container_width=True):
-                        equipos_dict = df_nuevos[["nombre", "escudo_url"]].to_dict(orient="records")
-                        with st.spinner(f"Subiendo {len(equipos_dict)} equipos..."):
-                            resultado = subir_equipos_batch(equipos_dict, torneo_id)
-                        if isinstance(resultado, str):
-                            st.error(resultado)
+                    n_tot = len(df_nuevos) + len(df_existentes)
+                    if st.button(f"Confirmar y procesar {n_tot} equipo(s)",
+                                 type="primary", use_container_width=True):
+                        errores = []
+                        with st.spinner("Procesando equipos..."):
+                            # ── INSERT nuevos ──────────────────────────────
+                            if not df_nuevos.empty:
+                                cols_insert = ["nombre"] + cols_opc_presentes
+                                registros = (
+                                    df_nuevos[cols_insert]
+                                    .fillna("")
+                                    .to_dict(orient="records")
+                                )
+                                resultado = subir_equipos_batch(registros, torneo_id)
+                                if isinstance(resultado, str):
+                                    errores.append(resultado)
+
+                            # ── UPDATE existentes (merge) ──────────────────
+                            for _, row in df_existentes.iterrows():
+                                eq_bd = bd_por_nombre[row["nombre"].upper()]
+                                campos = {}
+                                for col in cols_opc_presentes:
+                                    val = str(row[col]).strip() if pd.notna(row.get(col)) else ""
+                                    if val:  # solo sobreescribe si viene relleno
+                                        campos[col] = val
+                                try:
+                                    patch_equipo(eq_bd["id"], campos)
+                                except Exception as e:
+                                    errores.append(f"{row['nombre']}: {e}")
+
+                        if errores:
+                            for err in errores:
+                                st.error(err)
                         else:
-                            st.success(f"¡{len(equipos_dict)} equipos cargados con éxito!")
+                            st.success(f"¡{n_tot} equipos procesados con éxito!")
                             st.rerun()
 
 # -------------------------------------------------------
@@ -576,11 +628,46 @@ La primera fila debe ser la cabecera con esos nombres exactos (en minúsculas).
 # -------------------------------------------------------
 if menu == "Dashboard":
     equipos = get_equipos(torneo_id)
-    col_e1, col_e2, col_btn = st.columns([1, 1, 1], vertical_alignment="bottom")
+    col_e1, col_e2, col_btn, col_pdf = st.columns([1, 1, 1, 1], vertical_alignment="bottom")
     col_e1.metric("Total Equipos", len(equipos))
     col_e2.metric("En Competición", len([e for e in equipos if not e["eliminado"]]))
-    if col_btn.button("Añadir equipos", use_container_width=True, ):
+    if col_btn.button("Añadir equipos", use_container_width=True):
         _modal_carga_equipos(torneo_id)
+    if col_pdf.button("🖨️ Tarjetas sorteo", use_container_width=True, disabled=len(equipos) == 0):
+        with st.spinner("Generando tarjetas…"):
+            from src.pdf_tarjetas import generar_pdf_tarjetas
+            _pdf_bytes = generar_pdf_tarjetas(equipos, torneo_actual["nombre"])
+        st.download_button(
+            "📥 Descargar PDF",
+            data=_pdf_bytes,
+            file_name=f"tarjetas_{torneo_actual['nombre']}.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
+
+    @st.dialog("✏️ Editar equipo")
+    def _modal_editar_equipo(equipo):
+        escudo_actual = equipo.get("escudo_url") or ""
+        if escudo_actual:
+            st.image(escudo_actual, width=80)
+        nuevo_nombre = st.text_input("Nombre del equipo", value=equipo["nombre"])
+        nuevo_escudo = st.text_input("URL del escudo", value=escudo_actual,
+                                     placeholder="https://ejemplo.com/escudo.png")
+        if nuevo_escudo and nuevo_escudo != escudo_actual:
+            st.image(nuevo_escudo, width=80, caption="Vista previa")
+        nueva_competicion = st.text_input("Competición", value=equipo.get("competicion") or "",
+                                          placeholder="Ej: Liga Nacional")
+        nuevo_grupo = st.text_input("Grupo", value=equipo.get("grupo") or "",
+                                    placeholder="Ej: Grupo A")
+        st.write("")
+        if st.button("💾 Guardar cambios", use_container_width=True, type="primary"):
+            nombre_limpio = nuevo_nombre.strip()
+            if not nombre_limpio:
+                st.error("El nombre no puede estar vacío.")
+            else:
+                update_equipo(equipo["id"], nombre_limpio, nuevo_escudo.strip(),
+                              nueva_competicion.strip(), nuevo_grupo.strip())
+                st.rerun()
 
     st.write("---")
     st.subheader("Plantilla de Equipos")
@@ -591,7 +678,7 @@ if menu == "Dashboard":
     )
     if busqueda.strip() and not equipos_filtrados:
         st.caption("Sin resultados.")
-    renderizar_tarjetas_equipos(equipos_filtrados)
+    renderizar_tarjetas_equipos(equipos_filtrados, editable=True, on_edit=_modal_editar_equipo)
 
 # -------------------------------------------------------
 # CONFIGURADOR

@@ -769,7 +769,7 @@ def renderizar_tarjeta_grupo_minimalista(
 # TARJETAS DE EQUIPOS (vista escritorio)
 # -------------------------------------------------------
 
-def renderizar_tarjetas_equipos(lista_equipos):
+def renderizar_tarjetas_equipos(lista_equipos, editable=False, on_edit=None):
     """Muestra todos los equipos en una cuadrícula de 4 columnas."""
     if not lista_equipos:
         st.info("No hay equipos cargados.")
@@ -782,7 +782,7 @@ def renderizar_tarjetas_equipos(lista_equipos):
         with cols[idx % 4]:
             st.markdown(f"""
                 <div style="background-color: white; border-radius: 12px; padding: 20px;
-                            margin-bottom: 20px; text-align: center;
+                            margin-bottom: 4px; text-align: center;
                             box-shadow: 0px 4px 10px rgba(0,0,0,0.2);
                             border: 1px solid #ddd; min-height: 160px;
                             display: flex; flex-direction: column;
@@ -795,3 +795,6 @@ def renderizar_tarjetas_equipos(lista_equipos):
                     </div>
                 </div>
             """, unsafe_allow_html=True)
+            if editable and on_edit:
+                if st.button("✏️ Editar", key=f"edit_eq_{equipo['id']}", use_container_width=True):
+                    on_edit(equipo)

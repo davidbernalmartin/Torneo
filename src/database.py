@@ -76,6 +76,26 @@ def subir_equipos_batch(lista_equipos, torneo_id):
         return f"Error: {e}"
 
 
+def patch_equipo(equipo_id, campos: dict):
+    """Actualiza solo los campos proporcionados (merge); no toca los que no vienen."""
+    if not campos:
+        return
+    supabase = get_supabase()
+    supabase.table("equipos").update(campos).eq("id", equipo_id).execute()
+    st.cache_data.clear()
+
+
+def update_equipo(equipo_id, nombre, escudo_url, competicion=None, grupo=None):
+    supabase = get_supabase()
+    supabase.table("equipos").update({
+        "nombre":      nombre,
+        "escudo_url":  escudo_url or None,
+        "competicion": competicion or None,
+        "grupo":       grupo or None,
+    }).eq("id", equipo_id).execute()
+    st.cache_data.clear()
+
+
 # -------------------------------------------------------
 # FASES
 # -------------------------------------------------------
