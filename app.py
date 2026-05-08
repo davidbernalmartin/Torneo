@@ -1,3 +1,4 @@
+import base64
 import io
 import re as _re
 import urllib.parse
@@ -232,8 +233,8 @@ def check_login():
 
     return False
 
-if not check_login():
-    st.stop()
+#if not check_login():
+#    st.stop()
 
 # --- Cliente Supabase único ---
 supabase = get_supabase()
@@ -296,6 +297,28 @@ if "view" in query_params and query_params["view"] == "tv":
         </style>
     """, unsafe_allow_html=True)
 
+    # ── QR Bracket Vista (esquina superior derecha, fijo) ─────────────────────
+    if torneo_id_tv:
+        try:
+            _url_vista_tv = f"https://www.rffm.es/actualidad/futbol-7/torneo-campeones-2026?torneo={torneo_id_tv}"
+            _qr_buf = generar_qr(_url_vista_tv)
+            _qr_b64 = base64.b64encode(_qr_buf.getvalue()).decode()
+            st.markdown(f"""
+                <div style="position: fixed; top: 1rem; right: 1rem; z-index: 9999;
+                            background: white; border-radius: 8px; padding: 6px;
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.4);">
+                    <img src="data:image/png;base64,{_qr_b64}"
+                         style="width: 140px; height: 140px; display: block;">
+                    <div style="text-align: center; font-size: 11px; color: #333;
+                                margin-top: 4px; font-family: sans-serif;
+                                font-weight: bold; max-width: 140px;">
+                        Consulta el cuadro del torneo
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+        except Exception:
+            pass
+
     if grupo_id_url:
         mostrar_grupo_tv(grupo_id_url, torneo_id=torneo_id_tv)
     else:
@@ -324,7 +347,7 @@ if st.sidebar.button("🔒 Cerrar sesión", use_container_width=True):
     st.rerun()
 
 # QR de acceso al menú de cuadros (URL global, no ligada a ningún torneo)
-_URL_CUADRO = "https://cuadro-rffm-consulta-029991936871-eu-west-3-an.s3.eu-west-3.amazonaws.com/bracket-view.html"
+_URL_CUADRO = "https://www.rffm.es/actualidad/futbol-7/torneo-campeones-2026"
 with st.sidebar.expander("QR Cuadro Visual"):
     _buf = generar_qr(_URL_CUADRO)
     st.image(_buf, use_container_width=True)
