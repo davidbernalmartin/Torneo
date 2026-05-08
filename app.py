@@ -234,8 +234,8 @@ def check_login():
 
     return False
 
-#if not check_login():
-#    st.stop()
+if not check_login():
+    st.stop()
 
 # --- Cliente Supabase único ---
 supabase = get_supabase()
