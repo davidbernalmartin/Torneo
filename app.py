@@ -28,6 +28,7 @@ from src.database import (
     actualizar_grupo,
     eliminar_grupo,
     actualizar_num_vueltas,
+    set_fase_oculta_bracket,
     hay_partidos_fase,
     eliminar_partidos_fase,
     generar_partidos_fase,
@@ -725,12 +726,25 @@ if menu == "Configurador":
     if not fases:
         st.info("Crea una fase arriba para empezar.")
     else:
-        fase_sel = st.selectbox("Selecciona la Fase a configurar", [f["nombre"] for f in fases])
+        col_sel, col_toggle = st.columns([4, 1], vertical_alignment="bottom")
+        fase_sel = col_sel.selectbox("Selecciona la Fase a configurar", [f["nombre"] for f in fases])
         fase_actual = next((f for f in fases if f["nombre"] == fase_sel), None)
 
         if fase_actual:
             fase_id = fase_actual["id"]
             es_fase_progresion = fase_actual["orden"] > 1
+
+            # ── Visibilidad en el bracket público ─────────────
+            oculta_actual = fase_actual.get("oculta_bracket") or False
+            nueva_oculta  = col_toggle.toggle(
+                "Ocultar en bracket",
+                value=oculta_actual,
+                key=f"oculta_{fase_id}",
+                help="Oculta esta fase en el Bracket Vista público (Bracket Gestión no se ve afectado)",
+            )
+            if nueva_oculta != oculta_actual:
+                set_fase_oculta_bracket(fase_id, nueva_oculta)
+                st.rerun()
 
             # ── Formato de partidos ──────────────────────────
             num_vueltas_actual = fase_actual.get("num_vueltas") or 1

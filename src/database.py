@@ -228,6 +228,12 @@ def actualizar_num_vueltas(fase_id, num_vueltas):
     st.cache_data.clear()
 
 
+def set_fase_oculta_bracket(fase_id, oculta: bool):
+    supabase = get_supabase()
+    supabase.table("fases").update({"oculta_bracket": oculta}).eq("id", fase_id).execute()
+    st.cache_data.clear()
+
+
 def hay_partidos_fase(fase_id):
     supabase = get_supabase()
     grupos = supabase.table("grupos").select("id").eq("fase_id", fase_id).execute().data
