@@ -76,8 +76,9 @@ def mostrar_grupo_tv(grupo_id_param, torneo_id=None):
         def _participantes():
             res_part = (
                 supabase.table("participantes_grupo")
-                .select("equipo_id")
+                .select("equipo_id, created_at")
                 .eq("grupo_id", grupo_id)
+                .order("created_at", desc=False)
                 .execute()
             )
             participantes_raw = res_part.data or []
@@ -99,7 +100,8 @@ def mostrar_grupo_tv(grupo_id_param, torneo_id=None):
                 eq = eq_map.get(p.get("equipo_id"))
                 participantes.append({"equipo_id": p.get("equipo_id"), "equipo": eq})
 
-            # Equipos asignados primero, huecos vacíos al final
+            # Equipos asignados primero (orden created_at preservado), huecos al final.
+            # sorted() es estable: la posición relativa de los asignados no cambia.
             participantes = sorted(participantes, key=lambda p: (0 if p.get("equipo") else 1))
             participantes = participantes[:tipo_grupo]
 
@@ -187,7 +189,7 @@ def mostrar_grupo_tv(grupo_id_param, torneo_id=None):
                     if cols_nav[idx].button(
                         label,
                         key=f"btn_nav_tv_{g_nav['id']}",
-                        use_container_width=True,
+                        width='stretch',
                         type="primary" if es_actual else "secondary",
                     ):
                         st.query_params["grupo"] = g_nav["id"]
@@ -207,8 +209,6 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
     Restricción: un grupo origen solo puede aparecer una vez.
     session_state controla el valor — no se pierde tras rerun.
     """
-    import re
-
     def _num(nombre):
         m = re.search(r"\d+", nombre)
         return int(m.group()) if m else 0
@@ -485,7 +485,7 @@ def renderizar_cuadro_progresion(
 
             # Vaciar o selectbox
             if grupo_lleno:
-                if st.button("⊘  Vaciar grupo", key=f"vaciar_{g_id}", use_container_width=True):
+                if st.button("⊘  Vaciar grupo", key=f"vaciar_{g_id}", width='stretch'):
                     st.session_state[f"confirmar_vaciar_{g_id}"] = True
                 if st.session_state.get(f"confirmar_vaciar_{g_id}", False):
                     st.warning(f"¿Borrar equipos de {g_dest['nombre']}?")
@@ -582,6 +582,10 @@ def renderizar_tarjeta_grupo_minimalista(
         if notas else ""
     )
 
+    # Equipos asignados primero, huecos al final — evita que filas nulas anteriores
+    # bloqueen el acceso por índice a equipos recién añadidos.
+    participantes = sorted(participantes, key=lambda p: (0 if p and p.get("equipo_id") else 1))
+
     # --- Tarjeta HTML ---
     st.markdown(f"""
         <div style="background:#8b0000;border-radius:12px;overflow:hidden;margin-bottom:4px;">
@@ -633,7 +637,7 @@ def renderizar_tarjeta_grupo_minimalista(
 
     # --- Botón único ---
     if grupo_lleno:
-        if st.button("⊘  Vaciar grupo", key=f"vaciar_{grupo_id}", use_container_width=True):
+        if st.button("⊘  Vaciar grupo", key=f"vaciar_{grupo_id}", width='stretch'):
             st.session_state[f"confirmar_vaciar_{grupo_id}"] = True
 
         if st.session_state.get(f"confirmar_vaciar_{grupo_id}", False):
@@ -641,7 +645,13 @@ def renderizar_tarjeta_grupo_minimalista(
             col_si, col_no = st.columns(2)
             if col_si.button("Sí, vaciar", key=f"si_vaciar_{grupo_id}", type="primary"):
                 try:
-                    supabase.table("participantes_grupo").update({"equipo_id": None}).eq("grupo_id", grupo_id).execute()
+                    if es_progresion:
+                        # Conservar referencia_origen; solo quitar el equipo asignado
+                        supabase.table("participantes_grupo").update({"equipo_id": None}).eq("grupo_id", grupo_id).execute()
+                    else:
+                        # En sorteo no hay referencia_origen que preservar; borrar filas
+                        # para que el siguiente INSERT empiece desde cero sin filas huérfanas
+                        supabase.table("participantes_grupo").delete().eq("grupo_id", grupo_id).execute()
                     st.session_state.pop(f"confirmar_vaciar_{grupo_id}", None)
                     st.rerun()
                 except Exception as e:
@@ -796,5 +806,5 @@ def renderizar_tarjetas_equipos(lista_equipos, editable=False, on_edit=None):
                 </div>
             """, unsafe_allow_html=True)
             if editable and on_edit:
-                if st.button("✏️ Editar", key=f"edit_eq_{equipo['id']}", use_container_width=True):
+                if st.button("✏️ Editar", key=f"edit_eq_{equipo['id']}", width='stretch'):
                     on_edit(equipo)

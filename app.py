@@ -4,6 +4,7 @@ import re as _re
 import urllib.parse
 import datetime
 from collections import defaultdict
+from typing import Any
 
 import streamlit as st
 import pandas as pd
@@ -56,13 +57,13 @@ def generar_qr(url: str):
 
     qr = qrcode.QRCode(
         version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_H,  # H=30% tolerancia para incrustar logo
+        error_correction=qrcode.constants.ERROR_CORRECT_H,  # type: ignore[attr-defined]
         box_size=10,
         border=2,
     )
     qr.add_data(url)
     qr.make(fit=True)
-    img = qr.make_image(fill_color="#000000", back_color="white").convert("RGBA")
+    img = qr.make_image(fill_color="#000000", back_color="white").convert("RGBA")  # type: ignore[union-attr]
 
     # Incrustar el escudo RFFM centrado
     try:
@@ -70,7 +71,7 @@ def generar_qr(url: str):
             logo = Image.open(io.BytesIO(resp.read())).convert("RGBA")
         qr_w, qr_h = img.size
         logo_size = qr_w // 4  # ocupa el 25% del ancho del QR
-        logo = logo.resize((logo_size, logo_size), Image.LANCZOS)
+        logo = logo.resize((logo_size, logo_size), Image.LANCZOS)  # type: ignore[attr-defined]
         # Fondo blanco con margen alrededor del logo
         pad = 6
         bg = Image.new("RGBA", (logo_size + pad * 2, logo_size + pad * 2), (255, 255, 255, 255))
@@ -221,7 +222,7 @@ def check_login():
         with st.form("login_form"):
             usuario = st.text_input("Usuario")
             password = st.text_input("Contraseña", type="password")
-            submitted = st.form_submit_button("Entrar", use_container_width=True, type="primary")
+            submitted = st.form_submit_button("Entrar", width='stretch', type="primary")
 
             if submitted:
                 valid_user = st.secrets.get("auth", {}).get("username", "")
@@ -343,7 +344,7 @@ st.markdown(
 # -------------------------------------------------------
 # SELECTOR DE TORNEO (sidebar)
 # -------------------------------------------------------
-if st.sidebar.button("🔒 Cerrar sesión", use_container_width=True):
+if st.sidebar.button("🔒 Cerrar sesión", width='stretch'):
     st.session_state.authenticated = False
     st.rerun()
 
@@ -351,14 +352,14 @@ if st.sidebar.button("🔒 Cerrar sesión", use_container_width=True):
 _URL_CUADRO = "https://www.rffm.es/actualidad/futbol-7/torneo-campeones-2026"
 with st.sidebar.expander("QR Cuadro Visual"):
     _buf = generar_qr(_URL_CUADRO)
-    st.image(_buf, use_container_width=True)
+    st.image(_buf, width='stretch')
     _buf.seek(0)
     st.download_button(
         "Descargar",
         data=_buf,
         file_name="qr_cuadro_rffm.png",
         mime="image/png",
-        use_container_width=True,
+        width='stretch',
     )
 
 st.sidebar.markdown("---")
@@ -385,13 +386,12 @@ else:
         key="torneo_selector",
     )
     st.session_state.torneo_idx = nombres_torneos.index(torneo_sel)
-    torneo_actual = next((t for t in torneos if t["nombre"] == torneo_sel), None)
-    torneo_id = torneo_actual["id"]
+    torneo_actual: dict[str, Any] | None = next((t for t in torneos if t["nombre"] == torneo_sel), None)
 
 with st.sidebar.expander("➕ Nuevo torneo"):
     nuevo_nombre = st.text_input("Nombre", placeholder="ej: Copa RFFM 2026", key="sb_nuevo_nombre")
     nueva_desc   = st.text_input("Descripción (opcional)", key="sb_nueva_desc")
-    if st.button("Crear", use_container_width=True, key="sb_crear_torneo"):
+    if st.button("Crear", width='stretch', key="sb_crear_torneo"):
         if nuevo_nombre.strip():
             try:
                 crear_torneo(nuevo_nombre.strip(), nueva_desc.strip())
@@ -417,12 +417,40 @@ if not torneo_actual:
     st.warning("Selecciona o crea un torneo en el sidebar para continuar.")
     st.stop()
 
+assert torneo_actual is not None  # garantizado por el guard anterior
+torneo_id: str = torneo_actual["id"]
+
+# -------------------------------------------------------
+# DIALOGS DE MÓDULO
+# -------------------------------------------------------
+@st.dialog("Enlace y código QR")
+def _modal_qr(label: str, url: str) -> None:
+    st.markdown(f"**{label}**")
+    st.code(url, language=None)
+    st.divider()
+    try:
+        qr_bytes = generar_qr(url).getvalue()
+        col_img, col_acc = st.columns([1, 1])
+        col_img.image(qr_bytes, width='stretch')
+        with col_acc:
+            st.caption("Escanea para abrir el enlace directamente.")
+            st.download_button(
+                "Descargar QR",
+                data=qr_bytes,
+                file_name=f"qr_{label.replace(' ', '_')}.png",
+                mime="image/png",
+                key="dl_qr_modal",
+            )
+    except Exception as e:
+        st.error(f"Error generando QR: {e}")
+
+
 # -------------------------------------------------------
 # AJUSTES
 # -------------------------------------------------------
 if menu == "Ajustes":
-    t   = torneo_actual
-    tid = torneo_id
+    t:   dict[str, Any] = torneo_actual
+    tid: str            = torneo_id
 
     st.subheader(f"Ajustes — {t['nombre']}")
     if t.get("descripcion"):
@@ -437,11 +465,7 @@ if menu == "Ajustes":
     url_tv = None
     if fases_torneo:
         grupos_raw = supabase.table("grupos").select("id, nombre, orden_cuadro").eq("fase_id", fases_torneo[0]["id"]).execute().data
-        grupos_tv_ord = sorted(
-            grupos_raw,
-            key=lambda g: (g["orden_cuadro"] if g.get("orden_cuadro") is not None else float("inf"),
-                           int(m.group()) if (m := _re.search(r"\d+", g["nombre"])) else 0)
-        )
+        grupos_tv_ord = _sort_grupos(grupos_raw)
         if grupos_tv_ord:
             url_tv = f"/?view=tv&grupo={grupos_tv_ord[0]['id']}&torneo={tid}"
 
@@ -452,28 +476,6 @@ if menu == "Ajustes":
     ]
     if url_tv:
         cards.append(("📺", "Vista TV", "Pantalla de sorteo en tiempo real", url_tv))
-
-    # ── Modal QR ────────────────────────────────────────────
-    @st.dialog("Enlace y código QR")
-    def _modal_qr(label, url):
-        st.markdown(f"**{label}**")
-        st.code(url, language=None)
-        st.divider()
-        try:
-            qr_bytes = generar_qr(url).getvalue()
-            col_img, col_acc = st.columns([1, 1])
-            col_img.image(qr_bytes, use_container_width=True)
-            with col_acc:
-                st.caption("Escanea para abrir el enlace directamente.")
-                st.download_button(
-                    "Descargar QR",
-                    data=qr_bytes,
-                    file_name=f"qr_{label.replace(' ', '_')}.png",
-                    mime="image/png",
-                    key=f"dl_qr_modal",
-                )
-        except Exception as e:
-            st.error(f"Error generando QR: {e}")
 
     # ── Tarjetas ────────────────────────────────────────────
     st.write("### Accesos")
@@ -488,9 +490,9 @@ if menu == "Ajustes":
                     f'margin:0 0 18px;line-height:1.4;">{desc}</p>',
                     unsafe_allow_html=True,
                 )
-                if st.button("🔗 URL y QR", key=f"modal_btn_{i}", use_container_width=True):
+                if st.button("🔗 URL y QR", key=f"modal_btn_{i}", width='stretch'):
                     _modal_qr(label, url)
-                st.link_button("↗ Abrir", url, use_container_width=True)
+                st.link_button("↗ Abrir", url, width='stretch')
 
     # ── Zona de peligro ─────────────────────────────────────
     st.write("---")
@@ -501,7 +503,7 @@ if menu == "Ajustes":
             f"Eliminar **{t['nombre']}** y **todos** sus datos (fases, grupos, equipos, participantes). "
             "Esta acción **no se puede deshacer**."
         )
-        if col_btn.button("🗑️ Eliminar", key=f"del_{tid}", use_container_width=True):
+        if col_btn.button("🗑️ Eliminar", key=f"del_{tid}", width='stretch'):
             st.session_state[f"confirm_del_{tid}"] = True
 
         if st.session_state.get(f"confirm_del_{tid}", False):
@@ -521,9 +523,6 @@ if menu == "Ajustes":
                 args=[f"confirm_del_{tid}", None],
             )
 
-# -------------------------------------------------------
-# MODAL CARGA DE EQUIPOS
-# -------------------------------------------------------
 @st.dialog("Importación Masiva de Equipos", width="large")
 def _modal_carga_equipos(torneo_id):
     archivo = st.file_uploader("Sube tu Excel o CSV", type=["xlsx", "csv"])
@@ -548,7 +547,7 @@ Si el equipo ya existe, **solo se actualizan los campos que vengan rellenos**; l
             "competicion": ["Liga Nacional", "Liga Nacional", "Primera División"],
             "grupo":       ["Grupo A", "Grupo B", ""],
         })
-        st.dataframe(plantilla_df, use_container_width=True, hide_index=True)
+        st.dataframe(plantilla_df, width='stretch', hide_index=True)
         csv_plantilla = plantilla_df.to_csv(index=False).encode("utf-8")
         st.download_button("Descargar plantilla CSV", csv_plantilla, "plantilla_equipos.csv", "text/csv")
 
@@ -570,7 +569,7 @@ Si el equipo ya existe, **solo se actualizan los campos que vengan rellenos**; l
 
         if df is not None:
             st.write("### Vista previa")
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(df, width='stretch')
 
             if "nombre" not in df.columns:
                 st.error("Falta la columna obligatoria: `nombre`")
@@ -579,7 +578,7 @@ Si el equipo ya existe, **solo se actualizan los campos que vengan rellenos**; l
                     f"**Columnas encontradas:** {', '.join(cols_encontradas) if cols_encontradas else '_(ninguna)_'}\n\n"
                     "La primera fila debe contener al menos la columna `nombre` (en minúsculas)."
                 )
-            elif df["nombre"].isna().all() or df.empty:
+            elif bool(df["nombre"].isna().all()) or df.empty:
                 st.error("El archivo está vacío o la columna `nombre` no tiene datos.")
             else:
                 # Columnas opcionales presentes en el archivo
@@ -612,7 +611,7 @@ Si el equipo ya existe, **solo se actualizan los campos que vengan rellenos**; l
                 else:
                     n_tot = len(df_nuevos) + len(df_existentes)
                     if st.button(f"Confirmar y procesar {n_tot} equipo(s)",
-                                 type="primary", use_container_width=True):
+                                 type="primary", width='stretch'):
                         errores = []
                         with st.spinner("Procesando equipos..."):
                             # ── INSERT nuevos ──────────────────────────────
@@ -632,7 +631,7 @@ Si el equipo ya existe, **solo se actualizan los campos que vengan rellenos**; l
                                 eq_bd = bd_por_nombre[row["nombre"].upper()]
                                 campos = {}
                                 for col in cols_opc_presentes:
-                                    val = str(row[col]).strip() if pd.notna(row.get(col)) else ""
+                                    val = str(row[col]).strip() if row.get(col) is not None else ""
                                     if val:  # solo sobreescribe si viene relleno
                                         campos[col] = val
                                 try:
@@ -647,6 +646,32 @@ Si el equipo ya existe, **solo se actualizan los campos que vengan rellenos**; l
                             st.success(f"¡{n_tot} equipos procesados con éxito!")
                             st.rerun()
 
+
+@st.dialog("✏️ Editar equipo")
+def _modal_editar_equipo(equipo: dict[str, Any]) -> None:
+    escudo_actual = equipo.get("escudo_url") or ""
+    if escudo_actual:
+        st.image(escudo_actual, width=80)
+    nuevo_nombre = st.text_input("Nombre del equipo", value=equipo["nombre"])
+    nuevo_escudo = st.text_input("URL del escudo", value=escudo_actual,
+                                 placeholder="https://ejemplo.com/escudo.png")
+    if nuevo_escudo and nuevo_escudo != escudo_actual:
+        st.image(nuevo_escudo, width=80, caption="Vista previa")
+    nueva_competicion = st.text_input("Competición", value=equipo.get("competicion") or "",
+                                      placeholder="Ej: Liga Nacional")
+    nuevo_grupo = st.text_input("Grupo", value=equipo.get("grupo") or "",
+                                placeholder="Ej: Grupo A")
+    st.write("")
+    if st.button("💾 Guardar cambios", width='stretch', type="primary"):
+        nombre_limpio = nuevo_nombre.strip()
+        if not nombre_limpio:
+            st.error("El nombre no puede estar vacío.")
+        else:
+            update_equipo(equipo["id"], nombre_limpio, nuevo_escudo.strip(),
+                          nueva_competicion.strip(), nuevo_grupo.strip())
+            st.rerun()
+
+
 # -------------------------------------------------------
 # DASHBOARD
 # -------------------------------------------------------
@@ -655,9 +680,9 @@ if menu == "Dashboard":
     col_e1, col_e2, col_btn, col_pdf = st.columns([1, 1, 1, 1], vertical_alignment="bottom")
     col_e1.metric("Total Equipos", len(equipos))
     col_e2.metric("En Competición", len([e for e in equipos if not e["eliminado"]]))
-    if col_btn.button("Añadir equipos", use_container_width=True):
+    if col_btn.button("Añadir equipos", width='stretch'):
         _modal_carga_equipos(torneo_id)
-    if col_pdf.button("🖨️ Tarjetas sorteo", use_container_width=True, disabled=len(equipos) == 0):
+    if col_pdf.button("🖨️ Tarjetas sorteo", width='stretch', disabled=len(equipos) == 0):
         with st.spinner("Generando tarjetas…"):
             from src.pdf_tarjetas import generar_pdf_tarjetas
             _pdf_bytes = generar_pdf_tarjetas(equipos, torneo_actual["nombre"])
@@ -666,32 +691,8 @@ if menu == "Dashboard":
             data=_pdf_bytes,
             file_name=f"tarjetas_{torneo_actual['nombre']}.pdf",
             mime="application/pdf",
-            use_container_width=True,
+            width='stretch',
         )
-
-    @st.dialog("✏️ Editar equipo")
-    def _modal_editar_equipo(equipo):
-        escudo_actual = equipo.get("escudo_url") or ""
-        if escudo_actual:
-            st.image(escudo_actual, width=80)
-        nuevo_nombre = st.text_input("Nombre del equipo", value=equipo["nombre"])
-        nuevo_escudo = st.text_input("URL del escudo", value=escudo_actual,
-                                     placeholder="https://ejemplo.com/escudo.png")
-        if nuevo_escudo and nuevo_escudo != escudo_actual:
-            st.image(nuevo_escudo, width=80, caption="Vista previa")
-        nueva_competicion = st.text_input("Competición", value=equipo.get("competicion") or "",
-                                          placeholder="Ej: Liga Nacional")
-        nuevo_grupo = st.text_input("Grupo", value=equipo.get("grupo") or "",
-                                    placeholder="Ej: Grupo A")
-        st.write("")
-        if st.button("💾 Guardar cambios", use_container_width=True, type="primary"):
-            nombre_limpio = nuevo_nombre.strip()
-            if not nombre_limpio:
-                st.error("El nombre no puede estar vacío.")
-            else:
-                update_equipo(equipo["id"], nombre_limpio, nuevo_escudo.strip(),
-                              nueva_competicion.strip(), nuevo_grupo.strip())
-                st.rerun()
 
     st.write("---")
     st.subheader("Plantilla de Equipos")
@@ -772,7 +773,7 @@ if menu == "Configurador":
             with col2:
                 tamano_grupo = st.number_input("Equipos por grupo", min_value=1, value=4)
             with col3:
-                if st.button("Añadir", use_container_width=True):
+                if st.button("Añadir", width='stretch'):
                     try:
                         total_existentes = contar_grupos_fase(fase_id)
                         nuevos_grupos = [
@@ -809,7 +810,7 @@ if menu == "Configurador":
                                 "Posición": st.column_config.NumberColumn(min_value=1, step=1),
                             },
                             hide_index=True,
-                            use_container_width=True,
+                            width='stretch',
                             key=f"orden_cuadro_editor_{fase_id}",
                         )
                         if st.button("Guardar cambios", key=f"guardar_orden_{fase_id}", type="primary"):
@@ -970,7 +971,7 @@ if menu == "Partidos":
     col_gen, col_sync, col_filtro = st.columns([2, 2, 3])
     with col_gen:
         lbl = "🔄 Regenerar partidos" if tiene_partidos else "⚡ Generar partidos"
-        if st.button(lbl, type="primary", use_container_width=True):
+        if st.button(lbl, type="primary", width='stretch'):
             if tiene_partidos:
                 st.session_state[f"confirm_regen_{fase_id}"] = True
             else:
@@ -987,7 +988,7 @@ if menu == "Partidos":
 
     with col_sync:
         if tiene_partidos:
-            if st.button("🔗 Sincronizar equipos", use_container_width=True,
+            if st.button("🔗 Sincronizar equipos", width='stretch',
                          help="Actualiza los partidos con los equipos que ya han ocupado su plaza en el sorteo"):
                 try:
                     with st.spinner("Sincronizando..."):
@@ -1077,7 +1078,7 @@ if menu == "Partidos":
                         "Goles V":   st.column_config.NumberColumn(min_value=0, step=1, width="small"),
                     },
                     hide_index=True,
-                    use_container_width=True,
+                    width='stretch',
                     key=f"editor_partidos_{grupo_id}",
                 )
 
@@ -1089,11 +1090,11 @@ if menu == "Partidos":
                         fecha   = row["Fecha"]
                         updates.append({
                             "id":                  partidos[i]["id"],
-                            "fecha":               str(fecha) if pd.notna(fecha) and fecha is not None else None,
+                            "fecha":               str(fecha) if fecha is not None else None,
                             "hora":                row["Hora"] or None,
                             "campo":               row["Campo"] or None,
-                            "resultado_local":     int(goles_l) if pd.notna(goles_l) and goles_l != "" else None,
-                            "resultado_visitante": int(goles_v) if pd.notna(goles_v) and goles_v != "" else None,
+                            "resultado_local":     int(goles_l) if goles_l is not None else None,
+                            "resultado_visitante": int(goles_v) if goles_v is not None else None,
                         })
                     actualizar_partidos_batch(updates)
                     st.success("Guardado.")

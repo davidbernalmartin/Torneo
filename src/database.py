@@ -1,5 +1,6 @@
 import streamlit as st
 from supabase import create_client, Client
+from typing import Any
 
 
 @st.cache_resource
@@ -13,14 +14,14 @@ def get_supabase() -> Client:
 # TORNEOS
 # -------------------------------------------------------
 
-def get_torneos():
+def get_torneos() -> list[dict[str, Any]]:
     supabase = get_supabase()
-    return supabase.table("torneos").select("*").order("created_at").execute().data
+    return supabase.table("torneos").select("*").order("created_at").execute().data  # type: ignore[return-value]
 
 
-def crear_torneo(nombre, descripcion=""):
+def crear_torneo(nombre: str, descripcion: str = "") -> list[dict[str, Any]]:
     supabase = get_supabase()
-    return supabase.table("torneos").insert({
+    return supabase.table("torneos").insert({  # type: ignore[return-value]
         "nombre": nombre,
         "descripcion": descripcion,
         "activo": True,
@@ -38,9 +39,9 @@ def eliminar_torneo(torneo_id):
 # -------------------------------------------------------
 
 @st.cache_data(ttl=30)
-def get_equipos(torneo_id):
+def get_equipos(torneo_id: str) -> list[dict[str, Any]]:
     supabase = get_supabase()
-    return (
+    return (  # type: ignore[return-value]
         supabase.table("equipos")
         .select("*")
         .eq("torneo_id", torneo_id)
@@ -50,9 +51,9 @@ def get_equipos(torneo_id):
     )
 
 
-def get_equipos_libres(torneo_id, ocupados_ids=None):
+def get_equipos_libres(torneo_id: str, ocupados_ids: set[str] | None = None) -> list[dict[str, Any]]:
     supabase = get_supabase()
-    equipos = (
+    equipos: list[dict[str, Any]] = (  # type: ignore[assignment]
         supabase.table("equipos")
         .select("id, nombre")
         .eq("eliminado", False)
@@ -101,9 +102,9 @@ def update_equipo(equipo_id, nombre, escudo_url, competicion=None, grupo=None):
 # -------------------------------------------------------
 
 @st.cache_data(ttl=30)
-def get_fases(torneo_id):
+def get_fases(torneo_id: str) -> list[dict[str, Any]]:
     supabase = get_supabase()
-    return (
+    return (  # type: ignore[return-value]
         supabase.table("fases")
         .select("*")
         .eq("torneo_id", torneo_id)
@@ -129,9 +130,9 @@ def crear_fase(nombre, orden, torneo_id):
 # -------------------------------------------------------
 
 @st.cache_data(ttl=30)
-def get_grupos_por_fase(fase_id):
+def get_grupos_por_fase(fase_id: str) -> list[dict[str, Any]]:
     supabase = get_supabase()
-    return supabase.table("grupos").select("*").eq("fase_id", fase_id).execute().data
+    return supabase.table("grupos").select("*").eq("fase_id", fase_id).execute().data  # type: ignore[return-value]
 
 
 def crear_grupos(grupos_list):
@@ -170,9 +171,9 @@ def contar_grupos_fase(fase_id):
 # PARTICIPANTES
 # -------------------------------------------------------
 
-def get_participantes_grupo(grupo_id):
+def get_participantes_grupo(grupo_id: str) -> list[dict[str, Any]]:
     supabase = get_supabase()
-    return (
+    return (  # type: ignore[return-value]
         supabase.table("participantes_grupo")
         .select("*, equipos(id, nombre, escudo_url)")
         .eq("grupo_id", grupo_id)
@@ -181,12 +182,13 @@ def get_participantes_grupo(grupo_id):
     )
 
 
-def get_participantes_grupos(ids_grupos):
+def get_participantes_grupos(ids_grupos: list[str]) -> list[dict[str, Any]]:
     supabase = get_supabase()
-    return (
+    return (  # type: ignore[return-value]
         supabase.table("participantes_grupo")
         .select("*, equipos(id, nombre, escudo_url)")
         .in_("grupo_id", ids_grupos)
+        .order("created_at", desc=False)
         .execute()
         .data
     )

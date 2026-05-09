@@ -132,7 +132,7 @@ def seccion_sorteo_manual(supabase, torneo_id=None):
                 "Grupo:", opciones_grupos, index=indice_defecto
             )
         with c3:
-            if st.button("Confirmar", use_container_width=True, type="primary"):
+            if st.button("Confirmar", width='stretch', type="primary"):
                 if equipo_nombre and grupo_sel_display:
                     nombre_grupo_limpio = grupo_sel_display.split(" (")[0]
                     e_match = next((e for e in equipos_libres if e["nombre"] == equipo_nombre), None)

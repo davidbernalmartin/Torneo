@@ -1,0 +1,14 @@
+{
+  "include": ["app.py", "src"],
+  "exclude": ["tests"],
+  "pythonVersion": "3.12",
+  "reportMissingModuleSource": "none",
+  "reportIndexIssue": "warning",
+  "reportAttributeAccessIssue": "warning",
+  "reportArgumentType": "warning",
+  "reportCallIssue": "warning",
+  "reportOptionalSubscript": "warning",
+  "reportOptionalMemberAccess": "warning",
+  "reportOperatorIssue": "warning",
+  "reportUnhashable": "warning"
+}
