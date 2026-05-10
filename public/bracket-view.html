@@ -10,14 +10,14 @@
     --red:        #cc0000;
     --red-dark:   #a00000;
     --red-light:  #f9e6e6;
-    --bg:         #f9d1d1;
+    --bg:         #e1e0e0;
     --white:      #ffffff;
     --text:       #1a1a1a;
     --text-muted: #777777;
     --border:     #d8d8d8;
-    --win-red:  #970000;
-    --win-bg:     #f87a7a;
-    --win-border: #be1010;
+    --win-green: #16a34a;
+    --win-bg:    #dcfce7;
+    --win-border:#4ade80;
     --shadow:     0 2px 10px rgba(0,0,0,0.08);
     --font-display: 'Barlow Condensed', sans-serif;
     --font-body:    'Barlow', sans-serif;
@@ -159,8 +159,8 @@
     min-width: 18px; text-align: center;
     color: var(--text);
   }
-  .score.win  { color: var(--win-red); }
-  .score.lose { color: #cccccc; }
+  .score.win  { color: var(--win-green); }
+  .score.lose { color: #aaaaaa; }
 
   /* ── Loading ── */
   #loading {
@@ -505,23 +505,26 @@ function renderMatchHTML(g) {
       if (lpart?.equipo_id === g.penaltis_ganador_id) penWin = "local";
       else if (vpart?.equipo_id === g.penaltis_ganador_id) penWin = "visitante";
     }
-    const isPenWinner = hasPen && lpart && vpart && lpart.goles === vpart.goles &&
+    const _bL = Number.isFinite(lpart?.goles) ? lpart.goles : null;
+    const _bV = Number.isFinite(vpart?.goles) ? vpart.goles : null;
+    const _golesJugados = _bL !== null && _bV !== null;
+    const isPenWinner = hasPen && _golesJugados && _bL === _bV &&
       ((part.es_local && penWin === "local") || (!part.es_local && penWin === "visitante"));
-    const isPenLoser = hasPen && lpart && vpart && lpart.goles === vpart.goles && !isPenWinner && !!part.equipo_id;
+    const isPenLoser = hasPen && _golesJugados && _bL === _bV && !isPenWinner && !!part.equipo_id;
     const effectiveWin  = isWin || isPenWinner;
     const effectiveLose = isLose || isPenLoser;
 
     const isWhite = effectiveWin || classified;
     const cls = ["slot", effectiveLose ? "loser" : "", isWhite ? "classified" : ""].filter(Boolean).join(" ");
     const badge = classified && !effectiveWin
-      ? `<span style="font-size:10px;font-weight:800;color:#16a34a;margin-left:auto;">✓</span>`
+      ? `<span style="font-size:10px;font-weight:800;color:var(--win-green);margin-left:auto;">✓</span>`
       : effectiveWin && hasPen
-      ? `<span style="font-size:10px;font-weight:800;color:#1a1a1a;margin-left:auto;">(P)</span>`
+      ? `<span style="font-size:10px;font-weight:800;color:var(--win-green);margin-left:auto;">(P)</span>`
       : "";
     return `<div class="${cls}">
       ${escudoEl(eq.escudo_url, eq.nombre)}
       <span class="team-name" style="color:#1a1a1a;font-weight:800;">${eq.nombre}</span>
-      ${(effectiveWin || effectiveLose || isWin || isLose) ? `<span class="score" style="color:${effectiveWin ? '#1a1a1a' : 'rgba(255,255,255,0.35)'};font-size:14px;font-weight:800;margin-left:auto;">${part.goles}</span>` : ""}
+      ${(effectiveWin || effectiveLose || isWin || isLose) ? `<span class="score" style="color:${effectiveWin ? 'var(--win-green)' : '#aaaaaa'};font-size:14px;font-weight:800;margin-left:auto;">${part.goles}</span>` : ""}
       ${badge}
     </div>`;
   }
@@ -532,9 +535,11 @@ function renderMatchHTML(g) {
     if (!local && !visit) return `<div class="match"><div class="match-header"><span class="match-name">${g.nombre}</span></div>
       <div class="slot empty-slot"><span class="team-name empty">—</span></div>
       <div class="slot empty-slot"><span class="team-name empty">—</span></div></div>`;
-    const hasScore = local && visit && (local.goles + visit.goles) > 0;
-    const winL = hasScore && local.goles > visit.goles;
-    const winV = hasScore && visit.goles > local.goles;
+    const gL = Number.isFinite(local?.goles) ? local.goles : null;
+    const gV = Number.isFinite(visit?.goles) ? visit.goles : null;
+    const hasScore = local && visit && gL !== null && gV !== null && (gL + gV) > 0;
+    const winL = hasScore && gL > gV;
+    const winV = hasScore && gV > gL;
     return `<div class="match">
       <div class="match-header"><span class="match-name">${g.nombre}</span>${notasHtml}</div>
       ${local ? slotEl(local, winL, winV) : '<div class="slot empty-slot"><span class="team-name empty">—</span></div>'}
