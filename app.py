@@ -1053,14 +1053,15 @@ if menu == "Partidos":
             with st.expander(f"**{info['nombre']}** — {len(partidos)} partido(s)", expanded=True):
                 df_vista = pd.DataFrame([
                     {
-                        "Jornada":   p["jornada"],
-                        "Local":     p["nombre_local"],
-                        "Visitante": p["nombre_visitante"],
-                        "Fecha":     pd.to_datetime(p["fecha"]).date() if p.get("fecha") else None,
-                        "Hora":      p.get("hora") or "",
-                        "Campo":     p.get("campo") or "",
-                        "Goles L":   p.get("resultado_local"),
-                        "Goles V":   p.get("resultado_visitante"),
+                        "Jornada":    p["jornada"],
+                        "Local":      p["nombre_local"],
+                        "Visitante":  p["nombre_visitante"],
+                        "Fecha":      pd.to_datetime(p["fecha"]).date() if p.get("fecha") else None,
+                        "Hora":       p.get("hora") or "",
+                        "Campo":      p.get("campo") or "",
+                        "Goles L":    p.get("resultado_local"),
+                        "Goles V":    p.get("resultado_visitante"),
+                        "Invertir ⇅": False,
                     }
                     for p in partidos
                 ])
@@ -1068,14 +1069,18 @@ if menu == "Partidos":
                 edited = st.data_editor(
                     df_vista,
                     column_config={
-                        "Jornada":   st.column_config.NumberColumn(disabled=True, width="small"),
-                        "Local":     st.column_config.TextColumn(disabled=True),
-                        "Visitante": st.column_config.TextColumn(disabled=True),
-                        "Fecha":     st.column_config.DateColumn(width="medium", format="DD/MM/YYYY"),
-                        "Hora":      st.column_config.TextColumn(width="small", help="Formato HH:MM"),
-                        "Campo":     st.column_config.TextColumn(width="medium"),
-                        "Goles L":   st.column_config.NumberColumn(min_value=0, step=1, width="small"),
-                        "Goles V":   st.column_config.NumberColumn(min_value=0, step=1, width="small"),
+                        "Jornada":    st.column_config.NumberColumn(min_value=1, step=1, width="small"),
+                        "Local":      st.column_config.TextColumn(disabled=True),
+                        "Visitante":  st.column_config.TextColumn(disabled=True),
+                        "Fecha":      st.column_config.DateColumn(width="medium", format="DD/MM/YYYY"),
+                        "Hora":       st.column_config.TextColumn(width="small", help="Formato HH:MM"),
+                        "Campo":      st.column_config.TextColumn(width="medium"),
+                        "Goles L":    st.column_config.NumberColumn(min_value=0, step=1, width="small"),
+                        "Goles V":    st.column_config.NumberColumn(min_value=0, step=1, width="small"),
+                        "Invertir ⇅": st.column_config.CheckboxColumn(
+                            help="Intercambia local y visitante al guardar",
+                            width="small",
+                        ),
                     },
                     hide_index=True,
                     width='stretch',
@@ -1085,17 +1090,32 @@ if menu == "Partidos":
                 if st.button("Guardar cambios", key=f"guardar_{grupo_id}", type="primary"):
                     updates = []
                     for i, row in edited.iterrows():
-                        goles_l = row["Goles L"]
-                        goles_v = row["Goles V"]
-                        fecha   = row["Fecha"]
-                        updates.append({
-                            "id":                  partidos[i]["id"],
+                        p        = partidos[i]
+                        goles_l  = row["Goles L"]
+                        goles_v  = row["Goles V"]
+                        fecha    = row["Fecha"]
+                        invertir = bool(row.get("Invertir ⇅", False))
+                        jornada_val = row.get("Jornada")
+                        jornada  = int(jornada_val) if jornada_val is not None and not (isinstance(jornada_val, float) and pd.isna(jornada_val)) else p["jornada"]
+
+                        upd = {
+                            "id":                  p["id"],
+                            "jornada":             jornada,
                             "fecha":               str(fecha) if fecha is not None else None,
                             "hora":                row["Hora"] or None,
                             "campo":               row["Campo"] or None,
                             "resultado_local":     int(goles_l) if goles_l is not None else None,
                             "resultado_visitante": int(goles_v) if goles_v is not None else None,
-                        })
+                        }
+                        if invertir:
+                            upd["equipo_local_id"]     = p.get("equipo_visitante_id")
+                            upd["equipo_visitante_id"] = p.get("equipo_local_id")
+                            upd["pos_local"]           = p.get("pos_visitante")
+                            upd["pos_visitante"]       = p.get("pos_local")
+                            # Los goles también se invierten con los equipos
+                            upd["resultado_local"]     = int(goles_v) if goles_v is not None else None
+                            upd["resultado_visitante"] = int(goles_l) if goles_l is not None else None
+                        updates.append(upd)
                     actualizar_partidos_batch(updates)
                     st.success("Guardado.")
                     st.rerun()

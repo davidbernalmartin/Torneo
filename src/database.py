@@ -256,6 +256,27 @@ def eliminar_partidos_fase(fase_id):
     st.cache_data.clear()
 
 
+def limpiar_resultados_grupo(grupo_id):
+    """Borra los resultados de un grupo: partidos (tipo_grupo>2) y goles/penaltis (tipo_grupo=2)."""
+    supabase = get_supabase()
+    # tipo_grupo > 2: resultados en tabla partidos
+    supabase.table("partidos").update({
+        "resultado_local": None,
+        "resultado_visitante": None,
+        "penaltis_ganador_id": None,
+    }).eq("grupo_id", grupo_id).execute()
+    # tipo_grupo = 2: goles en participantes_grupo
+    supabase.table("participantes_grupo").update({
+        "goles": None,
+    }).eq("grupo_id", grupo_id).execute()
+    # tipo_grupo = 2: penaltis en grupos
+    supabase.table("grupos").update({
+        "penaltis": False,
+        "penaltis_ganador_id": None,
+    }).eq("id", grupo_id).execute()
+    st.cache_data.clear()
+
+
 def _label_placeholder(pos, grupo_nombre, feeders):
     """Etiqueta para un hueco sin equipo asignado."""
     if feeders:

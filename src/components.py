@@ -1,7 +1,7 @@
 import re
 import streamlit as st
 
-from src.database import get_supabase
+from src.database import get_supabase, limpiar_resultados_grupo
 
 _CUALQUIER_GRUPO = "Cualquier grupo"
 
@@ -493,6 +493,7 @@ def renderizar_cuadro_progresion(
                     if col_si.button("Sí, vaciar", key=f"si_vaciar_{g_id}", type="primary"):
                         try:
                             supabase.table("participantes_grupo").update({"equipo_id": None}).eq("grupo_id", g_id).execute()
+                            limpiar_resultados_grupo(g_id)
                             st.session_state.pop(f"confirmar_vaciar_{g_id}", None)
                             st.rerun()
                         except Exception as e:
@@ -652,6 +653,7 @@ def renderizar_tarjeta_grupo_minimalista(
                         # En sorteo no hay referencia_origen que preservar; borrar filas
                         # para que el siguiente INSERT empiece desde cero sin filas huérfanas
                         supabase.table("participantes_grupo").delete().eq("grupo_id", grupo_id).execute()
+                    limpiar_resultados_grupo(grupo_id)
                     st.session_state.pop(f"confirmar_vaciar_{grupo_id}", None)
                     st.rerun()
                 except Exception as e:
