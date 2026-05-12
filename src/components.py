@@ -76,7 +76,7 @@ def mostrar_grupo_tv(grupo_id_param, torneo_id=None):
         def _participantes():
             res_part = (
                 supabase.table("participantes_grupo")
-                .select("equipo_id, created_at")
+                .select("equipo_id, created_at, referencia_origen, posicion_origen")
                 .eq("grupo_id", grupo_id)
                 .order("created_at", desc=False)
                 .execute()
@@ -128,15 +128,26 @@ def mostrar_grupo_tv(grupo_id_param, torneo_id=None):
                         </div>
                     """, unsafe_allow_html=True)
                 else:
-                    st.markdown("""
+                    ref = ""
+                    if i < len(participantes):
+                        p_raw = participantes_raw[i] if i < len(participantes_raw) else {}
+                        ref_grupo = p_raw.get("referencia_origen") or ""
+                        ref_pos   = int(p_raw.get("posicion_origen") or 1)
+                        if ref_grupo:
+                            ref = f"{_pos_label(ref_pos)} — {ref_grupo}"
+                    label_html = (
+                        f'<span style="font-size:1.6rem;color:rgba(255,255,255,0.55);'
+                        f'font-style:italic;font-weight:700;letter-spacing:0.04em;">{ref}</span>'
+                        if ref else
+                        '<span style="font-size:2rem;color:rgba(255,255,255,0.3);'
+                        'font-style:italic;font-weight:700;letter-spacing:0.08em;">ESPERANDO SORTEO…</span>'
+                    )
+                    st.markdown(f"""
                         <div style="background:rgba(0,0,0,0.20);padding:22px 48px;
                                     border:2px dashed rgba(255,255,255,0.35);
                                     border-radius:12px;margin-bottom:12px;
                                     display:flex;align-items:center;justify-content:center;">
-                            <span style="font-size:2rem;color:rgba(255,255,255,0.45);
-                                         font-style:italic;font-weight:700;letter-spacing:0.08em;">
-                                ESPERANDO SORTEO…
-                            </span>
+                            {label_html}
                         </div>
                     """, unsafe_allow_html=True)
 
@@ -203,11 +214,16 @@ def mostrar_grupo_tv(grupo_id_param, torneo_id=None):
 # CONFIGURADOR DE PROGRESIÓN VISUAL (lado a lado)
 # -------------------------------------------------------
 
+_POSICION_LABELS = {1: "Campeón", 2: "Subcampeón"}
+
+def _pos_label(pos: int) -> str:
+    return _POSICION_LABELS.get(pos, f"{pos}º clasificado")
+
+
 def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo_id=None):
     """
-    Configurador de progresión con selectbox directo por plaza.
-    Restricción: un grupo origen solo puede aparecer una vez.
-    session_state controla el valor — no se pierde tras rerun.
+    Configurador de progresión con selector de grupo + posición por plaza.
+    Permite múltiples equipos del mismo grupo (campeón, subcampeón, etc.).
     """
     def _num(nombre):
         m = re.search(r"\d+", nombre)
@@ -226,74 +242,82 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
         plazas_por_grupo.setdefault(p["grupo_id"], []).append(p)
 
     grupos_origen_sorted = sorted(grupos_origen, key=lambda g: _num(g["nombre"]))
+    nombres_origen = [g["nombre"] for g in grupos_origen_sorted]
 
-    # Inicializar session_state desde BD (solo si no existe aún)
+    # ── Inicializar session_state (grupo + posición por plaza) ────────────────
     for g_dest in grupos_destino:
         g_id = g_dest["id"]
         plazas = plazas_por_grupo.get(g_id, [])
         for i in range(g_dest["tipo_grupo"]):
-            ss_key = f"pcfg_{g_id}_{i}"
-            if ss_key not in st.session_state:
+            key_g = f"pcfg_g_{g_id}_{i}"
+            key_p = f"pcfg_p_{g_id}_{i}"
+            if key_g not in st.session_state:
                 plaza = plazas[i] if i < len(plazas) else None
-                ref = plaza.get("referencia_origen") if plaza else None
-                st.session_state[ss_key] = ref or _CUALQUIER_GRUPO
+                ref = (plaza.get("referencia_origen") if plaza else None) or _CUALQUIER_GRUPO
+                pos = int(plaza.get("posicion_origen") or 1) if plaza else 1
+                st.session_state[key_g] = ref
+                st.session_state[key_p] = pos
 
-    # Grupos ya asignados según session_state (fuente de verdad)
-    def get_asignados(excluir_key=None):
-        asignados = set()
-        for g_dest in grupos_destino:
-            g_id = g_dest["id"]
-            for i in range(g_dest["tipo_grupo"]):
-                k = f"pcfg_{g_id}_{i}"
-                if k == excluir_key:
+    # ── Pares (grupo, posición) ya asignados ─────────────────────────────────
+    def get_asignados_pares(excluir_g=None, excluir_p=None):
+        pares: set = set()
+        for gd in grupos_destino:
+            for i in range(gd["tipo_grupo"]):
+                kg = f"pcfg_g_{gd['id']}_{i}"
+                kp = f"pcfg_p_{gd['id']}_{i}"
+                if kg == excluir_g:
                     continue
-                val = st.session_state.get(k, _CUALQUIER_GRUPO)
-                if val and val != _CUALQUIER_GRUPO:
-                    asignados.add(val)
-        return asignados
+                val_g = st.session_state.get(kg, _CUALQUIER_GRUPO)
+                val_p = st.session_state.get(kp, 1)
+                if val_g and val_g != _CUALQUIER_GRUPO:
+                    pares.add((val_g, val_p))
+        return pares
 
     col_izq, col_sep, col_der = st.columns([5, 1, 5])
 
-    # ── IZQUIERDA ────────────────────────────────────────
+    # ── IZQUIERDA: fase anterior con badges de posiciones asignadas ───────────
     with col_izq:
         st.markdown(
             "<p style='font-size:0.72rem;font-weight:700;text-transform:uppercase;"
             "letter-spacing:0.07em;color:#888;margin-bottom:10px;'>Fase anterior</p>",
             unsafe_allow_html=True,
         )
+        todos_pares = get_asignados_pares()
         for g_orig in grupos_origen_sorted:
             nombre = g_orig["nombre"]
-            asignados = get_asignados()
-            asignado = nombre in asignados
-            opacidad = "0.4" if asignado else "1"
-            grayscale = "filter:grayscale(0.4);" if asignado else ""
-            badge = (
-                "<span style='margin-left:auto;font-size:11px;color:#3B6D11;"
-                "background:#EAF3DE;padding:2px 8px;border-radius:999px;'>"
-                "&#10003; asignado</span>"
-                if asignado else ""
-            )
+            max_pos = g_orig["tipo_grupo"]
+            pares_grupo = {p for (g, p) in todos_pares if g == nombre}
             filas = ""
-            for idx_f in range(g_orig["tipo_grupo"]):
+            for idx_f in range(1, max_pos + 1):
+                asignado = idx_f in pares_grupo
+                bg = "rgba(60,140,30,0.25)" if asignado else "rgba(255,255,255,0.08)"
+                color = "rgba(180,240,130,0.9)" if asignado else "rgba(255,255,255,0.6)"
+                tick = " ✓" if asignado else ""
                 filas += (
-                    "<div style='background:rgba(255,255,255,0.08);border-radius:5px;"
-                    "padding:5px 8px;margin-bottom:4px;font-size:0.7rem;"
-                    "color:rgba(255,255,255,0.6);'>"
-                    + str(idx_f + 1) + "&#186; clasificado</div>"
+                    f"<div style='background:{bg};border-radius:5px;padding:5px 8px;"
+                    f"margin-bottom:4px;font-size:0.7rem;color:{color};'>"
+                    f"{_pos_label(idx_f)}{tick}</div>"
                 )
+            todas_asignadas = len(pares_grupo) >= max_pos
+            opacidad = "0.5" if todas_asignadas else "1"
             html_card = (
-                "<div style='background:#8b0000;border-radius:10px;overflow:hidden;"
-                "margin-bottom:8px;opacity:" + opacidad + ";" + grayscale + "'>"
-                "<div style='background:#cc0000;padding:8px 12px;"
-                "display:flex;align-items:center;gap:6px;'>"
-                "<div style='width:6px;height:6px;border-radius:50%;"
-                "background:rgba(255,255,255,0.4);flex-shrink:0;'></div>"
-                "<span style='font-size:0.7rem;font-weight:700;color:white;"
-                "text-transform:uppercase;letter-spacing:0.06em;'>"
-                + nombre + "</span>" + badge +
-                "</div>"
-                "<div style='padding:6px 10px 8px;'>" + filas + "</div>"
-                "</div>"
+                f"<div style='background:#8b0000;border-radius:10px;overflow:hidden;"
+                f"margin-bottom:8px;opacity:{opacidad};'>"
+                f"<div style='background:#cc0000;padding:8px 12px;"
+                f"display:flex;align-items:center;gap:6px;'>"
+                f"<div style='width:6px;height:6px;border-radius:50%;"
+                f"background:rgba(255,255,255,0.4);flex-shrink:0;'></div>"
+                f"<span style='font-size:0.7rem;font-weight:700;color:white;"
+                f"text-transform:uppercase;letter-spacing:0.06em;'>{nombre}"
+                + (
+                    "<span style='margin-left:auto;font-size:11px;color:#b4f082;"
+                    "padding:2px 8px;border-radius:999px;background:rgba(60,140,30,0.3);'>"
+                    "✓ completo</span>"
+                    if todas_asignadas else ""
+                )
+                + f"</span></div>"
+                f"<div style='padding:6px 10px 8px;'>{filas}</div>"
+                f"</div>"
             )
             st.markdown(html_card, unsafe_allow_html=True)
 
@@ -305,7 +329,7 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
             unsafe_allow_html=True,
         )
 
-    # ── DERECHA ──────────────────────────────────────────
+    # ── DERECHA: nueva fase con selector grupo + posición ─────────────────────
     with col_der:
         st.markdown(
             "<p style='font-size:0.72rem;font-weight:700;text-transform:uppercase;"
@@ -316,7 +340,6 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
             g_id = g_dest["id"]
             plazas = plazas_por_grupo.get(g_id, [])
 
-            # Cabecera tarjeta
             st.markdown(
                 "<div style='background:#8b0000;border-radius:10px 10px 0 0;"
                 "padding:8px 12px;display:flex;align-items:center;gap:6px;"
@@ -330,65 +353,94 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
             )
 
             for i in range(g_dest["tipo_grupo"]):
-                ss_key = f"pcfg_{g_id}_{i}"
+                key_g = f"pcfg_g_{g_id}_{i}"
+                key_p = f"pcfg_p_{g_id}_{i}"
                 plaza = plazas[i] if i < len(plazas) else None
                 ref_bd = plaza.get("referencia_origen") if plaza else None
+                pos_bd = int(plaza.get("posicion_origen") or 1) if plaza else None
 
-                # Opciones: Cualquier grupo + libres + el de esta plaza
-                asignados_otros = get_asignados(excluir_key=ss_key)
-                opciones = [_CUALQUIER_GRUPO] + sorted(
-                    [g["nombre"] for g in grupos_origen
-                     if g["nombre"] not in asignados_otros],
-                    key=_num
-                )
+                # Selector de grupo
+                opciones_grupo = [_CUALQUIER_GRUPO] + nombres_origen
+                if st.session_state[key_g] not in opciones_grupo:
+                    st.session_state[key_g] = _CUALQUIER_GRUPO
 
-                # Si el valor actual no está en opciones, resetear
-                if st.session_state[ss_key] not in opciones:
-                    st.session_state[ss_key] = _CUALQUIER_GRUPO
-
-                seleccion = st.selectbox(
-                    f"Plaza {i+1}",
-                    opciones,
-                    key=ss_key,
+                col_g, col_p = st.columns([3, 2])
+                sel_grupo = col_g.selectbox(
+                    f"Grupo plaza {i+1}",
+                    opciones_grupo,
+                    key=key_g,
                     label_visibility="collapsed",
                 )
 
-                # Guardar en BD si cambió respecto a lo que hay guardado
-                if seleccion != ref_bd:
+                # Selector de posición (solo si hay grupo seleccionado)
+                if sel_grupo != _CUALQUIER_GRUPO:
+                    g_orig_obj = next((g for g in grupos_origen if g["nombre"] == sel_grupo), None)
+                    max_pos = g_orig_obj["tipo_grupo"] if g_orig_obj else 8
+                    pares_otros = get_asignados_pares(excluir_g=key_g)
+                    posiciones_tomadas = {p for (g, p) in pares_otros if g == sel_grupo}
+                    posiciones_disponibles = [
+                        p for p in range(1, max_pos + 1) if p not in posiciones_tomadas
+                    ] or list(range(1, max_pos + 1))
+
+                    cur_pos = st.session_state.get(key_p, 1)
+                    if cur_pos not in posiciones_disponibles:
+                        st.session_state[key_p] = posiciones_disponibles[0]
+
+                    sel_pos = col_p.selectbox(
+                        f"Posición plaza {i+1}",
+                        posiciones_disponibles,
+                        format_func=_pos_label,
+                        key=key_p,
+                        label_visibility="collapsed",
+                    )
+                else:
+                    sel_pos = 1
+                    col_p.markdown(
+                        "<div style='color:rgba(255,255,255,0.3);font-size:0.7rem;"
+                        "padding:8px 4px;'>—</div>",
+                        unsafe_allow_html=True,
+                    )
+
+                # ── Guardar si cambió ─────────────────────────────────────────
+                cambio_grupo = sel_grupo != ref_bd
+                cambio_pos   = (sel_pos != pos_bd) if sel_grupo != _CUALQUIER_GRUPO else False
+
+                if cambio_grupo or cambio_pos:
                     try:
                         payload = {
-                            "grupo_id": g_id,
-                            "referencia_origen": seleccion,
-                            "equipo_id": None,
-                            "es_local": i == 0,
+                            "grupo_id":          g_id,
+                            "referencia_origen": sel_grupo if sel_grupo != _CUALQUIER_GRUPO else None,
+                            "posicion_origen":   sel_pos if sel_grupo != _CUALQUIER_GRUPO else None,
+                            "equipo_id":         None,
+                            "es_local":          i == 0,
                         }
                         if plaza:
-                            supabase.table("participantes_grupo").update(payload).eq(
-                                "id", plaza["id"]
-                            ).execute()
-                            # Liberar siguiente_grupo_id del grupo anterior
-                            if ref_bd and ref_bd != _CUALQUIER_GRUPO:
-                                g_ant = next(
-                                    (g for g in grupos_origen if g["nombre"] == ref_bd), None
+                            supabase.table("participantes_grupo").update(payload).eq("id", plaza["id"]).execute()
+                            # Liberar siguiente_grupo_id del grupo anterior si cambió de grupo
+                            if cambio_grupo and ref_bd and ref_bd != _CUALQUIER_GRUPO:
+                                # Solo liberar si ninguna otra plaza de este destino sigue usando ese grupo
+                                aun_referenciado = any(
+                                    st.session_state.get(f"pcfg_g_{g_id}_{j}") == ref_bd
+                                    for j in range(g_dest["tipo_grupo"]) if j != i
                                 )
-                                if g_ant:
-                                    supabase.table("grupos").update(
-                                        {"siguiente_grupo_id": None}
-                                    ).eq("id", g_ant["id"]).execute()
+                                if not aun_referenciado:
+                                    g_ant = next((g for g in grupos_origen if g["nombre"] == ref_bd), None)
+                                    if g_ant:
+                                        supabase.table("grupos").update(
+                                            {"siguiente_grupo_id": None}
+                                        ).eq("id", g_ant["id"]).execute()
                         else:
-                            supabase.table("participantes_grupo").insert({**payload, "puntos": 0, "goles": 0}).execute()
+                            supabase.table("participantes_grupo").insert(
+                                {**payload, "puntos": 0, "goles": 0}
+                            ).execute()
 
-                        # Asignar siguiente_grupo_id al grupo origen
-                        if seleccion != _CUALQUIER_GRUPO:
-                            g_orig_match = next(
-                                (g for g in grupos_origen if g["nombre"] == seleccion), None
-                            )
+                        # Actualizar siguiente_grupo_id del grupo origen
+                        if sel_grupo != _CUALQUIER_GRUPO:
+                            g_orig_match = next((g for g in grupos_origen if g["nombre"] == sel_grupo), None)
                             if g_orig_match:
-                                res = supabase.table("grupos").update(
+                                supabase.table("grupos").update(
                                     {"siguiente_grupo_id": g_id}
                                 ).eq("id", g_orig_match["id"]).execute()
-                                if not res.data:
-                                    st.warning(f"No se pudo actualizar siguiente_grupo_id para {seleccion}")
                     except Exception as e:
                         st.error(f"Error al guardar plaza {i+1}: {e}")
 

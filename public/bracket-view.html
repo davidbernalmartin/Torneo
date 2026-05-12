@@ -539,12 +539,18 @@ let _cualquierCount = {};
 
 function resetCualquierCount() { _cualquierCount = {}; }
 
+function posLabel(pos) {
+  const labels = { 1: "Campeón", 2: "Subcampeón" };
+  return labels[pos] || (pos + "er clasificado");
+}
+
 function slotLabel(partId) {
   const part = participantes.find(p => p.id === partId);
   if (!part || !part.referencia_origen) return "plaza vacía";
   const CUALQUIER = "Cualquier grupo";
   if (part.referencia_origen !== CUALQUIER) {
-    return "Ganador " + part.referencia_origen;
+    const pos = part.posicion_origen || 1;
+    return posLabel(pos) + " — " + part.referencia_origen;
   } else {
     const grupo = grupos.find(g => g.id === part.grupo_id);
     const faseKey = grupo ? grupo.fase_id : "?";
@@ -866,9 +872,16 @@ function buildCols(seeds) {
   const cols = [seeds];
   let current = seeds;
   for (let i = 0; i < fases.length; i++) {
-    const nextIds = [...new Set(current.map(g => g.siguiente_grupo_id).filter(Boolean))];
-    if (!nextIds.length) break;
-    const next = nextIds.map(id => grupos.find(g => g.id === id)).filter(Boolean);
+    const currentNames = new Set(current.map(g => g.nombre));
+    const nextIdSet = new Set(current.map(g => g.siguiente_grupo_id).filter(Boolean));
+    // Also discover groups linked via referencia_origen in participantes
+    participantes.forEach(p => {
+      if (p.referencia_origen && currentNames.has(p.referencia_origen) && p.grupo_id) {
+        nextIdSet.add(p.grupo_id);
+      }
+    });
+    if (!nextIdSet.size) break;
+    const next = [...nextIdSet].map(id => grupos.find(g => g.id === id)).filter(Boolean);
     const unique = [...new Map(next.map(g => [g.id, g])).values()];
     if (!unique.length) break;
     cols.push(unique); current = unique;
@@ -943,19 +956,55 @@ function render() {
   }
   function computeColYCenters(col, prevCol, prevYCenters) {
     return col.map(g => {
-      const sources = prevCol.filter(pg => pg.siguiente_grupo_id === g.id);
+      let sources = prevCol.filter(pg => pg.siguiente_grupo_id === g.id);
+      if (!sources.length) {
+        const destParts = participantes.filter(p => p.grupo_id === g.id && p.referencia_origen);
+        const refNames = new Set(destParts.map(p => p.referencia_origen).filter(Boolean));
+        sources = prevCol.filter(pg => refNames.has(pg.nombre));
+      }
       if (!sources.length) return totalH / 2;
       const ys = sources.map(s => { const idx = prevCol.findIndex(pg => pg.id === s.id); return prevYCenters[idx] ?? totalH / 2; });
       return ys.reduce((a, b) => a + b, 0) / ys.length;
     });
   }
 
+  function resolveOverlaps(yCenters, col) {
+    const resolved = yCenters.map(y => y ?? totalH / 2);
+    for (let iter = 0; iter < 30; iter++) {
+      let anyChange = false;
+      for (let i = 0; i < resolved.length - 1; i++) {
+        const needed = (GROUP_CARD_H(col[i]) + GROUP_CARD_H(col[i + 1])) / 2 + CARD_GAP;
+        const diff = resolved[i + 1] - resolved[i];
+        if (diff < needed) {
+          const push = (needed - diff) / 2;
+          resolved[i] -= push;
+          resolved[i + 1] += push;
+          anyChange = true;
+        }
+      }
+      if (!anyChange) break;
+    }
+    // Shift entire column to keep within [0, totalH]
+    const minY = GROUP_CARD_H(col[0]) / 2;
+    if (resolved[0] < minY) {
+      const shift = minY - resolved[0];
+      for (let i = 0; i < resolved.length; i++) resolved[i] += shift;
+    }
+    const lastIdx = resolved.length - 1;
+    const maxY = totalH - GROUP_CARD_H(col[lastIdx]) / 2;
+    if (resolved[lastIdx] > maxY) {
+      const shift = resolved[lastIdx] - maxY;
+      for (let i = 0; i < resolved.length; i++) resolved[i] -= shift;
+    }
+    return resolved;
+  }
+
   const leftYCenters  = computeYCenters(leftGroups, totalH);
   const rightYCenters = computeYCenters(rightGroups, totalH);
   const leftColYCenters  = [leftYCenters];
   const rightColYCenters = [rightYCenters];
-  for (let i = 1; i < leftCols.length; i++) leftColYCenters.push(computeColYCenters(leftCols[i], leftCols[i-1], leftColYCenters[i-1]));
-  for (let i = 1; i < rightCols.length; i++) rightColYCenters.push(computeColYCenters(rightCols[i], rightCols[i-1], rightColYCenters[i-1]));
+  for (let i = 1; i < leftCols.length; i++) leftColYCenters.push(resolveOverlaps(computeColYCenters(leftCols[i], leftCols[i-1], leftColYCenters[i-1]), leftCols[i]));
+  for (let i = 1; i < rightCols.length; i++) rightColYCenters.push(resolveOverlaps(computeColYCenters(rightCols[i], rightCols[i-1], rightColYCenters[i-1]), rightCols[i]));
   const centerY = [totalH / 2];
 
   const champEq = torneoData?.campeon_id ? equipos.find(e => e.id === torneoData.campeon_id) : null;
@@ -1073,10 +1122,17 @@ function render() {
   // Connectors
   for (let ci = 0; ci < leftCols.length - 1; ci++) {
     leftCols[ci].forEach((g, gi) => {
-      if (!g.siguiente_grupo_id) return;
-      const toIdx = leftCols[ci + 1].findIndex(tg => tg.id === g.siguiente_grupo_id);
-      if (toIdx < 0) return;
-      drawConnector(leftCardPositions[ci][gi].x, leftCardPositions[ci][gi].yCenter, colX(ci + 1), leftCardPositions[ci + 1][toIdx].yCenter);
+      const destIds = new Set();
+      if (g.siguiente_grupo_id) destIds.add(g.siguiente_grupo_id);
+      // Also via referencia_origen
+      leftCols[ci + 1].forEach(tg => {
+        if (participantes.some(p => p.grupo_id === tg.id && p.referencia_origen === g.nombre)) destIds.add(tg.id);
+      });
+      destIds.forEach(destId => {
+        const toIdx = leftCols[ci + 1].findIndex(tg => tg.id === destId);
+        if (toIdx < 0) return;
+        drawConnector(leftCardPositions[ci][gi].x, leftCardPositions[ci][gi].yCenter, colX(ci + 1), leftCardPositions[ci + 1][toIdx].yCenter);
+      });
     });
   }
   if (centerGroups.length && leftCols.length) {
