@@ -30,7 +30,33 @@ def crear_torneo(nombre: str, descripcion: str = "") -> list[dict[str, Any]]:
 
 def eliminar_torneo(torneo_id):
     supabase = get_supabase()
+
+    # 1. Fases del torneo
+    fases = supabase.table("fases").select("id").eq("torneo_id", torneo_id).execute().data
+    fase_ids = [f["id"] for f in fases]
+
+    if fase_ids:
+        # 2. Grupos de esas fases
+        grupos = supabase.table("grupos").select("id").in_("fase_id", fase_ids).execute().data
+        grupo_ids = [g["id"] for g in grupos]
+
+        if grupo_ids:
+            # 3. Partidos y participantes de esos grupos
+            supabase.table("partidos").delete().in_("grupo_id", grupo_ids).execute()
+            supabase.table("participantes_grupo").delete().in_("grupo_id", grupo_ids).execute()
+
+        # 4. Grupos
+        supabase.table("grupos").delete().in_("fase_id", fase_ids).execute()
+
+    # 5. Fases
+    supabase.table("fases").delete().eq("torneo_id", torneo_id).execute()
+
+    # 6. Equipos
+    supabase.table("equipos").delete().eq("torneo_id", torneo_id).execute()
+
+    # 7. Torneo
     supabase.table("torneos").delete().eq("id", torneo_id).execute()
+
     st.cache_data.clear()
 
 
