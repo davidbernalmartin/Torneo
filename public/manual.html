@@ -211,7 +211,7 @@ footer img { width: 36px; height: 36px; opacity: 0.7; display: block; margin: 0 
   <div class="cover-text">
     <h1>Gestor de Torneos<br>RFFM</h1>
     <div class="sub">Manual de Usuario Completo</div>
-    <div class="ver">Versión 2.0 &nbsp;·&nbsp; Real Federación de Fútbol de Madrid</div>
+    <div class="ver">Versión 3.0 &nbsp;·&nbsp; Real Federación de Fútbol de Madrid</div>
   </div>
 </div>
 
@@ -470,6 +470,28 @@ footer img { width: 36px; height: 36px; opacity: 0.7; display: block; margin: 0 
     </div>
 
     <div class="subsec">
+      <h3>Editar un equipo individualmente</h3>
+      <p>Haz clic en la tarjeta de cualquier equipo para abrir el modal de edición. Campos disponibles:</p>
+      <table class="nice">
+        <tr><th>Campo</th><th>Descripción</th></tr>
+        <tr><td><strong>Nombre del equipo</strong></td><td>Nombre visible en el bracket y la clasificación.</td></tr>
+        <tr><td><strong>URL del escudo</strong></td><td>Pega una URL pública de imagen (PNG, JPG…). El escudo aparece al instante como vista previa.</td></tr>
+        <tr><td><strong>O sube una imagen directamente</strong></td><td>Sube un fichero desde tu ordenador (PNG, JPG, WEBP o SVG). La imagen se sube al almacenamiento de Supabase y se guarda como URL automáticamente. <strong>Si subes un fichero, tiene prioridad sobre la URL.</strong></td></tr>
+        <tr><td><strong>Competición</strong></td><td>Competición de procedencia del equipo (informativo).</td></tr>
+        <tr><td><strong>Grupo</strong></td><td>Grupo de origen dentro de esa competición (informativo).</td></tr>
+      </table>
+      <div class="callout tip">
+        <span class="ico">💡</span>
+        <p>Puedes mezclar ambos métodos de escudo en el mismo torneo: algunos equipos con URL externa y otros con imagen subida directamente. El sistema los trata igual.</p>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Tarjetas de sorteo (PDF)</h3>
+      <p>Pulsa <strong>"🖨️ Tarjetas sorteo"</strong> para generar un PDF con una tarjeta por equipo (nombre y escudo). Listo para imprimir y usar en el sorteo presencial con bolas o papeletas.</p>
+    </div>
+
+    <div class="subsec">
       <h3>Buscar equipos</h3>
       <p>El campo de búsqueda filtra la lista de tarjetas en tiempo real por nombre. No distingue entre mayúsculas y minúsculas.</p>
     </div>
@@ -592,6 +614,24 @@ footer img { width: 36px; height: 36px; opacity: 0.7; display: block; margin: 0 
       <div class="callout tip">
         <span class="ico">💡</span>
         <p>El campo <strong>Posición</strong> determina el orden en que aparecen los grupos en el cuadro visual (bracket). El grupo con posición 1 aparece primero (arriba a la izquierda), el 2 debajo, etc.</p>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Ocultar fase en el bracket público</h3>
+      <p>Junto al selector de fase hay un toggle <strong>"Ocultar en bracket"</strong>. Cuando está activado, esa fase no aparece en el Bracket Vista público (el Bracket de Gestión interno sigue mostrándola).</p>
+      <div class="callout info">
+        <span class="ico">ℹ️</span>
+        <p>Aunque una fase esté oculta, los <strong>bordes de color verde/gris</strong> en las clasificaciones de la fase anterior siguen reflejando su configuración de progresión. Los espectadores ven qué posiciones avanzan aunque la siguiente fase no sea visible todavía.</p>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Orden visual en el bracket — todas las fases</h3>
+      <p>El campo <strong>Posición</strong> del expander "Orden y nombres en el cuadro visual" controla el orden de los grupos dentro de su columna en el bracket. Este orden se aplica a <strong>todas las fases</strong>, no solo a la primera: semifinales, finales y cualquier otra fase posterior también respetan la posición configurada.</p>
+      <div class="callout tip">
+        <span class="ico">💡</span>
+        <p>Asigna posiciones a los grupos de semifinales si quieres que Semifinal 1 aparezca siempre arriba y Semifinal 2 debajo, independientemente del orden en que fueron creados.</p>
       </div>
     </div>
 
@@ -793,13 +833,22 @@ footer img { width: 36px; height: 36px; opacity: 0.7; display: block; margin: 0 
       <h3>Editar partidos</h3>
       <p>Cada grupo muestra una tabla editable. Puedes modificar directamente en las celdas:</p>
       <table class="nice">
-        <tr><th>Campo</th><th>Descripción</th></tr>
-        <tr><td><strong>Fecha</strong></td><td>Fecha del partido (selector de calendario, formato DD/MM/YYYY)</td></tr>
-        <tr><td><strong>Hora</strong></td><td>Hora del partido (texto libre, recomendado formato HH:MM)</td></tr>
-        <tr><td><strong>Campo</strong></td><td>Nombre del campo o instalación donde se juega</td></tr>
-        <tr><td><strong>Goles L / Goles V</strong></td><td>Resultado: goles del equipo local y visitante</td></tr>
+        <tr><th>Columna</th><th>Descripción</th></tr>
+        <tr><td><strong>Jornada</strong></td><td>Número de jornada dentro del grupo (editable).</td></tr>
+        <tr><td><strong>Local / Visitante</strong></td><td>Solo lectura. Para cambiarlos, usa la columna "Invertir".</td></tr>
+        <tr><td><strong>Fecha</strong></td><td>Fecha del partido (selector de calendario, formato DD/MM/YYYY).</td></tr>
+        <tr><td><strong>Hora</strong></td><td>Hora del partido (texto libre, recomendado formato HH:MM).</td></tr>
+        <tr><td><strong>Campo</strong></td><td>Nombre del campo o instalación donde se juega.</td></tr>
+        <tr><td><strong>Goles L / Goles V</strong></td><td>Resultado: goles del equipo local y visitante.</td></tr>
+        <tr><td><strong>Invertir ⇅</strong></td><td>Marca la casilla para intercambiar local y visitante al guardar. Los goles también se intercambian.</td></tr>
+        <tr><td><strong>🗑️</strong></td><td>Marca la casilla para <strong>eliminar ese partido</strong> al guardar. Útil para borrar partidos generados por error sin regenerar toda la fase.</td></tr>
       </table>
-      <p>Al terminar de editar, pulsa <strong>Guardar cambios</strong> en el grupo correspondiente.</p>
+      <p>Al terminar de editar, pulsa <strong>Guardar cambios</strong> en el grupo correspondiente. Los partidos marcados con 🗑️ se eliminan; el resto se actualiza.</p>
+
+      <div class="callout tip">
+        <span class="ico">💡</span>
+        <p>Para borrar un único partido puntual, marca solo su casilla 🗑️ y guarda. No es necesario regenerar la fase completa.</p>
+      </div>
     </div>
 
     <div class="subsec">
@@ -1048,6 +1097,20 @@ footer img { width: 36px; height: 36px; opacity: 0.7; display: block; margin: 0 
     </div>
 
     <div class="subsec">
+      <h3>Visibilidad en el menú público</h3>
+      <p>El toggle <strong>"Mostrar en el menú público del Bracket Vista"</strong> controla si el torneo aparece en el menú de selección de <code>bracket-view.html</code> (sin parámetro).</p>
+      <table class="nice">
+        <tr><th>Estado</th><th>Efecto</th></tr>
+        <tr><td>✅ Activado (por defecto)</td><td>El torneo aparece en el menú público. Cualquier persona con el enlace global puede verlo y acceder a su bracket.</td></tr>
+        <tr><td>☐ Desactivado</td><td>El torneo desaparece del menú público. Útil para torneos en preparación, pruebas o ediciones antiguas que ya no quieres mostrar.</td></tr>
+      </table>
+      <div class="callout info">
+        <span class="ico">ℹ️</span>
+        <p>El torneo sigue siendo accesible directamente con su URL completa (<code>bracket-view.html?torneo=ID</code>) aunque esté oculto del menú. La visibilidad solo afecta al listado, no al acceso directo.</p>
+      </div>
+    </div>
+
+    <div class="subsec">
       <h3>Eliminar un torneo</h3>
       <div class="callout danger">
         <span class="ico">🚨</span>
@@ -1125,6 +1188,11 @@ footer img { width: 36px; height: 36px; opacity: 0.7; display: block; margin: 0 
     </div>
 
     <div class="subsec">
+      <h3>Bordes de color en clasificaciones</h3>
+      <p>Al igual que en el Bracket Vista, los grupos con más de 2 equipos muestran bordes <strong>verde</strong> (avanza) y <strong>gris</strong> (no avanza) en cada fila de la clasificación. El Bracket de Gestión muestra todas las fases, incluidas las ocultas, por lo que los bordes reflejan siempre la configuración completa.</p>
+    </div>
+
+    <div class="subsec">
       <h3>Indicador de guardado</h3>
       <p>En la esquina superior derecha aparece el estado del guardado: <strong>"● Guardando…"</strong> mientras se procesa y <strong>"● Guardado"</strong> al completarse. Si hay error de conexión, aparece <strong>"⚠ Error"</strong> en rojo.</p>
     </div>
@@ -1180,7 +1248,7 @@ footer img { width: 36px; height: 36px; opacity: 0.7; display: block; margin: 0 
 
     <div class="subsec">
       <h3>Menú de torneos</h3>
-      <p>Al abrir la URL sin parámetro <code>?torneo=</code>, aparece el menú de selección de torneo: tarjetas con todos los torneos disponibles. Al pulsar una, se carga el cuadro de ese torneo.</p>
+      <p>Al abrir la URL sin parámetro <code>?torneo=</code>, aparece el menú de selección de torneo: tarjetas con todos los torneos cuya opción <strong>"Mostrar en el menú público"</strong> está activada en Ajustes. Al pulsar una tarjeta, se carga el cuadro de ese torneo.</p>
       <div style="background:#f0f2f5;padding:20px;border-radius:8px;margin:16px 0;text-align:center;">
         <img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png" style="width:108px;height:108px;display:block;margin:0 auto 20px;">
         <div style="background:white;border:1px solid #d8d8d8;border-left:6px solid #cc0000;border-radius:10px;padding:20px 30px;margin:0 auto;max-width:400px;display:flex;align-items:center;gap:16px;text-align:left;box-shadow:0 2px 10px rgba(0,0,0,0.08);">
@@ -1191,8 +1259,42 @@ footer img { width: 36px; height: 36px; opacity: 0.7; display: block; margin: 0 
     </div>
 
     <div class="subsec">
+      <h3>Torneo con un solo grupo — detalle directo</h3>
+      <p>Si el torneo tiene únicamente un grupo, el bracket no se muestra. En su lugar, se abre directamente el <strong>detalle del grupo</strong> con la clasificación completa y la lista de partidos.</p>
+    </div>
+
+    <div class="subsec">
+      <h3>Bordes de color en la clasificación de grupos</h3>
+      <p>Los grupos con más de 2 equipos muestran la clasificación con un borde de color en el lado izquierdo de cada fila:</p>
+      <table class="nice">
+        <tr><th>Color</th><th>Significado</th></tr>
+        <tr><td><span style="display:inline-block;width:12px;height:12px;background:#22c55e;border-radius:2px;vertical-align:middle;margin-right:6px;"></span><strong>Verde</strong></td><td>Esa posición avanza a la siguiente fase (según la configuración de progresión).</td></tr>
+        <tr><td><span style="display:inline-block;width:12px;height:12px;background:#ddd;border-radius:2px;vertical-align:middle;margin-right:6px;"></span><strong>Gris</strong></td><td>Esa posición no avanza.</td></tr>
+      </table>
+      <div class="callout info">
+        <span class="ico">ℹ️</span>
+        <p>Los bordes de color tienen en cuenta la configuración de progresión de <strong>todas las fases</strong>, aunque estén ocultas. El público puede ver qué posiciones avanzan incluso antes de que se revele la siguiente fase.</p>
+      </div>
+    </div>
+
+    <div class="subsec">
+      <h3>Detalle de grupo (clasificación y partidos)</h3>
+      <p>Al pulsar cualquier grupo del bracket se abre el panel de detalle con:</p>
+      <ul>
+        <li>Clasificación completa (PJ, diferencia de goles, puntos) con bordes verde/gris según posición.</li>
+        <li>Lista de partidos organizados por jornada, con fecha, hora, campo y resultado.</li>
+      </ul>
+      <p>Pulsa <strong>"‹ Volver"</strong> para regresar al bracket completo.</p>
+    </div>
+
+    <div class="subsec">
+      <h3>Escalado automático del bracket</h3>
+      <p>El bracket se escala automáticamente para aprovechar el ancho disponible en pantalla. En pantallas anchas el cuadro se expande; en estrechas se adapta para que todo quepa. El escudo RFFM escala de forma independiente (máximo 1,5× relativo al cuadro) para no ocupar demasiado espacio.</p>
+    </div>
+
+    <div class="subsec">
       <h3>Descargar el cuadro como imagen</h3>
-      <p>Pulsa el botón <strong>"Descargar"</strong> en la esquina superior derecha. Se genera automáticamente una imagen JPG del cuadro completo y se descarga al dispositivo. Esto permite compartirla por WhatsApp, redes sociales o imprimirla.</p>
+      <p>Pulsa el botón <strong>"Descargar"</strong> en la esquina superior derecha. Se genera automáticamente una imagen JPG del cuadro completo y se descarga al dispositivo. Permite compartirla por WhatsApp, redes sociales o imprimirla.</p>
     </div>
 
     <div class="subsec">
@@ -1344,6 +1446,10 @@ footer img { width: 36px; height: 36px; opacity: 0.7; display: block; margin: 0 
     <div class="subsec">
       <h3>Paso 1 — Crear el torneo</h3>
       <p>Abre la aplicación e inicia sesión. En la barra lateral, despliega <strong>"➕ Nuevo torneo"</strong>, escribe el nombre y pulsa <strong>Crear</strong>.</p>
+      <div class="callout info">
+        <span class="ico">ℹ️</span>
+        <p>El torneo se crea <strong>visible en el menú público</strong> del Bracket Vista por defecto. Si prefieres configurarlo en privado antes de hacerlo público, ve a <strong>Ajustes → Visibilidad</strong> y desactiva el toggle <em>"Mostrar en el menú público del Bracket Vista"</em>. Puedes reactivarlo en cualquier momento antes del torneo.</p>
+      </div>
       <div class="mockup">
         <div class="mockup-bar">
           <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
@@ -1395,6 +1501,11 @@ footer img { width: 36px; height: 36px; opacity: 0.7; display: block; margin: 0 
         </table>
       </div>
       <p>Tras pulsar <strong>"Confirmar y subir"</strong>, el Dashboard muestra <strong>Total Equipos: 10 · En competición: 10</strong>.</p>
+
+      <div class="callout tip">
+        <span class="ico">💡</span>
+        <p>Si tienes los ficheros de imagen de los escudos en tu ordenador, puedes subirlos directamente por equipo: haz clic en <strong>✏️</strong> junto al nombre del equipo en el Dashboard y usa el campo <strong>"Subir imagen de escudo"</strong>. La URL pública se genera automáticamente en Supabase Storage. Ambas fórmulas conviven: si subes un fichero sobrescribe la URL; si no subes nada se conserva la URL que ya había.</p>
+      </div>
     </div>
 
     <!-- ─── PASO 3: Configurar fases ─── -->

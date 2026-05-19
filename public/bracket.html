@@ -292,53 +292,53 @@
   .modal {
     background: white;
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
-    width: 300px;
+    border-radius: 16px;
+    padding: 36px;
+    width: 520px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.15);
     animation: slidein 0.15s ease;
   }
   @keyframes slidein { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
   .modal h3 {
     font-family: var(--font-display);
-    font-size: 16px; font-weight: 800;
+    font-size: 26px; font-weight: 800;
     text-transform: uppercase; letter-spacing: 0.07em;
-    color: var(--text); margin-bottom: 20px;
+    color: var(--text); margin-bottom: 28px;
   }
-  .modal-teams { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .modal-teams { display: flex; flex-direction: column; gap: 14px; margin-bottom: 28px; }
   .modal-team {
-    display: flex; align-items: center; gap: 10px;
-    background: #f8f8f8; border-radius: 8px; padding: 8px 12px;
+    display: flex; align-items: center; gap: 16px;
+    background: #f8f8f8; border-radius: 10px; padding: 14px 18px;
   }
   .modal-team-name {
     font-family: var(--font-display);
-    font-size: 13px; font-weight: 700;
+    font-size: 20px; font-weight: 700;
     text-transform: uppercase; color: var(--text); flex: 1;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .modal-team input {
-    width: 56px; text-align: center;
+    width: 80px; text-align: center;
     font-family: var(--font-display);
-    font-size: 18px; font-weight: 800;
+    font-size: 28px; font-weight: 800;
     background: white;
     border: 1px solid var(--border);
-    border-radius: 6px; color: var(--text); padding: 4px;
+    border-radius: 8px; color: var(--text); padding: 6px;
     outline: none;
   }
   .modal-team input:focus { border-color: var(--red); }
   .vs-divider {
     text-align: center;
     font-family: var(--font-display);
-    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+    font-size: 15px; font-weight: 700; letter-spacing: 0.1em;
     color: #cccccc;
   }
-  .modal-btns { display: flex; gap: 8px; }
+  .modal-btns { display: flex; gap: 12px; margin-top: 28px; }
   .btn {
-    flex: 1; padding: 10px;
+    flex: 1; padding: 16px;
     font-family: var(--font-display);
-    font-size: 13px; font-weight: 700;
+    font-size: 18px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.06em;
-    border: none; border-radius: 8px; cursor: pointer;
+    border: none; border-radius: 10px; cursor: pointer;
     transition: opacity 0.15s, transform 0.1s;
   }
   .btn:active { transform: scale(0.97); }
@@ -427,12 +427,16 @@
   .pr-edit { flex-shrink: 0; font-size: 13px; color: var(--red); cursor: pointer; font-family: var(--font-display); font-weight: 700; text-transform: uppercase; padding: 4px 10px; border: 1px solid rgba(204,0,0,0.3); border-radius: 4px; letter-spacing: 0.04em; user-select: none; }
   .pr-edit:hover { background: rgba(204,0,0,0.07); }
   .pen-badge { display: inline-block; font-size: 9px; font-weight: 800; font-family: var(--font-display); color: white; background: #e07b00; border-radius: 3px; padding: 1px 4px; letter-spacing: 0.04em; vertical-align: middle; margin: 0 2px; }
-  .pen-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid #eee; }
-  .pen-section-title { font-family: var(--font-display); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #999; margin-bottom: 8px; }
-  .pen-btns { display: flex; gap: 8px; }
-  .pen-btn { flex: 1; padding: 6px 8px; font-family: var(--font-display); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid #e0e0e0; border-radius: 6px; background: white; cursor: pointer; transition: all 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pen-section { margin-top: 20px; padding: 18px 20px; background: #fef7ec; border: 1.5px solid #fbd38d; border-radius: 12px; }
+  .pen-section-hd { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .pen-section-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #9a5700; }
+  .pen-section-note { margin-left: auto; font-size: 13px; color: #c4a26b; font-style: italic; }
+  .pen-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .pen-btn { flex: 1; min-width: 0; padding: 14px 16px; font-family: var(--font-display); font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border: 1.5px solid #e0e0e0; border-radius: 8px; background: white; cursor: pointer; transition: all 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pen-btn:hover:not(.selected) { border-color: #e07b00; color: #e07b00; }
   .pen-btn.selected { background: #e07b00; color: white; border-color: #e07b00; }
-  .pen-btn.none-btn { flex: 0 0 auto; color: #bbb; font-size: 10px; }
+  .pen-btn.none-btn { flex: 0 0 auto; color: #c0c0c0; font-size: 13px; border-style: dashed; }
+  .pen-btn.none-btn.selected { background: #f0f0f0; color: #888; border-color: #ccc; border-style: solid; }
 
   /* ── Toast ── */
   #toast {
@@ -503,6 +507,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 let fases = [], grupos = [], participantes = [], equipos = [], torneoData = null, partidos = [];
 let dragState = null;
 let _penEditWinner = null;
+let _penMultiTeam  = false;
 
 // ── REST API ─────────────────────────────────────────────
 function sbHeaders() {
@@ -746,6 +751,16 @@ async function onDrop(e, targetPartId) {
 }
 
 // ── SCORE MODAL ───────────────────────────────────────────
+let _penScoreWinner = null;
+
+function _selectScorePenBtn(side) {
+  _penScoreWinner = side;
+  ['local', 'visit'].forEach(s => {
+    const btn = document.getElementById('gs-pen-' + s);
+    if (btn) btn.classList.toggle('selected', s === side);
+  });
+}
+
 function openScoreModal(grupoId) {
   const g = getGrupo(grupoId);
   const parts = byGrupo(grupoId);
@@ -754,15 +769,21 @@ function openScoreModal(grupoId) {
   if (!local || !visit) return;
   const eqL = local.equipos;
   const eqV = visit.equipos;
-  const hasPen = g.penaltis || g._penaltis || false;
-  let penWinner = g._pen_winner || "";
-  if (!penWinner && g.penaltis_ganador_id) {
-    if (local.equipo_id === g.penaltis_ganador_id) penWinner = "local";
-    else if (visit.equipo_id === g.penaltis_ganador_id) penWinner = "visitante";
+
+  _penScoreWinner = null;
+  if (g.penaltis_ganador_id) {
+    if (local.equipo_id === g.penaltis_ganador_id)      _penScoreWinner = "local";
+    else if (visit.equipo_id === g.penaltis_ganador_id) _penScoreWinner = "visit";
+  } else if (g._pen_winner) {
+    _penScoreWinner = g._pen_winner === "visitante" ? "visit" : g._pen_winner;
   }
 
   const oldModal = document.getElementById("score-modal");
   if (oldModal) oldModal.remove();
+
+  const curL = local.goles ?? 0;
+  const curV = visit.goles ?? 0;
+  const isDraw = curL === curV && (local.goles != null);
 
   const div = document.createElement("div");
   div.className = "modal-backdrop";
@@ -781,17 +802,14 @@ function openScoreModal(grupoId) {
           <input type="number" id="g-visit" min="0" value="${visit.goles ?? 0}">
         </div>
       </div>
-      <div id="pen-winner" style="display:none;flex-direction:column;gap:6px;margin:12px 0;">
-        <span style="font-size:12px;color:var(--text-muted);">Ganador en penaltis:</span>
-        <div style="display:flex;gap:8px;">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text);">
-            <input type="radio" name="pen-win" value="local" ${penWinner==='local'?'checked':''}>
-            ${eqL?.nombre || "Local"}
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text);">
-            <input type="radio" name="pen-win" value="visitante" ${penWinner==='visitante'?'checked':''}>
-            ${eqV?.nombre || "Visitante"}
-          </label>
+      <div class="pen-section" id="gs-pen-section" style="display:${isDraw ? 'block' : 'none'};">
+        <div class="pen-section-hd">
+          <span class="pen-section-title">Penaltis</span>
+          <span class="pen-section-note">desempate</span>
+        </div>
+        <div class="pen-btns">
+          <button type="button" id="gs-pen-local" class="pen-btn${_penScoreWinner === 'local' ? ' selected' : ''}" onclick="_selectScorePenBtn('local')">${eqL?.nombre || "Local"}</button>
+          <button type="button" id="gs-pen-visit" class="pen-btn${_penScoreWinner === 'visit' ? ' selected' : ''}" onclick="_selectScorePenBtn('visit')">${eqV?.nombre || "Visitante"}</button>
         </div>
       </div>
       <div class="modal-btns">
@@ -806,21 +824,21 @@ function openScoreModal(grupoId) {
   function _checkDraw() {
     const l = parseInt(document.getElementById("g-local")?.value) || 0;
     const v = parseInt(document.getElementById("g-visit")?.value) || 0;
-    const pw = document.getElementById("pen-winner");
-    if (pw) pw.style.display = (l === v) ? "flex" : "none";
+    const sec = document.getElementById("gs-pen-section");
+    if (!sec) return;
+    const draw = l === v;
+    sec.style.display = draw ? "block" : "none";
+    if (!draw) { _penScoreWinner = null; ['local','visit'].forEach(s => document.getElementById('gs-pen-'+s)?.classList.remove('selected')); }
   }
   document.getElementById("g-local")?.addEventListener("input", _checkDraw);
   document.getElementById("g-visit")?.addEventListener("input", _checkDraw);
-  _checkDraw();
 }
 
 async function saveScore(grupoId, localId, visitId) {
   const gL = parseInt(document.getElementById("g-local").value) || 0;
   const gV = parseInt(document.getElementById("g-visit").value) || 0;
   const hasPen = gL === gV;
-  const penWinVal = hasPen
-    ? document.querySelector('input[name="pen-win"]:checked')?.value || ""
-    : "";
+  const penWinVal = hasPen ? (_penScoreWinner || "") : "";
 
   const lp = participantes.find(p => p.id === localId);
   const vp = participantes.find(p => p.id === visitId);
@@ -831,10 +849,11 @@ async function saveScore(grupoId, localId, visitId) {
   if (g) { g._penaltis = hasPen; g._pen_winner = penWinVal; }
 
   document.getElementById("score-modal").remove();
+  _penScoreWinner = null;
   render();
   setSaveState("saving");
   try {
-    const penGanadorId = hasPen
+    const penGanadorId = (hasPen && penWinVal)
       ? (penWinVal === "local" ? lp?.equipo_id : vp?.equipo_id) || null
       : null;
 
@@ -856,7 +875,7 @@ async function saveScore(grupoId, localId, visitId) {
     render();
 
     let winnerPart = null;
-    if (hasPen && gL === gV) {
+    if (hasPen && penWinVal) {
       winnerPart = penWinVal === "local" ? lp : vp;
     } else if (gL !== gV) {
       winnerPart = gL > gV ? lp : vp;
@@ -959,16 +978,29 @@ function calcStandings(grupoId) {
   return result;
 }
 
+function advancingPositions(grupoNombre) {
+  const posSet = new Set();
+  participantes.forEach(p => {
+    if (p.referencia_origen === grupoNombre && p.posicion_origen) posSet.add(p.posicion_origen);
+  });
+  return posSet;
+}
+
 function renderGroupCard(g, editable = false) {
   const parts = byGrupo(g.id);
   const anyPlayed = partidos.some(m => m.grupo_id === g.id && m.resultado_local != null && m.resultado_visitante != null);
   const notasHtml = `<input class="match-notes-input" type="text" value="${escapeAttr(g.notas)}" placeholder="📍 Campo · ⏰ Hora · 👤 Árbitro..." onblur="saveNotas('${g.id}',this.value)" onclick="event.stopPropagation()" ondblclick="event.stopPropagation()">`;
+  const isGroup = g.tipo_grupo > 2;
+  const advPos = isGroup ? advancingPositions(g.nombre) : new Set();
 
   if (!anyPlayed) {
     const slotsHtml = [];
     for (let i = 0; i < g.tipo_grupo; i++) {
       const p = parts[i] || { id: `vslot__${g.id}__${i}`, equipo_id: null, equipos: null, _virtual: true };
       const eq = p.equipos;
+      const borderStyle = isGroup
+        ? `border-left:3px solid ${advPos.has(i + 1) ? 'var(--win-green)' : '#ddd'};`
+        : '';
       if (eq) {
         const cl = isClassified(eq.id, g.id);
         const dragAttrs = editable
@@ -980,7 +1012,7 @@ function renderGroupCard(g, editable = false) {
         const badge = cl
           ? `<span style="font-size:10px;font-weight:800;color:var(--win-green);margin-left:auto;flex-shrink:0;">✓</span>`
           : "";
-        slotsHtml.push(`<div class="slot has-team${cl ? ' classified' : ''}" ${dragAttrs} ${dropAttrs}>
+        slotsHtml.push(`<div class="slot has-team${cl ? ' classified' : ''}" style="${borderStyle}" ${dragAttrs} ${dropAttrs}>
           ${escudoEl(eq.escudo_url, eq.nombre)}
           <span class="team-name" style="color:var(--text);font-weight:800;">${eq.nombre}</span>
           ${badge}
@@ -990,7 +1022,7 @@ function renderGroupCard(g, editable = false) {
         const dropAttrs = editable
           ? `ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${p.id}')"`
           : "";
-        slotsHtml.push(`<div class="slot empty-slot" ${dropAttrs}>
+        slotsHtml.push(`<div class="slot empty-slot" style="${borderStyle}" ${dropAttrs}>
           <div class="drop-hint">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="opacity:0.3"><circle cx="6" cy="6" r="5" stroke="#999" stroke-width="1.2"/><path d="M6 3v6M3 6h6" stroke="#999" stroke-width="1.2"/></svg>
             <span class="team-name empty">${label}</span>
@@ -1014,13 +1046,16 @@ function renderGroupCard(g, editable = false) {
   const rows = [];
   for (let i = 0; i < g.tipo_grupo; i++) {
     const s = standings[i];
+    const borderStyle = isGroup
+      ? `border-left:3px solid ${advPos.has(i + 1) ? 'var(--win-green)' : '#ddd'};`
+      : '';
     if (s) {
       const cl = isClassified(s.equipo_id, g.id);
       const dStr = s.D > 0 ? '+' + s.D : '' + s.D;
       const escHtml = s.eq?.escudo_url
         ? `<img src="${s.eq.escudo_url}" style="width:16px;height:16px;object-fit:contain;" alt="">`
         : `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="margin:2px"><circle cx="6" cy="4" r="2.5" fill="#ccc"/><path d="M1 11c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="#ccc" stroke-width="1.2" fill="none"/></svg>`;
-      rows.push(`<div class="group-stand-row${cl ? ' cl' : ''}">
+      rows.push(`<div class="group-stand-row${cl ? ' cl' : ''}" style="${borderStyle}">
         ${escHtml}
         <span class="stand-name${cl ? ' cl' : ''}">${s.eq?.nombre || '—'}${cl ? '<span style="font-size:9px;margin-left:2px;font-weight:800;">✓</span>' : ''}</span>
         <span class="stand-col">${s.PJ}</span>
@@ -1028,7 +1063,7 @@ function renderGroupCard(g, editable = false) {
         <span class="stand-col pts${cl ? ' cl' : ''}">${s.Pts}</span>
       </div>`);
     } else {
-      rows.push(`<div class="group-stand-row">
+      rows.push(`<div class="group-stand-row" style="${borderStyle}">
         <div style="width:16px;height:16px;"></div>
         <span class="stand-name" style="color:#ccc;font-weight:400;font-style:italic;font-family:var(--font-body);text-transform:none;font-size:11px;">plaza vacía</span>
         <span class="stand-col" style="color:#e0e0e0;">—</span>
@@ -1080,10 +1115,9 @@ function openGroupDetail(grupoId) {
     const rows = byJ[j].map(m => {
       const eqL = eqMap[m.equipo_local_id], eqV = eqMap[m.equipo_visitante_id];
       const played = m.resultado_local != null && m.resultado_visitante != null;
-      const isDraw = played && m.resultado_local === m.resultado_visitante;
       const penId = m.penaltis_ganador_id;
-      const penL = isDraw && penId === m.equipo_local_id ? `<span class="pen-badge">P</span>` : '';
-      const penV = isDraw && penId === m.equipo_visitante_id ? `<span class="pen-badge">P</span>` : '';
+      const penL = penId === m.equipo_local_id ? `<span class="pen-badge">P</span>` : '';
+      const penV = penId === m.equipo_visitante_id ? `<span class="pen-badge">P</span>` : '';
       const score = played ? `${m.resultado_local} – ${m.resultado_visitante}` : 'vs';
       const _shieldStyle = 'width:36px;height:36px;object-fit:contain;flex-shrink:0;border-radius:4px;';
       const _phStyle = 'width:36px;height:36px;flex-shrink:0;border-radius:4px;background:#f0f0f0;';
@@ -1112,7 +1146,10 @@ function openGroupDetail(grupoId) {
   gd.innerHTML = `
     <div class="gd-header">
       <button class="gd-back" onclick="closeGroupDetail()">‹ Volver</button>
-      <span class="gd-title">${g.nombre}</span>
+      <div style="min-width:0;overflow:hidden;">
+        <span class="gd-title">${g.nombre}</span>
+        ${g.notas ? `<div style="font-size:12px;color:rgba(255,255,255,0.75);font-family:var(--font-body);font-style:italic;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.notas}</div>` : ''}
+      </div>
     </div>
     <div class="gd-body">
       <div class="gd-card">
@@ -1145,13 +1182,14 @@ function closeGroupDetail() {
 }
 
 function _updatePenSection() {
+  if (_penMultiTeam) return; // always visible for multi-team groups
   const rl = parseInt(document.getElementById('pe-local')?.value);
   const rv = parseInt(document.getElementById('pe-visit')?.value);
   const sec = document.getElementById('pe-pen-section');
   if (!sec) return;
   const isDraw = !isNaN(rl) && !isNaN(rv) && rl === rv;
   sec.style.display = isDraw ? 'block' : 'none';
-  if (!isDraw) _penEditWinner = null;
+  if (!isDraw) { _penEditWinner = null; _selectPenBtn('none'); }
 }
 
 function _selectPenBtn(side) {
@@ -1167,13 +1205,20 @@ function editPartido(matchId, grupoId) {
   if (!m) return;
   const eqMap = {}; equipos.forEach(eq => eqMap[eq.id] = eq);
   const eqL = eqMap[m.equipo_local_id], eqV = eqMap[m.equipo_visitante_id];
-  // Pre-cargar ganador de penaltis actual
+
+  const grupoParticipants = participantes.filter(p => p.grupo_id === grupoId);
+  _penMultiTeam = grupoParticipants.length > 2;
+
   _penEditWinner = m.penaltis_ganador_id
     ? (m.penaltis_ganador_id === m.equipo_local_id ? 'local' : 'visit')
-    : null;
+    : (_penMultiTeam ? 'none' : null);
+
   const old = document.getElementById('partido-edit-modal');
   if (old) old.remove();
+
   const isDraw = m.resultado_local != null && m.resultado_visitante != null && m.resultado_local === m.resultado_visitante;
+  const showPen = _penMultiTeam || isDraw;
+
   const div = document.createElement('div');
   div.className = 'modal-backdrop'; div.id = 'partido-edit-modal';
   div.style.zIndex = '200';
@@ -1190,12 +1235,15 @@ function editPartido(matchId, grupoId) {
         <input type="number" id="pe-visit" min="0" value="${m.resultado_visitante ?? ''}" oninput="_updatePenSection()">
       </div>
     </div>
-    <div class="pen-section" id="pe-pen-section" style="display:${isDraw ? 'block' : 'none'};">
-      <div class="pen-section-title">Penaltis (solo informativo — no afecta clasificación)</div>
+    <div class="pen-section" id="pe-pen-section" style="display:${showPen ? 'block' : 'none'};">
+      <div class="pen-section-hd">
+        <span class="pen-section-title">Penaltis</span>
+        ${_penMultiTeam ? '<span class="pen-section-note">solo informativo · no afecta clasificación</span>' : ''}
+      </div>
       <div class="pen-btns">
         <button type="button" id="pe-pen-local" class="pen-btn${_penEditWinner === 'local' ? ' selected' : ''}" onclick="_selectPenBtn('local')">${eqL?.nombre || 'Local'}</button>
         <button type="button" id="pe-pen-visit" class="pen-btn${_penEditWinner === 'visit' ? ' selected' : ''}" onclick="_selectPenBtn('visit')">${eqV?.nombre || 'Visitante'}</button>
-        <button type="button" id="pe-pen-none" class="pen-btn none-btn${!_penEditWinner ? ' selected' : ''}" onclick="_selectPenBtn('none')">Sin penaltis</button>
+        <button type="button" id="pe-pen-none" class="pen-btn none-btn${_penEditWinner === 'none' || !_penEditWinner ? ' selected' : ''}" onclick="_selectPenBtn('none')">Sin penaltis</button>
       </div>
     </div>
     <div class="modal-btns">
@@ -1214,11 +1262,13 @@ async function savePartidoResult(matchId, grupoId) {
   const m = partidos.find(p => p.id === matchId);
   if (!m) return;
   const isDraw = !isNaN(rl) && !isNaN(rv) && rl === rv;
-  const penGanadorId = (isDraw && _penEditWinner && _penEditWinner !== 'none')
+  const canSavePen = _penMultiTeam || isDraw;
+  const penGanadorId = (canSavePen && _penEditWinner && _penEditWinner !== 'none')
     ? (_penEditWinner === 'local' ? m.equipo_local_id : m.equipo_visitante_id)
     : null;
   document.getElementById('partido-edit-modal').remove();
   _penEditWinner = null;
+  _penMultiTeam  = false;
   setSaveState('saving');
   try {
     await sbPatch('partidos', matchId, {
@@ -1458,6 +1508,7 @@ function getPhasesSorted() {
 }
 
 function buildCols(seeds) {
+  if (!seeds || !seeds.length) return [];
   const cols = [seeds];
   let current = seeds;
   for (let i = 0; i < fases.length; i++) {
@@ -1471,7 +1522,14 @@ function buildCols(seeds) {
     });
     if (!nextIdSet.size) break;
     const next = [...nextIdSet].map(id => grupos.find(g => g.id === id)).filter(Boolean);
-    const unique = [...new Map(next.map(g => [g.id, g])).values()];
+    const unique = [...new Map(next.map(g => [g.id, g])).values()].sort((a, b) => {
+      const oA = a.orden_cuadro != null ? a.orden_cuadro : Infinity;
+      const oB = b.orden_cuadro != null ? b.orden_cuadro : Infinity;
+      if (oA !== oB) return oA - oB;
+      const numA = parseInt(a.nombre.match(/\d+/)?.[0] ?? '0');
+      const numB = parseInt(b.nombre.match(/\d+/)?.[0] ?? '0');
+      return numA !== numB ? numA - numB : a.nombre.localeCompare(b.nombre);
+    });
     if (!unique.length) break;
     cols.push(unique); current = unique;
   }
@@ -1503,8 +1561,8 @@ function render() {
   const leftCols  = buildCols(leftGroups);
   const rightCols = buildCols(rightGroups);
 
-  const leftLastIds = new Set(leftCols[leftCols.length - 1].map(g => g.id));
-  const sharedFinal = rightCols[rightCols.length - 1].filter(g => leftLastIds.has(g.id));
+  const leftLastIds = new Set((leftCols[leftCols.length - 1] ?? []).map(g => g.id));
+  const sharedFinal = (rightCols[rightCols.length - 1] ?? []).filter(g => leftLastIds.has(g.id));
   let centerGroups = [];
   if (sharedFinal.length) { centerGroups = leftCols.pop(); rightCols.pop(); }
 
@@ -1517,11 +1575,12 @@ function render() {
   };
   const CARD_GAP     = 16;
   const LOGO_H       = 280;
-  const LOGO_PAD     = LOGO_H + 80;
+  const LOGO_PAD     = centerGroups.length ? LOGO_H + 80 : LOGO_H + 20;
   const Y_OFFSET     = LOGO_PAD;
 
-  const totalCols = leftCols.length + 1 + rightCols.length;
-  const totalW = totalCols * MATCH_W + (totalCols - 1) * COL_GAP;
+  const hasCenterCol = centerGroups.length > 0 || (leftCols.length > 0 && rightCols.length > 0);
+  const totalCols = leftCols.length + (hasCenterCol ? 1 : 0) + rightCols.length;
+  const totalW = totalCols * MATCH_W + Math.max(0, totalCols - 1) * COL_GAP;
   const phase1H = leftGroups.reduce((s, g) => s + GROUP_CARD_H(g) + CARD_GAP, 0);
   const totalH  = Math.max(phase1H, 400);
 
@@ -1604,6 +1663,12 @@ function render() {
   logoDiv.innerHTML = `<img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png"
     style="height:${LOGO_H}px;object-fit:contain;filter:drop-shadow(0 0 16px rgba(204,0,0,0.4));">`;
   container.appendChild(logoDiv);
+  if (!centerGroups.length) {
+    logoDiv.style.left = '0';
+    logoDiv.style.top = '0';
+    logoDiv.style.width = totalW + 'px';
+    logoDiv.style.height = LOGO_H + 'px';
+  }
 
   const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svgEl.setAttribute("width", totalW);
@@ -1749,18 +1814,29 @@ function render() {
   if (centerGroups.length && reversedRight.length) {
     reversedRight[0].forEach((g, gi) => {
       if (!centerGroups.some(cg => cg.id === g.siguiente_grupo_id)) return;
-      drawConnector(colX(centerColIdx) + MATCH_W, totalH / 2 + Y_OFFSET, colX(centerColIdx + 1), rightCardPositions[0][gi].yCenter);
+      drawConnector(colX(centerColIdx + 1), rightCardPositions[0][gi].yCenter, colX(centerColIdx) + MATCH_W, totalH / 2 + Y_OFFSET);
     });
   }
   for (let ci = 0; ci < reversedRight.length - 1; ci++) {
     reversedRight[ci].forEach((g, gi) => {
       reversedRight[ci + 1].forEach((tg, tgi) => {
-        if (tg.siguiente_grupo_id === g.id) drawConnector(colX(centerColIdx + 1 + ci) + MATCH_W, rightCardPositions[ci][gi].yCenter, colX(centerColIdx + 1 + ci + 1), rightCardPositions[ci + 1][tgi].yCenter);
+        if (tg.siguiente_grupo_id === g.id) drawConnector(colX(centerColIdx + 1 + ci + 1), rightCardPositions[ci + 1][tgi].yCenter, colX(centerColIdx + 1 + ci) + MATCH_W, rightCardPositions[ci][gi].yCenter);
       });
     });
   }
 
   wrapper.appendChild(container);
+
+  // Expandir el bracket para ocupar el ancho disponible si es más pequeño
+  const outerEl = wrapper.closest('.bracket-outer') || wrapper.parentElement;
+  const availW = outerEl ? outerEl.clientWidth - 64 : window.innerWidth - 64;
+  if (availW > totalW && totalW > 0) {
+    const zoomFactor = availW / totalW;
+    container.style.zoom = zoomFactor;
+    // El escudo escala menos que el cuadro (máximo 1.5×)
+    const logoZoom = Math.min(zoomFactor, 1.5);
+    logoDiv.style.zoom = logoZoom / zoomFactor;
+  }
 }
 
 // ── CHAMPION ─────────────────────────────────────────────

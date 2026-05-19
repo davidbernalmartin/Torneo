@@ -35,6 +35,9 @@ from src.database import (
     generar_partidos_fase,
     get_partidos_fase,
     actualizar_partidos_batch,
+    eliminar_partido,
+    subir_escudo,
+    set_visible_bracket,
     sincronizar_equipos_partidos_fase,
     get_campos_distintos,
     get_partidos_agenda,
@@ -458,7 +461,7 @@ if menu == "Ajustes":
 
     # ── URLs ────────────────────────────────────────────────
     url_gestion = f"bracket.html?torneo={tid}"
-    url_vista   = f"bracket-view.html?torneo={tid}"
+    url_vista   = f"https://www.rffm.es/actualidad/futbol-7/torneo-campeones-2026?torneo={tid}"
     url_grupos  = f"grupos-info.html?torneo={tid}"
 
     fases_torneo = supabase.table("fases").select("id").eq("torneo_id", tid).eq("orden", 1).execute().data
@@ -493,6 +496,19 @@ if menu == "Ajustes":
                 if st.button("🔗 URL y QR", key=f"modal_btn_{i}", width='stretch'):
                     _modal_qr(label, url)
                 st.link_button("↗ Abrir", url, width='stretch')
+
+    # ── Visibilidad en el menú público ──────────────────────
+    st.write("---")
+    st.write("### Visibilidad")
+    visible_actual = t.get("visible_bracket", True)
+    nuevo_visible = st.toggle(
+        "Mostrar en el menú público del Bracket Vista",
+        value=visible_actual,
+        help="Si está desactivado, el torneo no aparece en el menú de bracket-view.",
+    )
+    if nuevo_visible != visible_actual:
+        set_visible_bracket(tid, nuevo_visible)
+        st.rerun()
 
     # ── Zona de peligro ─────────────────────────────────────
     st.write("---")
@@ -653,10 +669,17 @@ def _modal_editar_equipo(equipo: dict[str, Any]) -> None:
     if escudo_actual:
         st.image(escudo_actual, width=80)
     nuevo_nombre = st.text_input("Nombre del equipo", value=equipo["nombre"])
-    nuevo_escudo = st.text_input("URL del escudo", value=escudo_actual,
+    nuevo_escudo = st.text_input("URL del escudo (opcional)", value=escudo_actual,
                                  placeholder="https://ejemplo.com/escudo.png")
     if nuevo_escudo and nuevo_escudo != escudo_actual:
         st.image(nuevo_escudo, width=80, caption="Vista previa")
+    fichero = st.file_uploader(
+        "O sube una imagen directamente",
+        type=["png", "jpg", "jpeg", "webp", "svg"],
+        help="Si subes una imagen, reemplaza la URL anterior.",
+    )
+    if fichero:
+        st.image(fichero, width=80, caption="Vista previa del fichero")
     nueva_competicion = st.text_input("Competición", value=equipo.get("competicion") or "",
                                       placeholder="Ej: Liga Nacional")
     nuevo_grupo = st.text_input("Grupo", value=equipo.get("grupo") or "",
@@ -667,7 +690,15 @@ def _modal_editar_equipo(equipo: dict[str, Any]) -> None:
         if not nombre_limpio:
             st.error("El nombre no puede estar vacío.")
         else:
-            update_equipo(equipo["id"], nombre_limpio, nuevo_escudo.strip(),
+            if fichero:
+                try:
+                    url_final = subir_escudo(fichero)
+                except Exception as e:
+                    st.error(f"Error al subir la imagen: {e}")
+                    st.stop()
+            else:
+                url_final = nuevo_escudo.strip()
+            update_equipo(equipo["id"], nombre_limpio, url_final,
                           nueva_competicion.strip(), nuevo_grupo.strip())
             st.rerun()
 
@@ -968,7 +999,7 @@ if menu == "Partidos":
     tiene_partidos = hay_partidos_fase(fase_id)
 
     # ── Generar / Regenerar / Sincronizar ───────────────
-    col_gen, col_sync, col_filtro = st.columns([2, 2, 3])
+    col_gen, col_sync, col_pdf, col_filtro = st.columns([2, 2, 2, 3])
     with col_gen:
         lbl = "🔄 Regenerar partidos" if tiene_partidos else "⚡ Generar partidos"
         if st.button(lbl, type="primary", width='stretch'):
@@ -997,6 +1028,30 @@ if menu == "Partidos":
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error al sincronizar: {e}")
+
+    with col_pdf:
+        if tiene_partidos:
+            if st.button("📄 Generar PDF", width='stretch', help="Descarga un PDF con las tarjetas de todos los partidos"):
+                try:
+                    with st.spinner("Generando PDF..."):
+                        from src.pdf_partidos import generar_pdf_partidos
+                        _partidos_data = get_partidos_fase(fase_id)
+                        _grupos_ord = sorted(
+                            _partidos_data.items(),
+                            key=lambda kv: (kv[1]["orden_cuadro"] is None, kv[1]["orden_cuadro"] or 0, kv[1]["nombre"]),
+                        )
+                        _torneo_nombre = torneo_actual.get("nombre", "Torneo")
+                        _url_vista     = f"https://www.rffm.es/actualidad/futbol-7/torneo-campeones-2026?torneo={torneo_id}"
+                        _pdf_bytes = generar_pdf_partidos(_grupos_ord, _torneo_nombre, _url_vista)
+                    st.download_button(
+                        label="⬇️ Descargar PDF",
+                        data=_pdf_bytes,
+                        file_name=f"partidos_{fase_actual.get('nombre','fase').replace(' ','_')}.pdf",
+                        mime="application/pdf",
+                        key=f"dl_pdf_{fase_id}",
+                    )
+                except Exception as _e:
+                    st.error(f"Error al generar PDF: {_e}")
 
     filtro_campo = col_filtro.text_input(
         "Filtrar por campo", placeholder="Escribe el nombre del campo...",
@@ -1062,6 +1117,7 @@ if menu == "Partidos":
                         "Goles L":    p.get("resultado_local"),
                         "Goles V":    p.get("resultado_visitante"),
                         "Invertir ⇅": False,
+                        "🗑️":         False,
                     }
                     for p in partidos
                 ])
@@ -1081,6 +1137,10 @@ if menu == "Partidos":
                             help="Intercambia local y visitante al guardar",
                             width="small",
                         ),
+                        "🗑️": st.column_config.CheckboxColumn(
+                            help="Marca para eliminar este partido al guardar",
+                            width="small",
+                        ),
                     },
                     hide_index=True,
                     width='stretch',
@@ -1089,8 +1149,13 @@ if menu == "Partidos":
 
                 if st.button("Guardar cambios", key=f"guardar_{grupo_id}", type="primary"):
                     updates = []
+                    eliminados = 0
                     for i, row in edited.iterrows():
-                        p        = partidos[i]
+                        p = partidos[i]
+                        if bool(row.get("🗑️", False)):
+                            eliminar_partido(p["id"])
+                            eliminados += 1
+                            continue
                         goles_l  = row["Goles L"]
                         goles_v  = row["Goles V"]
                         fecha    = row["Fecha"]
@@ -1112,12 +1177,15 @@ if menu == "Partidos":
                             upd["equipo_visitante_id"] = p.get("equipo_local_id")
                             upd["pos_local"]           = p.get("pos_visitante")
                             upd["pos_visitante"]       = p.get("pos_local")
-                            # Los goles también se invierten con los equipos
                             upd["resultado_local"]     = int(goles_v) if goles_v is not None else None
                             upd["resultado_visitante"] = int(goles_l) if goles_l is not None else None
                         updates.append(upd)
-                    actualizar_partidos_batch(updates)
-                    st.success("Guardado.")
+                    if updates:
+                        actualizar_partidos_batch(updates)
+                    if eliminados:
+                        st.success(f"✅ Guardado. {eliminados} partido(s) eliminado(s).")
+                    else:
+                        st.success("Guardado.")
                     st.rerun()
 
 # -------------------------------------------------------

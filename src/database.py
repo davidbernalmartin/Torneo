@@ -1,4 +1,5 @@
 import streamlit as st
+import uuid
 from supabase import create_client, Client
 from typing import Any
 
@@ -8,6 +9,19 @@ def get_supabase() -> Client:
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)
+
+
+def subir_escudo(fichero) -> str:
+    """Sube un fichero de imagen al bucket 'escudos' y devuelve su URL pública."""
+    supabase = get_supabase()
+    ext = fichero.name.rsplit(".", 1)[-1].lower()
+    nombre_unico = f"{uuid.uuid4()}.{ext}"
+    supabase.storage.from_("escudos").upload(
+        path=nombre_unico,
+        file=fichero.getvalue(),
+        file_options={"content-type": fichero.type, "upsert": "true"},
+    )
+    return supabase.storage.from_("escudos").get_public_url(nombre_unico)
 
 
 # -------------------------------------------------------
@@ -26,6 +40,12 @@ def crear_torneo(nombre: str, descripcion: str = "") -> list[dict[str, Any]]:
         "descripcion": descripcion,
         "activo": True,
     }).execute().data
+
+
+def set_visible_bracket(torneo_id, visible: bool):
+    supabase = get_supabase()
+    supabase.table("torneos").update({"visible_bracket": visible}).eq("id", torneo_id).execute()
+    st.cache_data.clear()
 
 
 def eliminar_torneo(torneo_id):
@@ -494,31 +514,35 @@ def get_partidos_fase(fase_id):
         for p in all_parts if p.get("posicion")
     }
 
-    # Nombres de equipos reales
-    eq_ids = [p for p in (
+    # Nombres y escudos de equipos reales
+    eq_ids = list(
         {p["equipo_local_id"] for p in partidos if p.get("equipo_local_id")} |
         {p["equipo_visitante_id"] for p in partidos if p.get("equipo_visitante_id")}
-    )]
-    eq_map = {}
+    )
+    eq_map = {}   # id → {"nombre": str, "escudo_url": str|None}
     if eq_ids:
-        eq_map = {
-            e["id"]: e["nombre"]
-            for e in supabase.table("equipos").select("id, nombre").in_("id", eq_ids).execute().data
-        }
+        for e in supabase.table("equipos").select("id, nombre, escudo_url").in_("id", eq_ids).execute().data:
+            eq_map[e["id"]] = {"nombre": e["nombre"], "escudo_url": e.get("escudo_url")}
 
     grupo_meta = {g["id"]: {"nombre": g["nombre"], "orden_cuadro": g.get("orden_cuadro")} for g in grupos}
     result = {}
     for p in partidos:
         gid = p["grupo_id"]
         if p.get("equipo_local_id"):
-            p["nombre_local"] = eq_map.get(p["equipo_local_id"], "?")
+            info_l = eq_map.get(p["equipo_local_id"], {})
+            p["nombre_local"]  = info_l.get("nombre", "?")
+            p["escudo_local"]  = info_l.get("escudo_url")
         else:
-            p["nombre_local"] = label_map.get((gid, p.get("pos_local")), f"E{p.get('pos_local', '?')}")
+            p["nombre_local"]  = label_map.get((gid, p.get("pos_local")), f"E{p.get('pos_local', '?')}")
+            p["escudo_local"]  = None
 
         if p.get("equipo_visitante_id"):
-            p["nombre_visitante"] = eq_map.get(p["equipo_visitante_id"], "?")
+            info_v = eq_map.get(p["equipo_visitante_id"], {})
+            p["nombre_visitante"]  = info_v.get("nombre", "?")
+            p["escudo_visitante"]  = info_v.get("escudo_url")
         else:
-            p["nombre_visitante"] = label_map.get((gid, p.get("pos_visitante")), f"E{p.get('pos_visitante', '?')}")
+            p["nombre_visitante"]  = label_map.get((gid, p.get("pos_visitante")), f"E{p.get('pos_visitante', '?')}")
+            p["escudo_visitante"]  = None
 
         result.setdefault(gid, {"nombre": grupo_meta[gid]["nombre"], "orden_cuadro": grupo_meta[gid]["orden_cuadro"], "partidos": []})
         result[gid]["partidos"].append(p)
@@ -534,6 +558,12 @@ def actualizar_partidos_batch(updates):
             continue
         data = {k: v for k, v in u.items()}
         supabase.table("partidos").update(data).eq("id", pid).execute()
+
+
+def eliminar_partido(partido_id):
+    supabase = get_supabase()
+    supabase.table("partidos").delete().eq("id", partido_id).execute()
+    st.cache_data.clear()
 
 
 # -------------------------------------------------------
