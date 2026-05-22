@@ -728,20 +728,14 @@ def get_partidos_agenda(fecha_desde=None, fecha_hasta=None, campos=None, torneo_
         gid  = p["grupo_id"]
 
         if p.get("equipo_local_id"):
-            info_l = eq_map.get(p["equipo_local_id"], {})
-            p["nombre_local"]  = info_l.get("nombre", "?")
-            p["escudo_local"]  = info_l.get("escudo_url")
+            p["nombre_local"] = eq_map.get(p["equipo_local_id"], "?")
         else:
-            p["nombre_local"]  = label_map.get((gid, p.get("pos_local")), f"E{p.get('pos_local', '?')}")
-            p["escudo_local"]  = None
+            p["nombre_local"] = label_map.get((gid, p.get("pos_local")), f"E{p.get('pos_local', '?')}")
 
         if p.get("equipo_visitante_id"):
-            info_v = eq_map.get(p["equipo_visitante_id"], {})
-            p["nombre_visitante"]  = info_v.get("nombre", "?")
-            p["escudo_visitante"]  = info_v.get("escudo_url")
+            p["nombre_visitante"] = eq_map.get(p["equipo_visitante_id"], "?")
         else:
-            p["nombre_visitante"]  = label_map.get((gid, p.get("pos_visitante")), f"E{p.get('pos_visitante', '?')}")
-            p["escudo_visitante"]  = None
+            p["nombre_visitante"] = label_map.get((gid, p.get("pos_visitante")), f"E{p.get('pos_visitante', '?')}")
         p["nombre_torneo"]    = meta.get("torneo", "?")
         p["nombre_grupo"]     = meta.get("grupo", "")
 

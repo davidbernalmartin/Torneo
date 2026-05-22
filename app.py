@@ -38,6 +38,7 @@ from src.database import (
     eliminar_partido,
     subir_escudo,
     set_visible_bracket,
+    set_orden_menu,
     sincronizar_equipos_partidos_fase,
     get_campos_distintos,
     get_partidos_agenda,
@@ -351,6 +352,60 @@ if st.sidebar.button("🔒 Cerrar sesión", width='stretch'):
     st.session_state.authenticated = False
     st.rerun()
 
+@st.dialog("📋 Agenda de partidos por campo", width="large")
+def _modal_agenda():
+    from src.pdf_agenda import generar_pdf_agenda
+    torneos_todos = get_torneos()
+    st.write("Selecciona el rango de fechas y los torneos que quieres incluir en la agenda.")
+
+    col_f1, col_f2 = st.columns(2)
+    fecha_desde = col_f1.date_input("Desde", value=None, key="agenda_desde")
+    fecha_hasta = col_f2.date_input("Hasta", value=None, key="agenda_hasta")
+
+    opciones_torneo = {t["nombre"]: t["id"] for t in torneos_todos}
+    torneos_sel = st.multiselect(
+        "Torneos",
+        options=list(opciones_torneo.keys()),
+        default=list(opciones_torneo.keys()),
+        key="agenda_torneos",
+    )
+
+    st.write("---")
+    if st.button("📄 Generar PDF", type="primary", width="stretch"):
+        if not torneos_sel:
+            st.warning("Selecciona al menos un torneo.")
+            return
+        torneo_ids = [opciones_torneo[n] for n in torneos_sel]
+        with st.spinner("Cargando partidos…"):
+            partidos = get_partidos_agenda(
+                fecha_desde=fecha_desde,
+                fecha_hasta=fecha_hasta,
+                torneo_ids=torneo_ids,
+            )
+        if not partidos:
+            st.warning("No hay partidos con fecha asignada para los filtros seleccionados.")
+            return
+        with st.spinner("Generando PDF…"):
+            rango = ""
+            if fecha_desde and fecha_hasta:
+                rango = f" · {fecha_desde.strftime('%d/%m/%Y')} – {fecha_hasta.strftime('%d/%m/%Y')}"
+            elif fecha_desde:
+                rango = f" · desde {fecha_desde.strftime('%d/%m/%Y')}"
+            elif fecha_hasta:
+                rango = f" · hasta {fecha_hasta.strftime('%d/%m/%Y')}"
+            titulo = "Agenda de partidos" + rango
+            pdf_bytes = generar_pdf_agenda(partidos, titulo)
+        st.download_button(
+            label="⬇️ Descargar agenda PDF",
+            data=pdf_bytes,
+            file_name="agenda_partidos.pdf",
+            mime="application/pdf",
+            key="dl_agenda_pdf",
+        )
+
+if st.sidebar.button("📋 Agenda por campo", width='stretch'):
+    _modal_agenda()
+
 # QR de acceso al menú de cuadros (URL global, no ligada a ningún torneo)
 _URL_CUADRO = "https://www.rffm.es/actualidad/futbol-7/torneo-campeones-2026"
 with st.sidebar.expander("QR Cuadro Visual"):
@@ -508,6 +563,21 @@ if menu == "Ajustes":
     )
     if nuevo_visible != visible_actual:
         set_visible_bracket(tid, nuevo_visible)
+        st.rerun()
+
+    orden_actual = t.get("orden_menu")
+    col_ord, col_ord_btn = st.columns([3, 1])
+    nuevo_orden = col_ord.number_input(
+        "Posición en el menú público",
+        min_value=1,
+        max_value=99,
+        value=int(orden_actual) if orden_actual is not None else 99,
+        step=1,
+        help="Número de orden en el menú del Bracket Vista. Los torneos sin valor asignado aparecen al final.",
+    )
+    if col_ord_btn.button("Guardar orden", width="stretch"):
+        set_orden_menu(tid, int(nuevo_orden))
+        st.success("✅ Orden actualizado.")
         st.rerun()
 
     # ── Zona de peligro ─────────────────────────────────────

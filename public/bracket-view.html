@@ -209,8 +209,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 15px;
-    max-width: 780px;
+    gap: 0;
+    max-width: 1100px;
     width: 100%;
   }
   .menu-title {
@@ -218,7 +218,16 @@
     font-size: 20px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.14em;
     color: var(--text-muted);
-    margin-bottom: 18px;
+    margin-bottom: 24px;
+  }
+  .menu-lista-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    width: 100%;
+  }
+  @media (max-width: 680px) {
+    .menu-lista-grid { grid-template-columns: 1fr; }
   }
   .torneo-btn {
     width: 100%;
@@ -226,15 +235,16 @@
     border: 1px solid var(--border);
     border-left: 6px solid var(--red);
     border-radius: 15px;
-    padding: 30px 38px;
+    padding: 26px 28px;
     display: flex;
     align-items: center;
-    gap: 30px;
+    gap: 20px;
     cursor: pointer;
     transition: box-shadow 0.15s, transform 0.1s, border-color 0.15s;
     text-decoration: none;
     color: var(--text);
     box-shadow: var(--shadow);
+    box-sizing: border-box;
   }
   .torneo-btn:hover {
     box-shadow: 0 6px 27px rgba(204,0,0,0.15);
@@ -242,55 +252,44 @@
     border-color: var(--red);
   }
   .torneo-btn-dot {
-    width: 15px; height: 15px;
+    width: 12px; height: 12px;
     border-radius: 50%;
     background: var(--red);
     flex-shrink: 0;
   }
-  .torneo-btn-text { flex: 1; text-align: left; }
+  .torneo-btn-text { flex: 1; text-align: left; min-width: 0; }
   .torneo-btn-name {
     font-family: var(--font-display);
-    font-size: 28px; font-weight: 800;
+    font-size: 20px; font-weight: 800;
     text-transform: uppercase; letter-spacing: 0.04em;
     color: var(--text);
     display: block;
+    white-space: normal;
+    line-height: 1.2;
   }
   .torneo-btn-desc {
     font-family: var(--font-body);
-    font-size: 20px;
+    font-size: 15px;
     color: var(--text-muted);
     display: block;
-    margin-top: 5px;
+    margin-top: 6px;
+    white-space: normal;
+    line-height: 1.3;
   }
   .torneo-btn-arrow {
     color: var(--red);
-    font-size: 42px;
+    font-size: 32px;
     font-weight: 700;
     flex-shrink: 0;
   }
   .menu-logo {
     display: block;
-    width: 216px;
-    height: 216px;
+    width: 180px;
+    height: 180px;
     object-fit: contain;
-    margin: 0 auto 20px;
+    margin: 0 auto 24px;
   }
-  /* ── Botón imagen ── */
-  #btn-imagen {
-    font-family: var(--font-display);
-    font-size: 18px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.08em;
-    color: rgba(255,255,255,0.85);
-    background: none;
-    border: 1px solid rgba(255,255,255,0.4);
-    padding: 8px 20px; border-radius: 5px;
-    cursor: pointer; white-space: nowrap;
-    transition: background 0.15s;
-  }
-  #btn-imagen:hover { background: rgba(255,255,255,0.15); }
-  #btn-imagen.loading { opacity: 0.6; cursor: wait; }
-
-  /* ── Grupo grande: tarjeta clasificación ── */
+/* ── Grupo grande: tarjeta clasificación ── */
   .group-card { cursor: pointer; }
   .group-stand-header {
     display: grid; grid-template-columns: 18px 1fr 26px 30px 30px;
@@ -334,6 +333,15 @@
     border-radius: 4px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
   }
   .gd-back:hover { background: rgba(255,255,255,0.15); color: white; }
+  .gd-pdf-btn {
+    font-family: var(--font-display); font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.9); background: none;
+    border: 1px solid rgba(255,255,255,0.45); padding: 7px 14px;
+    border-radius: 4px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    margin-left: auto;
+  }
+  .gd-pdf-btn:hover { background: rgba(255,255,255,0.15); color: white; }
   .gd-title { font-family: var(--font-display); font-size: 27px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: white; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .gd-body { padding: 10px 8px; }
   .gd-card { background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 10px; overflow: hidden; }
@@ -366,8 +374,28 @@
   .pr-score.played { color: var(--text); }
   .pr-visit { font-family: var(--font-display); font-weight: 700; font-size: 22px; text-transform: uppercase; text-align: left; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pen-badge { display: inline-block; font-size: 10px; font-weight: 700; font-family: var(--font-display); color: white; background: #e07b00; border-radius: 3px; padding: 1px 4px; letter-spacing: 0.04em; vertical-align: middle; margin: 0 2px; }
+
+  @media print {
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    header, .bracket-outer, #loading, #error-msg, #menu-torneos { display: none !important; }
+    #group-detail {
+      display: block !important;
+      position: static !important;
+      overflow: visible !important;
+      background: white !important;
+    }
+    .gd-header {
+      position: static !important;
+      border-radius: 0;
+      padding: 14px 18px;
+    }
+    .gd-back, .gd-pdf-btn { display: none !important; }
+    .gd-body { padding: 8px 0; }
+    .gd-card { break-inside: avoid; box-shadow: none; border: 1px solid #e0e0e0; }
+    .sig-ronda-item { break-inside: avoid; }
+    body { margin: 0; background: white; }
+  }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -393,13 +421,13 @@
     <h1 id="bracket-title">Cuadro RFFM</h1>
   </div>
   <div class="header-right">
-    <button id="btn-imagen" onclick="exportarImagen()" title="Ver como imagen">Descargar</button>
   </div>
 </header>
 
 <div id="menu-torneos">
   <div class="menu-inner">
     <img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png" class="menu-logo" alt="RFFM">
+    <div class="menu-title">XXXV Torneo de Campeones – Cotorruelo 2026</div>
     <div id="menu-lista"></div>
   </div>
 </div>
@@ -416,7 +444,7 @@ const SUPABASE_URL      = "https://bdqoapdnokydfwykitww.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcW9hcGRub2t5ZGZ3eWtpdHd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDc1NTMsImV4cCI6MjA5MjM4MzU1M30.TioDgG3xHadZS1wvttTgnB_LxcdK5L_rqhEDk9okMLw";
 // ─────────────────────────────────────────────────────────
 
-let fases = [], grupos = [], participantes = [], equipos = [], torneoData = null, partidos = [], allParticipantes = [];
+let fases = [], grupos = [], participantes = [], equipos = [], torneoData = null, partidos = [], allParticipantes = [], partidosSiguiente = [];
 
 function sbHeaders() {
   return {
@@ -444,6 +472,9 @@ function showMenu(torneos) {
     lista.innerHTML = '<p style="color:rgba(255,255,255,0.4);font-size:14px;text-align:center;">No hay torneos configurados.</p>';
     return;
   }
+  const grid = document.createElement("div");
+  grid.className = "menu-lista-grid";
+  lista.appendChild(grid);
   torneos.forEach(t => {
     const url = "bracket-view.html?torneo=" + t.id;
     const desc = t.descripcion ? `<span class="torneo-btn-desc">${t.descripcion}</span>` : "";
@@ -457,7 +488,7 @@ function showMenu(torneos) {
         ${desc}
       </div>
       <span class="torneo-btn-arrow">›</span>`;
-    lista.appendChild(btn);
+    grid.appendChild(btn);
   });
 }
 
@@ -467,7 +498,7 @@ async function init() {
 
     // Sin parámetro → mostrar menú de torneos
     if (!torneoId) {
-      const torneos = await sbGet("torneos", "select=id,nombre,descripcion&visible_bracket=eq.true&order=created_at");
+      const torneos = await sbGet("torneos", "select=id,nombre,descripcion,orden_menu&visible_bracket=eq.true&order=orden_menu.nullslast,created_at");
       showMenu(torneos);
       return;
     }
@@ -501,6 +532,11 @@ async function init() {
       const largeGroupIds = g.filter(gr => gr.tipo_grupo > 2).map(gr => gr.id);
       if (largeGroupIds.length) {
         partidos = await sbGet("partidos", "grupo_id=in.(" + largeGroupIds.join(",") + ")&order=jornada");
+      }
+      // Partidos de la siguiente ronda (para mostrarlos en el detalle de grupo)
+      const sigGrupoIds = [...new Set(g.map(gr => gr.siguiente_grupo_id).filter(Boolean))];
+      if (sigGrupoIds.length) {
+        partidosSiguiente = await sbGet("partidos", "grupo_id=in.(" + sigGrupoIds.join(",") + ")&order=jornada");
       }
     }
     document.getElementById("loading").style.display = "none";
@@ -564,6 +600,9 @@ function slotLabel(partId) {
 
 // ── STANDINGS (grupos > 2 equipos) ───────────────────────
 function calcStandings(grupoId) {
+  const g = grupos.find(gr => gr.id === grupoId);
+  const manualOrder = Array.isArray(g?.orden_desempate) ? g.orden_desempate : [];
+
   const partsGrupo = byGrupo(grupoId);
   const eqMap = {}; equipos.forEach(eq => eqMap[eq.id] = eq);
   const stats = {};
@@ -579,7 +618,7 @@ function calcStandings(grupoId) {
     if (sL) { sL.PJ++; sL.GF+=rl; sL.GC+=rv; sL.D+=rl-rv; if(rl>rv){sL.PG++;sL.Pts+=3;} else if(rl===rv){sL.PE++;sL.Pts++;} else sL.PP++; }
     if (sV) { sV.PJ++; sV.GF+=rv; sV.GC+=rl; sV.D+=rv-rl; if(rv>rl){sV.PG++;sV.Pts+=3;} else if(rv===rl){sV.PE++;sV.Pts++;} else sV.PP++; }
   });
-  // Ordenar: Pts → enfrentamiento directo (Pts, D, GF) → D global → GF global
+  // Orden: Pts → h2h (partido/miniliga) → D global → penaltis h2h (partido/miniliga) → manual
   const all = Object.values(stats);
   all.sort((a, b) => b.Pts - a.Pts);
   const result = [];
@@ -591,24 +630,30 @@ function calcStandings(grupoId) {
     if (group.length > 1) {
       const ids = group.map(s => s.equipo_id);
       const h = {};
-      ids.forEach(id => h[id] = { Pts: 0, D: 0, GF: 0 });
+      ids.forEach(id => h[id] = { Pts: 0 });
+      const pen = {};
+      ids.forEach(id => pen[id] = 0);
       gPartidos.forEach(m => {
         if (!ids.includes(m.equipo_local_id) || !ids.includes(m.equipo_visitante_id)) return;
         const rl = m.resultado_local, rv = m.resultado_visitante;
         if (rl == null || rv == null) return;
-        h[m.equipo_local_id].GF += rl; h[m.equipo_local_id].D += rl - rv;
-        h[m.equipo_visitante_id].GF += rv; h[m.equipo_visitante_id].D += rv - rl;
         if (rl > rv) h[m.equipo_local_id].Pts += 3;
-        else if (rl === rv) { h[m.equipo_local_id].Pts++; h[m.equipo_visitante_id].Pts++; }
-        else h[m.equipo_visitante_id].Pts += 3;
+        else if (rl === rv) {
+          h[m.equipo_local_id].Pts++;
+          h[m.equipo_visitante_id].Pts++;
+          if (m.penaltis_ganador_id && pen[m.penaltis_ganador_id] !== undefined)
+            pen[m.penaltis_ganador_id]++;
+        } else h[m.equipo_visitante_id].Pts += 3;
       });
       group.sort((a, b) => {
         const hA = h[a.equipo_id], hB = h[b.equipo_id];
         if (hB.Pts !== hA.Pts) return hB.Pts - hA.Pts;
-        if (hB.D !== hA.D) return hB.D - hA.D;
-        if (hB.GF !== hA.GF) return hB.GF - hA.GF;
         if (b.D !== a.D) return b.D - a.D;
-        return b.GF - a.GF;
+        if (pen[b.equipo_id] !== pen[a.equipo_id]) return pen[b.equipo_id] - pen[a.equipo_id];
+        const ia = manualOrder.indexOf(a.equipo_id);
+        const ib = manualOrder.indexOf(b.equipo_id);
+        if (ia >= 0 && ib >= 0) return ia - ib;
+        return 0;
       });
     }
     group.forEach(s => result.push(s));
@@ -771,14 +816,59 @@ function openGroupDetail(grupoId) {
     return `<div class="jornada-lbl">Jornada ${j}</div>${rows}`;
   }).join('');
 
+  // ── Siguiente ronda ──────────────────────────────────────────────────────
+  let sigRondaHTML = '';
+  if (g.siguiente_grupo_id) {
+    const sigGrupo = grupos.find(gr => gr.id === g.siguiente_grupo_id);
+    const sigPartidos = partidosSiguiente.filter(p => p.grupo_id === g.siguiente_grupo_id);
+    if (sigPartidos.length) {
+      // mapa label: (grupo_id, posicion) → label
+      const labelMap = {};
+      allParticipantes.forEach(p => { if (p.grupo_id && p.posicion) labelMap[p.grupo_id + '_' + p.posicion] = p.label || ('E' + p.posicion); });
+      const sigCards = sigPartidos.map(m => {
+        const eqL = m.equipo_local_id ? eqMap[m.equipo_local_id] : null;
+        const eqV = m.equipo_visitante_id ? eqMap[m.equipo_visitante_id] : null;
+        const nameL = eqL ? eqL.nombre : (labelMap[m.grupo_id + '_' + m.pos_local] || '—');
+        const nameV = eqV ? eqV.nombre : (labelMap[m.grupo_id + '_' + m.pos_visitante] || '—');
+        const _rffm = 'https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png';
+        const shdL = `<img src="${eqL?.escudo_url || _rffm}" style="width:40px;height:40px;object-fit:contain;border-radius:4px;flex-shrink:0;">`;
+        const shdV = `<img src="${eqV?.escudo_url || _rffm}" style="width:40px;height:40px;object-fit:contain;border-radius:4px;flex-shrink:0;">`;
+        const meta = [];
+        if (m.campo) meta.push('📍 ' + m.campo);
+        if (m.fecha) meta.push('📅 ' + m.fecha.slice(8,10) + '/' + m.fecha.slice(5,7) + '/' + m.fecha.slice(0,4));
+        if (m.hora)  meta.push('⏰ ' + m.hora.slice(0,5));
+        const metaHtml = meta.length ? `<div class="partido-meta" style="border-top:1px solid #dbeafe;background:#eff6ff;">${meta.join(' · ')}</div>` : '';
+        return `<div class="partido-item sig-ronda-item">
+          <div class="partido-r" style="background:#eff6ff;">
+            ${shdL}
+            <span class="pr-local" style="color:#1e3a5f;">${nameL}</span>
+            <span class="pr-score" style="color:#005bab;font-size:13px;font-weight:700;">vs</span>
+            <span class="pr-visit" style="color:#1e3a5f;">${nameV}</span>
+            ${shdV}
+          </div>${metaHtml}
+        </div>`;
+      }).join('');
+      sigRondaHTML = `<div class="gd-card" style="border:1.5px solid #bfdbfe;">
+        <div class="gmodal-sec">
+          <div class="gmodal-sec-title" style="color:#005bab;">
+            Siguiente ronda${sigGrupo ? ' — ' + sigGrupo.nombre : ''}
+            <span style="float:right;font-size:11px;font-weight:400;font-style:italic;color:#6b8ead;text-transform:none;letter-spacing:0;">En caso de clasificarse</span>
+          </div>
+          ${sigCards}
+        </div>
+      </div>`;
+    }
+  }
+
   const gd = document.getElementById('group-detail');
   gd.innerHTML = `
     <div class="gd-header">
       <button class="gd-back" onclick="closeGroupDetail()">‹ Volver</button>
-      <div style="min-width:0;overflow:hidden;">
+      <div style="min-width:0;overflow:hidden;flex:1;">
         <span class="gd-title">${g.nombre}</span>
         ${g.notas ? `<div style="font-size:14px;color:rgba(255,255,255,0.75);font-family:var(--font-body);font-style:italic;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.notas}</div>` : ''}
       </div>
+      <button class="gd-pdf-btn" onclick="window.print()" title="Guardar como PDF">⬇ PDF</button>
     </div>
     <div class="gd-body">
       <div class="gd-card">
@@ -799,6 +889,7 @@ function openGroupDetail(grupoId) {
           ${matchesHTML}
         </div>
       </div>` : ''}
+      ${sigRondaHTML}
     </div>`;
   document.querySelector('.bracket-outer').style.display = 'none';
   gd.style.display = 'block';
@@ -928,7 +1019,7 @@ function render() {
   const phasesSorted = getPhasesSorted();
   if (!phasesSorted.length) return;
 
-  if (grupos.length === 1) { openGroupDetail(grupos[0].id); return; }
+  if (grupos.length === 1 && participantes.filter(p => p.grupo_id === grupos[0].id).length > 2) { openGroupDetail(grupos[0].id); return; }
 
   const phase1Groups = grupos
     .filter(g => g.fase_id === phasesSorted[0].id)
@@ -1216,67 +1307,6 @@ function render() {
   }
 }
 
-async function exportarImagen() {
-  const btn = document.getElementById("btn-imagen");
-  const target = document.getElementById("bracket");
-  if (!target || !window.html2canvas) return;
-
-  // iOS Safari ignora <a download> en blob URLs — hay que abrir la ventana
-  // ANTES del await para que no la bloquee el popup-blocker.
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  let win = null;
-  if (isIOS) {
-    win = window.open("", "_blank");
-    if (win) win.document.write(
-      "<body style='margin:0;background:#111;display:flex;align-items:center;" +
-      "justify-content:center;min-height:100vh;font-family:sans-serif;color:#fff;'>" +
-      "<p>⏳ Generando imagen…</p></body>"
-    );
-  }
-
-  btn.classList.add("loading");
-  btn.textContent = "⏳ Generando...";
-  try {
-    const canvas = await html2canvas(target, {
-      backgroundColor: "#f0f2f5",
-      scale: 4.0,
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-    });
-
-    if (isIOS) {
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-      if (win) {
-        win.document.body.innerHTML =
-          "<div style='background:#111;min-height:100vh;padding:20px;box-sizing:border-box;text-align:center;'>" +
-          "<p style='color:#aaa;font-family:sans-serif;font-size:14px;margin:0 0 16px;'>" +
-          "Mantén pulsada la imagen para guardarla</p>" +
-          "<img src='" + dataUrl + "' style='max-width:100%;border-radius:8px;'>" +
-          "</div>";
-      }
-    } else {
-      canvas.toBlob(blob => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = (document.getElementById("bracket-title")?.textContent || "cuadro") + ".jpg";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
-      }, "image/jpeg", 0.92);
-    }
-  } catch(e) {
-    console.error(e);
-    if (win) win.close();
-    alert("No se pudo generar la imagen: " + e.message);
-  } finally {
-    btn.classList.remove("loading");
-    btn.textContent = "Descargar";
-  }
-}
 
 init();
 </script>

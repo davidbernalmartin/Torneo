@@ -232,8 +232,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
-    max-width: 520px;
+    gap: 0;
+    max-width: 1100px;
     width: 100%;
   }
   .menu-title {
@@ -241,44 +241,56 @@
     font-size: 13px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.14em;
     color: var(--text-muted);
-    margin-bottom: 12px;
+    margin-bottom: 24px;
+  }
+  .menu-lista-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    width: 100%;
+  }
+  @media (max-width: 680px) {
+    .menu-lista-grid { grid-template-columns: 1fr; }
   }
   .torneo-btn {
     width: 100%;
     background: var(--white);
     border: 1px solid var(--border);
-    border-left: 4px solid var(--red);
-    border-radius: 8px;
-    padding: 16px 20px;
+    border-left: 6px solid var(--red);
+    border-radius: 15px;
+    padding: 26px 28px;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 20px;
     cursor: pointer;
     transition: box-shadow 0.15s, transform 0.1s, border-color 0.15s;
     text-decoration: none;
     color: var(--text);
     box-shadow: var(--shadow);
+    box-sizing: border-box;
   }
   .torneo-btn:hover {
-    box-shadow: 0 4px 18px rgba(204,0,0,0.15);
-    transform: translateY(-2px);
+    box-shadow: 0 6px 27px rgba(204,0,0,0.15);
+    transform: translateY(-3px);
     border-color: var(--red);
   }
-  .torneo-btn-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
-  .torneo-btn-text { flex: 1; text-align: left; }
+  .torneo-btn-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+  .torneo-btn-text { flex: 1; text-align: left; min-width: 0; }
   .torneo-btn-name {
     font-family: var(--font-display);
-    font-size: 18px; font-weight: 800;
+    font-size: 20px; font-weight: 800;
     text-transform: uppercase; letter-spacing: 0.04em;
     color: var(--text);
     display: block;
+    white-space: normal; line-height: 1.2;
   }
   .torneo-btn-desc {
     font-family: var(--font-body);
-    font-size: 12px; color: var(--text-muted);
-    display: block; margin-top: 2px;
+    font-size: 15px; color: var(--text-muted);
+    display: block; margin-top: 6px;
+    white-space: normal; line-height: 1.3;
   }
-  .torneo-btn-arrow { color: var(--red); font-size: 22px; font-weight: 700; flex-shrink: 0; }
+  .torneo-btn-arrow { color: var(--red); font-size: 32px; font-weight: 700; flex-shrink: 0; }
 
   /* ── Modal ── */
   .modal-backdrop {
@@ -414,6 +426,11 @@
   .stand-full tr.cl .stand-eq span { color: var(--win-green); }
   .stand-full tr.cl td.pts { color: var(--win-green); font-weight: 900; }
   .stand-full td.pts { font-weight: 900; font-size: 21px; }
+  .stand-full tr.tied-row { cursor: grab; }
+  .stand-full tr.tied-row td.rk { color: var(--red); opacity: 0.6; }
+  .stand-full tr.dragging-row { opacity: 0.35; }
+  .stand-full tr.drag-over-row td { box-shadow: 0 -2px 0 var(--red) inset; }
+  .tie-hint { font-size: 11px; color: #bbb; font-family: var(--font-body); margin-bottom: 8px; font-style: italic; }
   .jornada-lbl { font-family: var(--font-display); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #bbb; margin: 10px 0 6px; }
   .partido-item { margin-bottom: 8px; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.09); }
   .partido-r { display: flex; align-items: center; gap: 8px; padding: 13px 8px; background: white; }
@@ -507,6 +524,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 let fases = [], grupos = [], participantes = [], equipos = [], torneoData = null, partidos = [];
 let dragState = null;
 let _penEditWinner = null;
+let _standDrag = null;
 let _penMultiTeam  = false;
 
 // ── REST API ─────────────────────────────────────────────
@@ -562,6 +580,9 @@ function showMenu(torneos) {
     lista.innerHTML = '<p style="color:var(--text-muted);font-size:14px;text-align:center;">No hay torneos configurados.</p>';
     return;
   }
+  const grid = document.createElement("div");
+  grid.className = "menu-lista-grid";
+  lista.appendChild(grid);
   torneos.forEach(t => {
     const url = "bracket.html?torneo=" + t.id;
     const desc = t.descripcion ? `<span class="torneo-btn-desc">${t.descripcion}</span>` : "";
@@ -575,7 +596,7 @@ function showMenu(torneos) {
         ${desc}
       </div>
       <span class="torneo-btn-arrow">›</span>`;
-    lista.appendChild(btn);
+    grid.appendChild(btn);
   });
 }
 
@@ -925,12 +946,15 @@ async function advanceWinner(grupo, winnerEqId) {
 
 // ── STANDINGS (grupos > 2 equipos) ───────────────────────
 function calcStandings(grupoId) {
+  const g = grupos.find(gr => gr.id === grupoId);
+  const manualOrder = Array.isArray(g?.orden_desempate) ? g.orden_desempate : [];
+
   const partsGrupo = byGrupo(grupoId);
   const eqMap = {}; equipos.forEach(eq => eqMap[eq.id] = eq);
   const stats = {};
   partsGrupo.forEach(p => {
     if (!p.equipo_id) return;
-    stats[p.equipo_id] = { equipo_id: p.equipo_id, eq: eqMap[p.equipo_id] || null, PJ:0, PG:0, PE:0, PP:0, GF:0, GC:0, D:0, Pts:0 };
+    stats[p.equipo_id] = { equipo_id: p.equipo_id, eq: eqMap[p.equipo_id] || null, PJ:0, PG:0, PE:0, PP:0, GF:0, GC:0, D:0, Pts:0, _isTied: false };
   });
   const gPartidos = partidos.filter(m => m.grupo_id === grupoId);
   gPartidos.forEach(m => {
@@ -940,7 +964,7 @@ function calcStandings(grupoId) {
     if (sL) { sL.PJ++; sL.GF+=rl; sL.GC+=rv; sL.D+=rl-rv; if(rl>rv){sL.PG++;sL.Pts+=3;} else if(rl===rv){sL.PE++;sL.Pts++;} else sL.PP++; }
     if (sV) { sV.PJ++; sV.GF+=rv; sV.GC+=rl; sV.D+=rv-rl; if(rv>rl){sV.PG++;sV.Pts+=3;} else if(rv===rl){sV.PE++;sV.Pts++;} else sV.PP++; }
   });
-  // Ordenar: Pts → enfrentamiento directo (Pts, D, GF) → D global → GF global
+  // Orden: Pts → h2h (partido/miniliga) → D global → penaltis h2h (partido/miniliga) → manual
   const all = Object.values(stats);
   all.sort((a, b) => b.Pts - a.Pts);
   const result = [];
@@ -951,26 +975,48 @@ function calcStandings(grupoId) {
     const group = all.slice(i, j);
     if (group.length > 1) {
       const ids = group.map(s => s.equipo_id);
+      // Puntos h2h
       const h = {};
-      ids.forEach(id => h[id] = { Pts: 0, D: 0, GF: 0 });
+      ids.forEach(id => h[id] = { Pts: 0 });
+      // Penaltis h2h (gana penaltis en empate del partido directo)
+      const pen = {};
+      ids.forEach(id => pen[id] = 0);
       gPartidos.forEach(m => {
         if (!ids.includes(m.equipo_local_id) || !ids.includes(m.equipo_visitante_id)) return;
         const rl = m.resultado_local, rv = m.resultado_visitante;
         if (rl == null || rv == null) return;
-        h[m.equipo_local_id].GF += rl; h[m.equipo_local_id].D += rl - rv;
-        h[m.equipo_visitante_id].GF += rv; h[m.equipo_visitante_id].D += rv - rl;
         if (rl > rv) h[m.equipo_local_id].Pts += 3;
-        else if (rl === rv) { h[m.equipo_local_id].Pts++; h[m.equipo_visitante_id].Pts++; }
-        else h[m.equipo_visitante_id].Pts += 3;
+        else if (rl === rv) {
+          h[m.equipo_local_id].Pts++;
+          h[m.equipo_visitante_id].Pts++;
+          if (m.penaltis_ganador_id && pen[m.penaltis_ganador_id] !== undefined)
+            pen[m.penaltis_ganador_id]++;
+        } else h[m.equipo_visitante_id].Pts += 3;
       });
       group.sort((a, b) => {
+        // 1. h2h Pts (resultado partido / miniliga)
         const hA = h[a.equipo_id], hB = h[b.equipo_id];
         if (hB.Pts !== hA.Pts) return hB.Pts - hA.Pts;
-        if (hB.D !== hA.D) return hB.D - hA.D;
-        if (hB.GF !== hA.GF) return hB.GF - hA.GF;
+        // 2. D global
         if (b.D !== a.D) return b.D - a.D;
-        return b.GF - a.GF;
+        // 3. Penaltis h2h (partido / miniliga)
+        if (pen[b.equipo_id] !== pen[a.equipo_id]) return pen[b.equipo_id] - pen[a.equipo_id];
+        // 4. Desempate manual
+        const ia = manualOrder.indexOf(a.equipo_id);
+        const ib = manualOrder.indexOf(b.equipo_id);
+        if (ia >= 0 && ib >= 0) return ia - ib;
+        return 0;
       });
+      // Marcar como empatados los que siguen iguales tras todos los criterios automáticos
+      for (let k = 0; k < group.length - 1; k++) {
+        const a = group[k], b = group[k + 1];
+        if (h[a.equipo_id].Pts === h[b.equipo_id].Pts &&
+            a.D === b.D &&
+            pen[a.equipo_id] === pen[b.equipo_id]) {
+          a._isTied = true;
+          b._isTied = true;
+        }
+      }
     }
     group.forEach(s => result.push(s));
     i = j;
@@ -1094,14 +1140,20 @@ function openGroupDetail(grupoId) {
   const gPartidos = [...partidos.filter(p => p.grupo_id === grupoId)].sort((a,b) => (a.jornada||0)-(b.jornada||0));
   const eqMap = {}; equipos.forEach(eq => eqMap[eq.id] = eq);
 
+  const hasTies = standings.some(s => s._isTied);
   const standRows = standings.map((s, i) => {
     const cl = isClassified(s.equipo_id, g.id);
     const dStr = s.D > 0 ? '+' + s.D : '' + s.D;
     const shd = s.eq?.escudo_url
       ? `<img src="${s.eq.escudo_url}" style="width:22px;height:22px;object-fit:contain;vertical-align:middle;margin-right:7px;border-radius:2px;flex-shrink:0;">`
       : `<span style="display:inline-block;width:22px;height:22px;margin-right:7px;border-radius:2px;background:#f0f0f0;vertical-align:middle;flex-shrink:0;"></span>`;
-    return `<tr class="${cl ? 'cl' : ''}">
-      <td class="rk">${i+1}</td>
+    const rkContent = s._isTied ? `⠿` : `${i+1}`;
+    const dragAttrs = s._isTied
+      ? `draggable="true" ondragstart="standDragStart(event,'${s.equipo_id}','${grupoId}')" ondragend="standDragEnd(event)"`
+      : '';
+    return `<tr class="${cl ? 'cl' : ''}${s._isTied ? ' tied-row' : ''}" ${dragAttrs}
+      ondragover="standDragOver(event)" ondragleave="standDragLeave(event)" ondrop="standDrop(event,'${s.equipo_id}','${grupoId}')">
+      <td class="rk">${rkContent}</td>
       <td class="l"><div class="stand-eq">${shd}<span>${s.eq?.nombre || '—'}${cl ? '<span class="cl-tick">✓</span>' : ''}</span></div></td>
       <td>${s.PJ}</td>
       <td>${s.PJ > 0 ? dStr : '—'}</td>
@@ -1155,6 +1207,7 @@ function openGroupDetail(grupoId) {
       <div class="gd-card">
         <div class="gmodal-sec">
           <div class="gmodal-sec-title">Clasificación</div>
+          ${hasTies ? `<div class="tie-hint">⠿ Empate — arrastra las filas marcadas en rojo para fijar el orden</div>` : ''}
           <table class="stand-full">
             <thead><tr>
               <th class="rk">#</th><th class="l">Equipo</th>
@@ -1297,6 +1350,66 @@ async function savePartidoResult(matchId, grupoId) {
     render();
     const gd = document.getElementById('group-detail');
     if (gd && gd.style.display !== 'none') openGroupDetail(grupoId);
+  } catch(err) { setSaveState('error'); console.error(err); }
+}
+
+// ── STANDINGS DRAG & DROP (desempate manual) ─────────────
+function standDragStart(event, equipoId, grupoId) {
+  _standDrag = { equipoId, grupoId };
+  event.dataTransfer.effectAllowed = 'move';
+  event.currentTarget.classList.add('dragging-row');
+}
+
+function standDragEnd(event) {
+  event.currentTarget.classList.remove('dragging-row');
+  document.querySelectorAll('.stand-full tr.drag-over-row')
+    .forEach(tr => tr.classList.remove('drag-over-row'));
+}
+
+function standDragOver(event) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  event.currentTarget.classList.add('drag-over-row');
+}
+
+function standDragLeave(event) {
+  event.currentTarget.classList.remove('drag-over-row');
+}
+
+async function standDrop(event, targetEquipoId, grupoId) {
+  event.preventDefault();
+  event.currentTarget.classList.remove('drag-over-row');
+  if (!_standDrag || _standDrag.grupoId !== grupoId) { _standDrag = null; return; }
+  const srcId = _standDrag.equipoId;
+  _standDrag = null;
+  if (srcId === targetEquipoId) return;
+
+  const standings = calcStandings(grupoId);
+  const srcEntry = standings.find(s => s.equipo_id === srcId);
+  const tgtEntry = standings.find(s => s.equipo_id === targetEquipoId);
+  // Solo se permite reordenar dentro del mismo grupo de empate
+  if (!srcEntry?._isTied || !tgtEntry?._isTied || srcEntry.Pts !== tgtEntry.Pts) return;
+
+  const currentOrder = standings.map(s => s.equipo_id);
+  const srcIdx = currentOrder.indexOf(srcId);
+  currentOrder.splice(srcIdx, 1);
+  // Insertar antes o después según posición del ratón
+  const rect = event.currentTarget.getBoundingClientRect();
+  const insertBefore = event.clientY < rect.top + rect.height / 2;
+  const tgtIdx = currentOrder.indexOf(targetEquipoId);
+  currentOrder.splice(insertBefore ? tgtIdx : tgtIdx + 1, 0, srcId);
+
+  const g = grupos.find(gr => gr.id === grupoId);
+  if (!g) return;
+  g.orden_desempate = currentOrder;
+  setSaveState('saving');
+  try {
+    await sbPatch('grupos', grupoId, { orden_desempate: currentOrder });
+    await advanceGroupStandings(grupoId);
+    setSaveState('saved');
+    showToast('Orden de desempate guardado');
+    render();
+    openGroupDetail(grupoId);
   } catch(err) { setSaveState('error'); console.error(err); }
 }
 

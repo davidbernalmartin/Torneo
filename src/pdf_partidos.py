@@ -333,6 +333,129 @@ def _draw_qr_page(c, url: str, torneo_nombre: str):
     c.drawCentredString(cx, url_y + 6, url_text)
 
 
+# ── Bloque "siguiente ronda" ───────────────────────────────────────────────────
+
+NEXT_STRIP   = HexColor("#005BAB")   # azul RFFM para diferenciar del rojo de grupo
+NEXT_BG      = HexColor("#EFF6FF")
+NEXT_BORDER  = HexColor("#BFDBFE")
+NEXT_DARK    = HexColor("#1E3A5F")
+NEXT_MUTED   = HexColor("#6B8EAD")
+
+NXT_HDR_H = 18   # altura de la cabecera del bloque siguiente ronda
+NXT_CARD_H = 56  # tarjeta más compacta para la siguiente ronda
+
+
+def _draw_next_round_card(c, x: float, y: float, partido: dict, cache: dict):
+    """Tarjeta compacta para el partido de siguiente ronda (estilo diferenciado)."""
+    w, h = CARD_W, NXT_CARD_H
+
+    # fondo azul muy suave + borde
+    c.setFillColor(NEXT_BG)
+    c.setStrokeColor(NEXT_BORDER)
+    c.setLineWidth(0.7)
+    c.roundRect(x, y, w, h, CORNER, fill=1, stroke=1)
+
+    # barra inferior de metadatos
+    bar_h = INFO_H
+    c.setFillColor(HexColor("#DBEAFE"))
+    c.rect(x + CORNER, y, w - 2 * CORNER, bar_h, fill=1, stroke=0)
+    c.roundRect(x, y, w, bar_h, CORNER, fill=1, stroke=0)
+    c.setStrokeColor(NEXT_BORDER)
+    c.setLineWidth(0.4)
+    c.line(x + CORNER, y + bar_h, x + w - CORNER, y + bar_h)
+
+    meta_parts = []
+    fecha = partido.get("fecha")
+    if fecha:
+        try:
+            dt = datetime.strptime(str(fecha)[:10], "%Y-%m-%d")
+            meta_parts.append(dt.strftime("%d/%m/%Y"))
+        except Exception:
+            meta_parts.append(str(fecha)[:10])
+    hora = partido.get("hora")
+    if hora:
+        meta_parts.append(str(hora)[:5])
+    campo = partido.get("campo")
+    if campo:
+        meta_parts.append(campo)
+
+    if meta_parts:
+        c.setFont("Helvetica", 6.5)
+        c.setFillColor(NEXT_MUTED)
+        c.drawCentredString(x + w / 2, y + 4.5, "   ·   ".join(meta_parts))
+    else:
+        c.setFont("Helvetica-Oblique", 6.5)
+        c.setFillColor(NEXT_MUTED)
+        c.drawCentredString(x + w / 2, y + 4.5, "Fecha · hora · campo pendientes")
+
+    # zona de contenido
+    content_y = y + bar_h
+    content_h = h - bar_h
+    center_y  = content_y + content_h / 2
+
+    shield_s  = 28   # escudo más pequeño
+    vs_cx     = x + w / 2
+
+    # VS central
+    c.setFillColor(NEXT_STRIP)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawCentredString(vs_cx, center_y - 4, "VS")
+
+    # zonas de equipo
+    left_x1  = x + PAD_X
+    left_x2  = vs_cx - VS_W / 2 - 6
+    right_x1 = vs_cx + VS_W / 2 + 6
+    right_x2 = x + w - PAD_X
+
+    img_l = _fetch_img(partido.get("escudo_local"), cache)
+    img_v = _fetch_img(partido.get("escudo_visitante"), cache)
+    local_name = partido.get("nombre_local", "—")
+    visit_name = partido.get("nombre_visitante", "—")
+
+    # LOCAL
+    shield_cx_l = left_x1 + shield_s / 2
+    _draw_shield(c, img_l, shield_cx_l, center_y, shield_s)
+    name_x_l  = left_x1 + shield_s + 8
+    name_mw_l = left_x2 - name_x_l
+    name_l, sz_l = _fit_name(c, local_name, "Helvetica-Bold", 10, name_mw_l)
+    c.setFillColor(NEXT_DARK)
+    c.setFont("Helvetica-Bold", sz_l)
+    c.drawString(name_x_l, center_y - sz_l / 2, name_l)
+    c.setFont("Helvetica", 5.5)
+    c.setFillColor(NEXT_MUTED)
+    c.drawString(name_x_l, center_y + sz_l / 2 + 2, "LOCAL")
+
+    # VISITANTE
+    shield_cx_v = right_x2 - shield_s / 2
+    _draw_shield(c, img_v, shield_cx_v, center_y, shield_s)
+    name_x2_v  = right_x2 - shield_s - 8
+    name_mw_v  = name_x2_v - right_x1
+    name_v, sz_v = _fit_name(c, visit_name, "Helvetica-Bold", 10, name_mw_v)
+    c.setFillColor(NEXT_DARK)
+    c.setFont("Helvetica-Bold", sz_v)
+    c.drawRightString(name_x2_v, center_y - sz_v / 2, name_v)
+    c.setFont("Helvetica", 5.5)
+    c.setFillColor(NEXT_MUTED)
+    c.drawRightString(name_x2_v, center_y + sz_v / 2 + 2, "VISITANTE")
+
+
+def _draw_next_round_header(c, x: float, y: float, label: str):
+    """Cabecera delgada azul para el bloque de siguiente ronda."""
+    w = CARD_W
+    c.setFillColor(NEXT_BG)
+    c.setStrokeColor(NEXT_BORDER)
+    c.setLineWidth(0.6)
+    c.roundRect(x, y, w, NXT_HDR_H, 4, fill=1, stroke=1)
+
+    c.setFillColor(NEXT_DARK)
+    c.setFont("Helvetica-Bold", 7.5)
+    c.drawString(x + 10, y + 5.5, "SIGUIENTE RONDA — " + label.upper())
+
+    c.setFont("Helvetica-Oblique", 6.5)
+    c.setFillColor(NEXT_MUTED)
+    c.drawRightString(x + w - 10, y + 5.5, "En caso de clasificarse")
+
+
 # ── Función principal ──────────────────────────────────────────────────────────
 
 CARD_GAP = 6     # espacio vertical entre tarjetas
@@ -398,7 +521,6 @@ def generar_pdf_partidos(grupos_ordenados: list, torneo_nombre: str, url_vista: 
         for partido in partidos:
             if y - CARD_H < MARGIN:
                 y = new_page()
-                # repetir cabecera de grupo en la nueva página
                 _draw_group_header(c, MARGIN, y - GH, info["nombre"] + " (cont.)", 0)
                 y -= GH + CARD_GAP
 
@@ -407,6 +529,25 @@ def generar_pdf_partidos(grupos_ordenados: list, torneo_nombre: str, url_vista: 
 
             _draw_card(c, MARGIN, y - CARD_H, partido, info["nombre"], jornada_label, img_cache)
             y -= CARD_H + CARD_GAP
+
+        # ── Partidos de la siguiente ronda (si los hay) ───────────────────────
+        partidos_sig = info.get("partidos_siguiente", [])
+        if partidos_sig:
+            # nombre del grupo siguiente (guardado en _grupo_nombre del primer partido)
+            sig_nombre = partidos_sig[0].get("_grupo_nombre", "Siguiente ronda")
+            needed_next = CARD_GAP + NXT_HDR_H + CARD_GAP + NXT_CARD_H
+            if y - needed_next < MARGIN:
+                y = new_page()
+
+            y -= CARD_GAP
+            _draw_next_round_header(c, MARGIN, y - NXT_HDR_H, sig_nombre)
+            y -= NXT_HDR_H + CARD_GAP
+
+            for ps in partidos_sig:
+                if y - NXT_CARD_H < MARGIN:
+                    y = new_page()
+                _draw_next_round_card(c, MARGIN, y - NXT_CARD_H, ps, img_cache)
+                y -= NXT_CARD_H + CARD_GAP
 
     if url_vista:
         _draw_qr_page(c, url_vista, torneo_nombre)
