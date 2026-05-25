@@ -69,7 +69,7 @@
 
   /* ── Bracket area ── */
   .bracket-outer {
-    padding: 32px;
+    padding: 12px 16px 32px;
     overflow: auto;
     min-height: calc(100vh - 56px);
   }
@@ -522,6 +522,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // ─────────────────────────────────────────────────────────
 
 let fases = [], grupos = [], participantes = [], equipos = [], torneoData = null, partidos = [];
+let eqMap = {};
 let dragState = null;
 let _penEditWinner = null;
 let _standDrag = null;
@@ -617,6 +618,7 @@ async function init() {
       sbGet("torneos", "select=id,nombre,campeon_id&id=eq." + torneoId),
     ]);
     fases = f; equipos = e;
+    eqMap = {}; equipos.forEach(eq => eqMap[eq.id] = eq);
     torneoData = (t && t.length) ? t[0] : null;
     document.getElementById("btn-volver").style.display = "inline-block";
     if (torneoData?.nombre) {
@@ -625,23 +627,17 @@ async function init() {
     }
     if (fases.length) {
       const faseIds = fases.map(f => f.id).join(",");
-      const [g, p] = await Promise.all([
-        sbGet("grupos", "select=*&fase_id=in.(" + faseIds + ")"),
-        sbGet("participantes_grupo", "select=*"),
+      grupos = await sbGet("grupos", "select=*&fase_id=in.(" + faseIds + ")");
+      const grupoIds = grupos.map(gr => gr.id).join(",");
+      const [p, pts] = await Promise.all([
+        sbGet("participantes_grupo", "select=*&grupo_id=in.(" + grupoIds + ")"),
+        grupoIds ? sbGet("partidos", "grupo_id=in.(" + grupoIds + ")&order=jornada") : Promise.resolve([]),
       ]);
-      grupos = g;
-      const grupoIdSet = new Set(g.map(gr => gr.id));
-      const pFiltered = p.filter(part => grupoIdSet.has(part.grupo_id));
-      const eqMap = {};
-      equipos.forEach(eq => eqMap[eq.id] = eq);
-      participantes = pFiltered.map(part => ({
+      participantes = p.map(part => ({
         ...part,
         equipos: part.equipo_id ? (eqMap[part.equipo_id] || null) : null
       }));
-      const largeGroupIds = g.filter(gr => gr.tipo_grupo > 2).map(gr => gr.id);
-      if (largeGroupIds.length) {
-        partidos = await sbGet("partidos", "grupo_id=in.(" + largeGroupIds.join(",") + ")&order=jornada");
-      }
+      partidos = pts;
     }
     document.getElementById("loading").style.display = "none";
     if (!fases.length) { showError("No hay fases configuradas para este torneo."); return; }
@@ -700,9 +696,6 @@ async function onDrop(e, targetPartId) {
 
   const src = participantes.find(p => p.id === dragState.partId);
   if (!src || !src.equipo_id) { dragState = null; return; }
-
-  const eqMap = {};
-  equipos.forEach(eq => eqMap[eq.id] = eq);
 
   const isVirtual = targetPartId.startsWith("vslot__");
   const tgt = isVirtual ? null : participantes.find(p => p.id === targetPartId);
@@ -784,9 +777,10 @@ function _selectScorePenBtn(side) {
 
 function openScoreModal(grupoId) {
   const g = getGrupo(grupoId);
+  if (!g) return;
   const parts = byGrupo(grupoId);
-  const local = parts.find(p => p.es_local);
-  const visit = parts.find(p => !p.es_local);
+  let local = parts.find(p => p.es_local) ?? parts[0] ?? null;
+  let visit = parts.find(p => p !== local && !p.es_local) ?? parts.find(p => p !== local) ?? null;
   if (!local || !visit) return;
   const eqL = local.equipos;
   const eqV = visit.equipos;
@@ -891,6 +885,20 @@ async function saveScore(grupoId, localId, visitId) {
       if (g) { g._penaltis = hasPen; g._pen_winner = penWinVal; g.penaltis_ganador_id = penGanadorId; }
     }
 
+    // Sync result to the partidos record for this group
+    const partido = partidos.find(p => p.grupo_id === grupoId);
+    if (partido) {
+      const lpIsLocal = partido.equipo_local_id
+        ? partido.equipo_local_id === lp?.equipo_id
+        : partido.pos_local === lp?.posicion;
+      const resLocal = lpIsLocal ? gL : gV;
+      const resVisit = lpIsLocal ? gV : gL;
+      await sbPatch("partidos", partido.id, { resultado_local: resLocal, resultado_visitante: resVisit, penaltis_ganador_id: penGanadorId });
+      partido.resultado_local = resLocal;
+      partido.resultado_visitante = resVisit;
+      partido.penaltis_ganador_id = penGanadorId;
+    }
+
     setSaveState("saved");
     showToast("Resultado guardado");
     render();
@@ -904,6 +912,20 @@ async function saveScore(grupoId, localId, visitId) {
     if (winnerPart?.equipo_id && g?.siguiente_grupo_id) {
       await advanceWinner(g, winnerPart.equipo_id);
     }
+
+    // Auto-set champion if this is a final (last fase, no siguiente grupo)
+    if (winnerPart?.equipo_id && !g?.siguiente_grupo_id) {
+      const lastFase = fases[fases.length - 1];
+      if (g && lastFase && g.fase_id === lastFase.id) {
+        const torneoId = new URLSearchParams(window.location.search).get("torneo");
+        if (torneoId) {
+          await sbPatch("torneos", torneoId, { campeon_id: winnerPart.equipo_id });
+          if (torneoData) torneoData.campeon_id = winnerPart.equipo_id;
+          render();
+          showToast("🏆 ¡Campeón guardado!");
+        }
+      }
+    }
   } catch(err) {
     setSaveState("error");
     console.error(err);
@@ -915,8 +937,6 @@ async function advanceWinner(grupo, winnerEqId) {
   const sigGrupoId = grupo.siguiente_grupo_id;
   const posicion   = grupo.posicion_en_siguiente;
   const partsSig   = participantes.filter(p => p.grupo_id === sigGrupoId);
-  const eqMap = {};
-  equipos.forEach(eq => eqMap[eq.id] = eq);
 
   let targetPart = null;
   if (posicion === "local") {
@@ -950,7 +970,6 @@ function calcStandings(grupoId) {
   const manualOrder = Array.isArray(g?.orden_desempate) ? g.orden_desempate : [];
 
   const partsGrupo = byGrupo(grupoId);
-  const eqMap = {}; equipos.forEach(eq => eqMap[eq.id] = eq);
   const stats = {};
   partsGrupo.forEach(p => {
     if (!p.equipo_id) return;
@@ -1138,7 +1157,6 @@ function openGroupDetail(grupoId) {
   if (!g) return;
   const standings = calcStandings(grupoId);
   const gPartidos = [...partidos.filter(p => p.grupo_id === grupoId)].sort((a,b) => (a.jornada||0)-(b.jornada||0));
-  const eqMap = {}; equipos.forEach(eq => eqMap[eq.id] = eq);
 
   const hasTies = standings.some(s => s._isTied);
   const standRows = standings.map((s, i) => {
@@ -1256,7 +1274,6 @@ function _selectPenBtn(side) {
 function editPartido(matchId, grupoId) {
   const m = partidos.find(p => p.id === matchId);
   if (!m) return;
-  const eqMap = {}; equipos.forEach(eq => eqMap[eq.id] = eq);
   const eqL = eqMap[m.equipo_local_id], eqV = eqMap[m.equipo_visitante_id];
 
   const grupoParticipants = participantes.filter(p => p.grupo_id === grupoId);
@@ -1421,9 +1438,6 @@ async function advanceGroupStandings(grupoId) {
 
   const standings = calcStandings(grupoId);
   if (!standings.length) return;
-
-  const eqMap = {};
-  equipos.forEach(eq => eqMap[eq.id] = eq);
 
   // Slots de fases posteriores cuyo referencia_origen coincide con el nombre del grupo
   const targetSlots = participantes.filter(p => {
@@ -1602,7 +1616,7 @@ function renderMatchHTML(g) {
     const hasScore = !local._virtual && !visit._virtual && gL !== null && gV !== null && (gL + gV) > 0;
     const winL = hasScore && gL > gV;
     const winV = hasScore && gV > gL;
-    return `<div class="match" ondblclick="openScoreModal('${g.id}')" style="cursor:pointer;" title="Doble click para editar resultado">
+    return `<div class="match" onclick="openScoreModal('${g.id}')" style="cursor:pointer;" title="Click para editar resultado">
       <div class="match-header">
         <span class="match-name">${g.nombre}</span>
         ${notasHtml}
@@ -1687,9 +1701,7 @@ function render() {
     return anyPlayed ? (50 + g.tipo_grupo * 26) : (28 + g.tipo_grupo * 34);
   };
   const CARD_GAP     = 16;
-  const LOGO_H       = 280;
-  const LOGO_PAD     = centerGroups.length ? LOGO_H + 80 : LOGO_H + 20;
-  const Y_OFFSET     = LOGO_PAD;
+  const Y_OFFSET     = 0;
 
   const hasCenterCol = centerGroups.length > 0 || (leftCols.length > 0 && rightCols.length > 0);
   const totalCols = leftCols.length + (hasCenterCol ? 1 : 0) + rightCols.length;
@@ -1768,24 +1780,11 @@ function render() {
   const centerY = [totalH / 2];
 
   const container = document.createElement("div");
-  container.style.cssText = `position:relative;width:${totalW}px;height:${totalH + 60 + LOGO_PAD}px;margin:0 auto;`;
-
-  const logoDiv = document.createElement("div");
-  logoDiv.id = "bracket-logo";
-  logoDiv.style.cssText = `position:absolute;display:flex;justify-content:center;align-items:center;pointer-events:none;z-index:10;`;
-  logoDiv.innerHTML = `<img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png"
-    style="height:${LOGO_H}px;object-fit:contain;filter:drop-shadow(0 0 16px rgba(204,0,0,0.4));">`;
-  container.appendChild(logoDiv);
-  if (!centerGroups.length) {
-    logoDiv.style.left = '0';
-    logoDiv.style.top = '0';
-    logoDiv.style.width = totalW + 'px';
-    logoDiv.style.height = LOGO_H + 'px';
-  }
+  container.style.cssText = `position:relative;width:${totalW}px;height:${totalH + 60}px;margin:0 auto;`;
 
   const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svgEl.setAttribute("width", totalW);
-  svgEl.setAttribute("height", totalH + 60 + LOGO_PAD);
+  svgEl.setAttribute("height", totalH + 60);
   svgEl.style.cssText = "position:absolute;top:0;left:0;pointer-events:none;";
   container.appendChild(svgEl);
 
@@ -1826,12 +1825,6 @@ function render() {
       const cardH = GROUP_CARD_H(g);
       const yCenter = centerY[gi] || totalH / 2;
       placeCard(g, x, yCenter, cardH);
-      const cardTopAbs = yCenter - cardH / 2 + Y_OFFSET;
-      logoDiv.style.left   = x + "px";
-      logoDiv.style.top    = (cardTopAbs - LOGO_H - 60) + "px";
-      logoDiv.style.width  = MATCH_W + "px";
-      logoDiv.style.height = LOGO_H + "px";
-
       // ── Champion slot ──────────────────────────────────
       const cardBottomAbs = yCenter + cardH / 2 + Y_OFFSET;
       const champDiv = document.createElement("div");
@@ -1940,15 +1933,19 @@ function render() {
 
   wrapper.appendChild(container);
 
-  // Expandir el bracket para ocupar el ancho disponible si es más pequeño
   const outerEl = wrapper.closest('.bracket-outer') || wrapper.parentElement;
-  const availW = outerEl ? outerEl.clientWidth - 64 : window.innerWidth - 64;
-  if (availW > totalW && totalW > 0) {
-    const zoomFactor = availW / totalW;
-    container.style.zoom = zoomFactor;
-    // El escudo escala menos que el cuadro (máximo 1.5×)
-    const logoZoom = Math.min(zoomFactor, 1.5);
-    logoDiv.style.zoom = logoZoom / zoomFactor;
+  if (grupos.length === 1 && outerEl) {
+    outerEl.style.maxWidth = '1000px';
+    outerEl.style.marginLeft = 'auto';
+    outerEl.style.marginRight = 'auto';
+  } else if (outerEl) {
+    outerEl.style.maxWidth = '';
+    outerEl.style.marginLeft = '';
+    outerEl.style.marginRight = '';
+    const availW = outerEl.clientWidth - 64;
+    if (availW > totalW && totalW > 0) {
+      container.style.zoom = availW / totalW;
+    }
   }
 }
 

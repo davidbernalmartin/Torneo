@@ -201,9 +201,9 @@
   #menu-torneos {
     display: none;
     min-height: calc(100vh - 40px);
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding: 72px 48px;
+    padding: 28px 48px;
   }
   .menu-inner {
     display: flex;
@@ -288,6 +288,65 @@
     height: 180px;
     object-fit: contain;
     margin: 0 auto 24px;
+  }
+
+  /* ── Vista compacta: torneo de un solo grupo ── */
+  .single-group-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 520px;
+    padding: 32px 24px 48px;
+  }
+  .single-group-logo {
+    width: 140px; height: 140px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 14px rgba(204,0,0,0.4));
+    margin-bottom: 4px;
+  }
+  .single-group-card { width: 100%; }
+  .single-champ-slot {
+    width: 100%;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: box-shadow 0.3s, border-color 0.3s, opacity 0.3s;
+  }
+  .single-champ-slot.pending {
+    opacity: 0.42;
+    border-style: dashed;
+    box-shadow: none;
+  }
+  .single-champ-slot.pending .match-header {
+    background: #b0b0b0;
+  }
+  .single-champ-slot.crowned {
+    border-color: rgba(204,0,0,0.35);
+    box-shadow: 0 4px 28px rgba(204,0,0,0.22);
+  }
+  .single-champ-body {
+    display: flex; align-items: center;
+    gap: 16px;
+    padding: 18px 16px;
+    min-height: 80px;
+  }
+  .single-champ-trophy {
+    width: 60px; height: 60px;
+    border: 2px dashed #e0e0e0;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; flex-shrink: 0;
+    color: #ccc;
+  }
+  .single-champ-trophy.known {
+    border: none; background: none;
+  }
+  .single-champ-trophy.known img {
+    width: 60px; height: 60px;
+    object-fit: contain; border-radius: 6px;
   }
 /* ── Grupo grande: tarjeta clasificación ── */
   .group-card { cursor: pointer; }
@@ -426,7 +485,6 @@
 
 <div id="menu-torneos">
   <div class="menu-inner">
-    <img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png" class="menu-logo" alt="RFFM">
     <div class="menu-title">XXXV Torneo de Campeones – Cotorruelo 2026</div>
     <div id="menu-lista"></div>
   </div>
@@ -445,6 +503,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // ─────────────────────────────────────────────────────────
 
 let fases = [], grupos = [], participantes = [], equipos = [], torneoData = null, partidos = [], allParticipantes = [], partidosSiguiente = [];
+let eqMap = {};
 
 function sbHeaders() {
   return {
@@ -509,6 +568,7 @@ async function init() {
       sbGet("torneos", "select=id,nombre,descripcion,campeon_id&id=eq." + torneoId),
     ]);
     fases = f; equipos = e;
+    eqMap = {}; equipos.forEach(eq => eqMap[eq.id] = eq);
     torneoData = (t && t.length) ? t[0] : null;
     document.getElementById("btn-volver").style.display = "inline-block";
     if (torneoData?.nombre) {
@@ -517,27 +577,20 @@ async function init() {
     }
     if (fases.length) {
       const faseIds = fases.map(f => f.id).join(",");
-      const [g, p] = await Promise.all([
-        sbGet("grupos", "select=*&fase_id=in.(" + faseIds + ")"),
-        sbGet("participantes_grupo", "select=*"),
+      grupos = await sbGet("grupos", "select=*&fase_id=in.(" + faseIds + ")");
+      const grupoIds = grupos.map(gr => gr.id).join(",");
+      const largeGroupIds = grupos.filter(gr => gr.tipo_grupo > 2).map(gr => gr.id);
+      const sigGrupoIds = [...new Set(grupos.map(gr => gr.siguiente_grupo_id).filter(Boolean))];
+
+      const fetches = await Promise.all([
+        sbGet("participantes_grupo", "select=*&grupo_id=in.(" + grupoIds + ")"),
+        largeGroupIds.length ? sbGet("partidos", "grupo_id=in.(" + largeGroupIds.join(",") + ")&order=jornada") : Promise.resolve([]),
+        sigGrupoIds.length ? sbGet("partidos", "grupo_id=in.(" + sigGrupoIds.join(",") + ")&order=jornada") : Promise.resolve([]),
       ]);
-      grupos = g;
-      const grupoIdSet = new Set(g.map(gr => gr.id));
-      const pFiltered = p.filter(part => grupoIdSet.has(part.grupo_id));
-      const eqMap = {};
-      equipos.forEach(eq => eqMap[eq.id] = eq);
-      participantes = pFiltered.map(part => ({ ...part, equipos: part.equipo_id ? (eqMap[part.equipo_id] || null) : null }));
-      // Todos los participantes (incluyendo fases ocultas) para advancingPositions
-      allParticipantes = p;
-      const largeGroupIds = g.filter(gr => gr.tipo_grupo > 2).map(gr => gr.id);
-      if (largeGroupIds.length) {
-        partidos = await sbGet("partidos", "grupo_id=in.(" + largeGroupIds.join(",") + ")&order=jornada");
-      }
-      // Partidos de la siguiente ronda (para mostrarlos en el detalle de grupo)
-      const sigGrupoIds = [...new Set(g.map(gr => gr.siguiente_grupo_id).filter(Boolean))];
-      if (sigGrupoIds.length) {
-        partidosSiguiente = await sbGet("partidos", "grupo_id=in.(" + sigGrupoIds.join(",") + ")&order=jornada");
-      }
+      allParticipantes = fetches[0];
+      participantes = fetches[0].map(part => ({ ...part, equipos: part.equipo_id ? (eqMap[part.equipo_id] || null) : null }));
+      partidos = fetches[1];
+      partidosSiguiente = fetches[2];
     }
     document.getElementById("loading").style.display = "none";
     if (!fases.length) { showError("No hay fases configuradas para este torneo."); return; }
@@ -604,7 +657,6 @@ function calcStandings(grupoId) {
   const manualOrder = Array.isArray(g?.orden_desempate) ? g.orden_desempate : [];
 
   const partsGrupo = byGrupo(grupoId);
-  const eqMap = {}; equipos.forEach(eq => eqMap[eq.id] = eq);
   const stats = {};
   partsGrupo.forEach(p => {
     if (!p.equipo_id) return;
@@ -702,11 +754,11 @@ function renderGroupCard(g) {
         </div>`);
       }
     }
-    return `<div class="match" onclick="openGroupDetail('${g.id}')">
+    return `<div class="match${isGroup ? ' group-card' : ''}"${isGroup ? ` onclick="openGroupDetail('${g.id}')"` : ''}>
       <div class="match-header">
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <span class="match-name">${g.nombre}</span>
-          <span style="font-size:9px;color:rgba(255,255,255,0.5);letter-spacing:0.06em;text-transform:uppercase;">tabla ▾</span>
+          ${isGroup ? `<span style="font-size:9px;color:rgba(255,255,255,0.5);letter-spacing:0.06em;text-transform:uppercase;">tabla ▾</span>` : ''}
         </div>
         ${notasHtml}
       </div>
@@ -744,11 +796,11 @@ function renderGroupCard(g) {
       </div>`);
     }
   }
-  return `<div class="match group-card" onclick="openGroupDetail('${g.id}')">
+  return `<div class="match${isGroup ? ' group-card' : ''}"${isGroup ? ` onclick="openGroupDetail('${g.id}')"` : ''}>
     <div class="match-header">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <span class="match-name">${g.nombre}</span>
-        <span style="font-size:9px;color:rgba(255,255,255,0.5);letter-spacing:0.06em;text-transform:uppercase;">tabla ▾</span>
+        ${isGroup ? `<span style="font-size:9px;color:rgba(255,255,255,0.5);letter-spacing:0.06em;text-transform:uppercase;">tabla ▾</span>` : ''}
       </div>
       ${notasHtml}
     </div>
@@ -759,12 +811,60 @@ function renderGroupCard(g) {
   </div>`;
 }
 
+function renderSingleGroup() {
+  const g = grupos[0];
+  const bracket = document.getElementById("bracket");
+  const outer = bracket.closest('.bracket-outer') || bracket.parentElement;
+
+  outer.style.cssText = 'display:flex;justify-content:center;align-items:flex-start;padding:0;min-height:calc(100vh - 104px);background:var(--bg);overflow:hidden;';
+  bracket.style.cssText = 'position:static;min-width:0;';
+
+  const champEq = torneoData?.campeon_id ? eqMap[torneoData.campeon_id] : null;
+  const champBody = champEq
+    ? `<div class="single-champ-body">
+        <div class="single-champ-trophy known">
+          <img src="${champEq.escudo_url || 'https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png'}" alt="${champEq.nombre}">
+        </div>
+        <div>
+          <div style="font-family:var(--font-display);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin-bottom:4px;">Campeón</div>
+          <div style="font-family:var(--font-display);font-size:26px;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;color:var(--text);">${champEq.nombre}</div>
+        </div>
+      </div>`
+    : `<div class="single-champ-body">
+        <div class="single-champ-trophy">🏆</div>
+        <div>
+          <div style="font-family:var(--font-display);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin-bottom:4px;">Campeón</div>
+          <div style="font-family:var(--font-body);font-size:15px;color:#bbb;font-style:italic;">Por determinar</div>
+        </div>
+      </div>`;
+
+  bracket.innerHTML = `
+    <div class="single-group-wrap" id="sg-wrap">
+      <div class="single-group-card">${renderGroupCard(g)}</div>
+      <div class="single-champ-slot ${champEq ? 'crowned' : 'pending'}">
+        <div class="match-header">
+          <span class="match-name">🏆 Campeón del torneo</span>
+        </div>
+        ${champBody}
+      </div>
+    </div>`;
+
+  requestAnimationFrame(() => {
+    const wrap = document.getElementById('sg-wrap');
+    if (!wrap) return;
+    const hdr = document.querySelector('header');
+    const availW = outer.clientWidth  || window.innerWidth;
+    const availH = (window.innerHeight) - (hdr ? hdr.offsetHeight : 104);
+    const scale  = Math.min(availW / wrap.offsetWidth, availH / wrap.offsetHeight);
+    wrap.style.zoom = scale;
+  });
+}
+
 function openGroupDetail(grupoId) {
   const g = grupos.find(gr => gr.id === grupoId);
   if (!g) return;
   const standings = calcStandings(grupoId);
   const gPartidos = [...partidos.filter(p => p.grupo_id === grupoId)].sort((a,b) => (a.jornada||0)-(b.jornada||0));
-  const eqMap = {}; equipos.forEach(eq => eqMap[eq.id] = eq);
 
   const isGroupDetail = g.tipo_grupo > 2;
   const advPosDetail = isGroupDetail ? advancingPositions(g.nombre) : new Set();
@@ -1019,7 +1119,7 @@ function render() {
   const phasesSorted = getPhasesSorted();
   if (!phasesSorted.length) return;
 
-  if (grupos.length === 1 && participantes.filter(p => p.grupo_id === grupos[0].id).length > 2) { openGroupDetail(grupos[0].id); return; }
+  if (grupos.length === 1) { renderSingleGroup(); return; }
 
   const phase1Groups = grupos
     .filter(g => g.fase_id === phasesSorted[0].id)
@@ -1053,16 +1153,13 @@ function render() {
     return anyPlayed ? (50 + g.tipo_grupo * 26) : (28 + g.tipo_grupo * 34);
   };
   const CARD_GAP = 16;
-  const LABEL_H  = 0;
-  const LOGO_H   = 280;
-  const LOGO_PAD = centerGroups.length ? LOGO_H + 80 : LOGO_H + 20;
-  const Y_OFFSET = LOGO_PAD;
+  const Y_OFFSET = 20;
 
   const hasCenterCol = centerGroups.length > 0 || (leftCols.length > 0 && rightCols.length > 0);
   const totalCols = leftCols.length + (hasCenterCol ? 1 : 0) + rightCols.length;
   const totalW = totalCols * MATCH_W + Math.max(0, totalCols - 1) * COL_GAP;
   const phase1H = leftGroups.reduce((s, g) => s + GROUP_CARD_H(g) + CARD_GAP, 0);
-  const totalH = Math.max(phase1H, 400);
+  const totalH = grupos.length <= 2 ? phase1H : Math.max(phase1H, 400);
 
   function colX(i) { return i * (MATCH_W + COL_GAP); }
   function computeYCenters(groups, totalHeight) {
@@ -1136,27 +1233,13 @@ function render() {
   const champH = centerGroups.length ? (champEq ? 220 : 160) : 0;
 
   const container = document.createElement("div");
-  container.style.cssText = `position:relative;width:${totalW}px;height:${totalH + 60 + LOGO_PAD + champH + 40}px;margin:0 auto;`;
+  container.style.cssText = `position:relative;width:${totalW}px;height:${totalH + 60 + Y_OFFSET + champH + 40}px;margin:0 auto;`;
 
   const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svgEl.setAttribute("width", totalW);
-  svgEl.setAttribute("height", totalH + 60 + LOGO_PAD);
+  svgEl.setAttribute("height", totalH + 60 + Y_OFFSET);
   svgEl.style.cssText = "position:absolute;top:0;left:0;pointer-events:none;";
   container.appendChild(svgEl);
-
-  // Logo — siempre visible; se posiciona en el loop de grupo central si existe,
-  // o centrado en la parte superior si no hay final
-  const logoDiv = document.createElement("div");
-  logoDiv.style.cssText = `position:absolute;display:flex;justify-content:center;align-items:center;pointer-events:none;z-index:10;`;
-  logoDiv.innerHTML = `<img src="https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png"
-    style="height:${LOGO_H}px;object-fit:contain;filter:drop-shadow(0 0 16px rgba(204,0,0,0.6));">`;
-  container.appendChild(logoDiv);
-  if (!centerGroups.length) {
-    logoDiv.style.left = '0';
-    logoDiv.style.top = '0';
-    logoDiv.style.width = totalW + 'px';
-    logoDiv.style.height = LOGO_H + 'px';
-  }
 
   function placeCard(g, x, yCenter, cardH) {
     const y = yCenter - cardH / 2 + Y_OFFSET;
@@ -1193,50 +1276,28 @@ function render() {
       const cardH = GROUP_CARD_H(g);
       const yCenter = centerY[gi] || totalH / 2;
       placeCard(g, x, yCenter, cardH);
-      const cardTopAbs = yCenter - cardH / 2 + Y_OFFSET;
-      logoDiv.style.left = x + "px"; logoDiv.style.top = (cardTopAbs - LOGO_H - 60) + "px";
-      logoDiv.style.width = MATCH_W + "px"; logoDiv.style.height = LOGO_H + "px";
-
-      // Champion display (read-only — mirrors bracket.html visually, no editing)
+      // Champion display
       const cardBottomAbs = yCenter + cardH / 2 + Y_OFFSET;
       const champDiv = document.createElement("div");
-      champDiv.style.cssText = `position:absolute;left:${x - 20}px;top:${cardBottomAbs + 20}px;width:${MATCH_W + 40}px;display:flex;flex-direction:column;align-items:center;gap:10px;`;
-      if (champEq) {
-        champDiv.innerHTML = `
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
-                      text-transform:uppercase;letter-spacing:0.12em;color:#999;">
-            Campeón
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:8px;
-                      background:white;border:1px solid #d8d8d8;border-left:4px solid #cc0000;
-                      border-radius:8px;padding:20px 16px;width:100%;
-                      box-shadow:0 2px 10px rgba(0,0,0,0.08);">
-            <img src="${champEq.escudo_url || ''}" style="width:80px;height:80px;object-fit:contain;">
-            <span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;
-                         text-transform:uppercase;letter-spacing:0.05em;color:#1a1a1a;text-align:center;
-                         line-height:1.2;">${champEq.nombre}</span>
-          </div>`;
-      } else {
-        champDiv.innerHTML = `
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
-                      text-transform:uppercase;letter-spacing:0.12em;color:#999;">
-            Campeón
-          </div>
-          <div style="width:100%;border:1.5px dashed #d8d8d8;border-radius:8px;
-                      padding:24px 16px;display:flex;flex-direction:column;align-items:center;gap:8px;
-                      background:white;">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style="opacity:0.25">
-              <path d="M16 4l3.09 6.26L26 11.27l-5 4.87 1.18 6.86L16 19.77l-6.18 3.23L11 16.14 6 11.27l6.91-1.01L16 4z"
-                    stroke="#cc0000" stroke-width="1.5" fill="none"/>
-            </svg>
-            <span style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;
-                         color:#cccccc;text-transform:uppercase;letter-spacing:0.06em;">
-              Por determinar
-            </span>
-          </div>`;
-      }
+      champDiv.style.cssText = `position:absolute;left:${x}px;top:${cardBottomAbs + 20}px;width:${MATCH_W}px;`;
+      const champShield = champEq
+        ? `<div class="single-champ-trophy known"><img src="${champEq.escudo_url || 'https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png'}" alt="${champEq.nombre}"></div>
+           <div>
+             <div style="font-family:var(--font-display);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin-bottom:4px;">Campeón</div>
+             <div style="font-family:var(--font-display);font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;color:var(--text);">${champEq.nombre}</div>
+           </div>`
+        : `<div class="single-champ-trophy">🏆</div>
+           <div>
+             <div style="font-family:var(--font-display);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin-bottom:4px;">Campeón</div>
+             <div style="font-family:var(--font-body);font-size:15px;color:#bbb;font-style:italic;">Por determinar</div>
+           </div>`;
+      champDiv.innerHTML = `
+        <div class="single-champ-slot ${champEq ? 'crowned' : 'pending'}">
+          <div class="match-header"><span class="match-name">🏆 Campeón del torneo</span></div>
+          <div class="single-champ-body">${champShield}</div>
+        </div>`;
       container.appendChild(champDiv);
-      const champH = champEq ? 200 : 140;
+      const champH = 120;
       container.style.height = (parseInt(container.style.height) + champH + 40) + "px";
     });
   }
@@ -1249,6 +1310,40 @@ function render() {
     const positions = [];
     col.forEach((g, gi) => { const cardH = GROUP_CARD_H(g); const pos = placeCard(g, x, yCenters[gi], cardH); positions.push({ x, yCenter: pos.yCenter }); });
     rightCardPositions.push(positions);
+  }
+
+  // Champion slot para cuadros sin grupo central (final en última col de leftCols)
+  if (!centerGroups.length && leftCols.length >= 2) {
+    const lastColIdx = leftCols.length - 1;
+    const lastCol    = leftCols[lastColIdx];
+    if (lastCol.length === 1) {
+      const g      = lastCol[0];
+      const pos    = leftCardPositions[lastColIdx]?.[0];
+      if (pos) {
+        const cardBottomAbs = pos.yCenter + GROUP_CARD_H(g) / 2;
+        const x = colX(lastColIdx);
+        const champDiv2 = document.createElement("div");
+        champDiv2.style.cssText = `position:absolute;left:${x}px;top:${cardBottomAbs + 20}px;width:${MATCH_W}px;`;
+        const champShield2 = champEq
+          ? `<div class="single-champ-trophy known"><img src="${champEq.escudo_url || 'https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png'}" alt="${champEq.nombre}"></div>
+             <div>
+               <div style="font-family:var(--font-display);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin-bottom:4px;">Campeón</div>
+               <div style="font-family:var(--font-display);font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;color:var(--text);">${champEq.nombre}</div>
+             </div>`
+          : `<div class="single-champ-trophy">🏆</div>
+             <div>
+               <div style="font-family:var(--font-display);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin-bottom:4px;">Campeón</div>
+               <div style="font-family:var(--font-body);font-size:15px;color:#bbb;font-style:italic;">Por determinar</div>
+             </div>`;
+        champDiv2.innerHTML = `
+          <div class="single-champ-slot ${champEq ? 'crowned' : 'pending'}">
+            <div class="match-header"><span class="match-name">🏆 Campeón del torneo</span></div>
+            <div class="single-champ-body">${champShield2}</div>
+          </div>`;
+        container.appendChild(champDiv2);
+        container.style.height = (parseInt(container.style.height) + 160) + "px";
+      }
+    }
   }
 
   // Connectors
@@ -1299,11 +1394,7 @@ function render() {
   const outerEl = bracket.closest('.bracket-outer') || bracket.parentElement;
   const availW = outerEl ? outerEl.clientWidth - 64 : window.innerWidth - 64;
   if (availW > totalW && totalW > 0) {
-    const zoomFactor = availW / totalW;
-    container.style.zoom = zoomFactor;
-    // El escudo escala menos que el cuadro (máximo 1.5×)
-    const logoZoom = Math.min(zoomFactor, 1.5);
-    logoDiv.style.zoom = logoZoom / zoomFactor;
+    container.style.zoom = availW / totalW;
   }
 }
 

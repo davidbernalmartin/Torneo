@@ -250,14 +250,52 @@ def get_participantes_grupos(ids_grupos: list[str]) -> list[dict[str, Any]]:
 # PARTIDOS
 # -------------------------------------------------------
 
+# Calendarios fijos por número de equipos (índices 0-based sobre la lista ordenada por posición)
+# Cada tupla: (idx_local, idx_visitante, jornada)
+_FIXED_SCHEDULE = {
+    3: [
+        (0, 2, 1),  # J1: E1 vs E3
+        (1, 0, 2),  # J2: E2 vs E1
+        (2, 1, 3),  # J3: E3 vs E2
+    ],
+    4: [
+        (0, 2, 1),  # J1: E1 vs E3
+        (3, 1, 1),  # J1: E4 vs E2
+        (3, 2, 2),  # J2: E4 vs E3
+        (1, 0, 2),  # J2: E2 vs E1
+        (2, 1, 3),  # J3: E3 vs E2
+        (0, 3, 3),  # J3: E1 vs E4
+    ],
+}
+
+
 def _round_robin(equipo_ids, num_vueltas=1):
-    """Circle-method round-robin. Returns [{local, visitante, jornada}, ...]"""
+    """Genera el calendario de partidos respetando el orden de equipos recibido."""
     teams = list(equipo_ids)
-    if len(teams) < 2:
-        return []
-    if len(teams) % 2 == 1:
-        teams.append(None)          # bye
     n = len(teams)
+    if n < 2:
+        return []
+
+    schedule = _FIXED_SCHEDULE.get(n)
+    if schedule:
+        matches = [
+            {"local": teams[l], "visitante": teams[v], "jornada": j}
+            for l, v, j in schedule
+            if teams[l] is not None and teams[v] is not None
+        ]
+        if num_vueltas == 2:
+            max_j = max(j for _, _, j in schedule)
+            matches += [
+                {"local": m["visitante"], "visitante": m["local"],
+                 "jornada": m["jornada"] + max_j}
+                for m in matches
+            ]
+        return matches
+
+    # Método del círculo para cualquier otro número de equipos
+    if n % 2 == 1:
+        teams.append(None)
+        n += 1
     matches = []
     for r in range(n - 1):
         for i in range(n // 2):
@@ -279,6 +317,12 @@ def _round_robin(equipo_ids, num_vueltas=1):
 def actualizar_num_vueltas(fase_id, num_vueltas):
     supabase = get_supabase()
     supabase.table("fases").update({"num_vueltas": num_vueltas}).eq("id", fase_id).execute()
+    st.cache_data.clear()
+
+
+def actualizar_duracion_fase(fase_id, duracion: int | None):
+    supabase = get_supabase()
+    supabase.table("fases").update({"duracion_partido": duracion}).eq("id", fase_id).execute()
     st.cache_data.clear()
 
 
@@ -329,13 +373,15 @@ def limpiar_resultados_grupo(grupo_id):
     st.cache_data.clear()
 
 
-def _label_placeholder(pos, grupo_nombre, feeders):
+def _label_placeholder(pos, grupo_nombre, feeders, n=None):
     """Etiqueta para un hueco sin equipo asignado."""
-    if feeders:
-        if pos <= len(feeders):
-            return f"1º {feeders[pos - 1]['nombre']}"
-        return f"P{pos} {grupo_nombre}"
-    return f"{grupo_nombre}_E{pos}"
+    if not feeders:
+        return f"{grupo_nombre}_E{pos}"
+    # How many teams each feeder contributes
+    tpf = max(1, (n or len(feeders)) // len(feeders))
+    feeder_idx = min((pos - 1) // tpf, len(feeders) - 1)
+    rank = (pos - 1) % tpf + 1
+    return f"{rank}º {feeders[feeder_idx]['nombre']}"
 
 
 def generar_partidos_fase(fase_id, num_vueltas):
@@ -381,7 +427,7 @@ def generar_partidos_fase(fase_id, num_vueltas):
             .execute()
             .data
         )
-        real_ids = [p["equipo_id"] for p in parts if p.get("equipo_id")]
+        real_ids = [p["equipo_id"] for p in sorted(parts, key=lambda p: p.get("posicion") or 0) if p.get("equipo_id")]
 
         if real_ids:
             # ── Modo real: equipos ya asignados ──────────────────
@@ -400,7 +446,7 @@ def generar_partidos_fase(fase_id, num_vueltas):
             ]
         else:
             # ── Modo placeholder ──────────────────────────────────
-            n = len(feeders) if feeders else tipo
+            n = tipo
             if n < 2:
                 continue
 
@@ -408,7 +454,7 @@ def generar_partidos_fase(fase_id, num_vueltas):
             null_parts = [p for p in parts if not p.get("equipo_id")]
             existing_pos = {p["posicion"] for p in null_parts if p.get("posicion")}
             for pos in range(1, n + 1):
-                label = _label_placeholder(pos, g["nombre"], feeders)
+                label = _label_placeholder(pos, g["nombre"], feeders, n)
                 if pos not in existing_pos:
                     supabase.table("participantes_grupo").insert({
                         "grupo_id": grupo_id,
@@ -608,6 +654,112 @@ def get_partidos_fase(fase_id):
     return result
 
 
+def get_grupos_pdf_data(torneo_id):
+    """Devuelve datos completos de grupos para el PDF de detalle de grupos."""
+    supabase = get_supabase()
+    fases = (
+        supabase.table("fases").select("id, nombre, orden")
+        .eq("torneo_id", torneo_id).order("orden").execute().data
+    )
+    if not fases:
+        return []
+
+    fases = [f for f in fases if f["orden"] == 1]
+    fase_ids = [f["id"] for f in fases]
+
+    grupos_raw = (
+        supabase.table("grupos").select("id, nombre, tipo_grupo, orden_cuadro, fase_id")
+        .in_("fase_id", fase_ids).execute().data
+    )
+    grupo_ids = [g["id"] for g in grupos_raw]
+    if not grupo_ids:
+        return []
+
+    parts_all = (
+        supabase.table("participantes_grupo").select("equipo_id, posicion, label, grupo_id")
+        .in_("grupo_id", grupo_ids).execute().data
+    )
+    partidos_all = (
+        supabase.table("partidos").select("*")
+        .in_("grupo_id", grupo_ids).order("jornada").execute().data
+    )
+
+    all_eq_ids = list(
+        {p["equipo_id"] for p in parts_all if p.get("equipo_id")}
+        | {p["equipo_local_id"] for p in partidos_all if p.get("equipo_local_id")}
+        | {p["equipo_visitante_id"] for p in partidos_all if p.get("equipo_visitante_id")}
+    )
+    eq_map = {}
+    if all_eq_ids:
+        for e in supabase.table("equipos").select("id, nombre, escudo_url").in_("id", all_eq_ids).execute().data:
+            eq_map[e["id"]] = e
+
+    parts_by_group = {}
+    for p in parts_all:
+        parts_by_group.setdefault(p["grupo_id"], []).append(p)
+    partidos_by_group = {}
+    for p in partidos_all:
+        partidos_by_group.setdefault(p["grupo_id"], []).append(p)
+
+    result = []
+    for fase in fases:
+        grupos_fase = [g for g in grupos_raw if g["fase_id"] == fase["id"]]
+        if not grupos_fase:
+            continue
+        grupos_sorted = sorted(grupos_fase, key=lambda g: (g.get("orden_cuadro") or 9999, g["nombre"]))
+
+        fase_grupos = []
+        for g in grupos_sorted:
+            gid = g["id"]
+            parts = sorted(parts_by_group.get(gid, []), key=lambda p: p.get("posicion") or 0)
+            partidos_raw = partidos_by_group.get(gid, [])
+
+            label_map = {p.get("posicion"): (p.get("label") or f"E{p.get('posicion','?')}") for p in parts}
+
+            equipos = []
+            for p in parts:
+                eq = eq_map.get(p["equipo_id"]) if p.get("equipo_id") else None
+                equipos.append({
+                    "posicion": p.get("posicion") or 0,
+                    "nombre": eq["nombre"] if eq else (p.get("label") or ""),
+                    "escudo_url": eq.get("escudo_url") if eq else None,
+                })
+
+            partidos = []
+            for p in partidos_raw:
+                if p.get("equipo_local_id"):
+                    eq = eq_map.get(p["equipo_local_id"], {})
+                    p["nombre_local"]  = eq.get("nombre", "?")
+                    p["escudo_local"]  = eq.get("escudo_url")
+                else:
+                    p["nombre_local"]  = label_map.get(p.get("pos_local"), f"E{p.get('pos_local','?')}")
+                    p["escudo_local"]  = None
+                if p.get("equipo_visitante_id"):
+                    eq = eq_map.get(p["equipo_visitante_id"], {})
+                    p["nombre_visitante"]  = eq.get("nombre", "?")
+                    p["escudo_visitante"]  = eq.get("escudo_url")
+                else:
+                    p["nombre_visitante"]  = label_map.get(p.get("pos_visitante"), f"E{p.get('pos_visitante','?')}")
+                    p["escudo_visitante"]  = None
+                partidos.append(p)
+
+            fase_grupos.append({
+                "nombre":     g["nombre"],
+                "tipo_grupo": g.get("tipo_grupo") or 0,
+                "equipos":    equipos,
+                "partidos":   partidos,
+            })
+
+        if fase_grupos:
+            result.append({
+                "fase_nombre": fase["nombre"],
+                "fase_orden":  fase["orden"],
+                "grupos":      fase_grupos,
+            })
+
+    return result
+
+
 def actualizar_partidos_batch(updates):
     """updates: [{id, campo, hora, resultado_local, resultado_visitante}, ...]"""
     supabase = get_supabase()
@@ -622,6 +774,21 @@ def actualizar_partidos_batch(updates):
 def eliminar_partido(partido_id):
     supabase = get_supabase()
     supabase.table("partidos").delete().eq("id", partido_id).execute()
+    st.cache_data.clear()
+
+
+def actualizar_horario_partido(partido_id, fecha, hora, campo: str):
+    """Actualiza fecha, hora y campo de un partido concreto."""
+    supabase = get_supabase()
+    data: dict = {}
+    if fecha is not None:
+        data["fecha"] = str(fecha)
+    if hora is not None:
+        data["hora"] = str(hora)[:5]
+    if campo is not None:
+        data["campo"] = campo.strip() or None
+    if data:
+        supabase.table("partidos").update(data).eq("id", partido_id).execute()
     st.cache_data.clear()
 
 
@@ -645,14 +812,16 @@ def get_partidos_agenda(fecha_desde=None, fecha_hasta=None, campos=None, torneo_
     supabase = get_supabase()
 
     # Construir mapa grupo_id → {torneo_nombre, grupo_nombre}
-    fases_q = supabase.table("fases").select("id, torneo_id, torneos(id, nombre)").execute().data
+    fases_q = supabase.table("fases").select("id, torneo_id, duracion_partido, torneos(id, nombre)").execute().data
     if torneo_ids:
         fases_q = [f for f in fases_q if f["torneo_id"] in torneo_ids]
     if not fases_q:
         return []
 
     fase_ids = [f["id"] for f in fases_q]
-    torneo_nombre_map = {f["id"]: (f.get("torneos") or {}).get("nombre", "?") for f in fases_q}
+    torneo_nombre_map  = {f["id"]: (f.get("torneos") or {}).get("nombre", "?") for f in fases_q}
+    fase_torneo_id_map = {f["id"]: f["torneo_id"] for f in fases_q}
+    fase_duracion_map  = {f["id"]: f.get("duracion_partido") for f in fases_q}
 
     grupos_q = (
         supabase.table("grupos")
@@ -665,7 +834,12 @@ def get_partidos_agenda(fecha_desde=None, fecha_hasta=None, campos=None, torneo_
         return []
 
     grupo_meta = {
-        g["id"]: {"grupo": g["nombre"], "torneo": torneo_nombre_map.get(g["fase_id"], "?")}
+        g["id"]: {
+            "grupo":     g["nombre"],
+            "torneo":    torneo_nombre_map.get(g["fase_id"], "?"),
+            "torneo_id": fase_torneo_id_map.get(g["fase_id"], ""),
+            "duracion":  fase_duracion_map.get(g["fase_id"]),
+        }
         for g in grupos_q
     }
     grupo_ids = list(grupo_meta.keys())
@@ -744,5 +918,7 @@ def get_partidos_agenda(fecha_desde=None, fecha_hasta=None, campos=None, torneo_
             p["escudo_visitante"]  = None
         p["nombre_torneo"]    = meta.get("torneo", "?")
         p["nombre_grupo"]     = meta.get("grupo", "")
+        p["torneo_id"]        = meta.get("torneo_id", "")
+        p["duracion_partido"] = meta.get("duracion")
 
     return partidos

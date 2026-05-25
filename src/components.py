@@ -1,9 +1,60 @@
 import re
+import hashlib
 import streamlit as st
 
 from src.database import get_supabase, limpiar_resultados_grupo
 
 _CUALQUIER_GRUPO = "Cualquier grupo"
+
+# Paleta de 32 colores para diferenciar torneos — bordes saturados, máxima distinción
+_TORNEO_CARD_COLORS = [
+    # ── Rojo → Carmesí ───────────────────────────────────────────────────────
+    ("#FEE2E2", "#DC2626"),  #  1 rojo
+    ("#FFF0E8", "#C2410C"),  #  2 bermellón
+    ("#FECDD3", "#9F1239"),  #  3 carmesí
+    ("#FFE4E6", "#E11D48"),  #  4 rosa-rojo
+    # ── Rosa → Fucsia ────────────────────────────────────────────────────────
+    ("#FCE7F3", "#DB2777"),  #  5 rosa
+    ("#FDF4FF", "#D946EF"),  #  6 fucsia
+    ("#FAE8FF", "#A855F8"),  #  7 morado claro
+    ("#F3E8FF", "#7C3AED"),  #  8 violeta
+    # ── Índigo → Azul ────────────────────────────────────────────────────────
+    ("#E9D5FF", "#5B21B6"),  #  9 violeta oscuro
+    ("#E0E7FF", "#4F46E5"),  # 10 índigo
+    ("#C7D2FE", "#3730A3"),  # 11 índigo oscuro
+    ("#DBEAFE", "#2563EB"),  # 12 azul
+    # ── Azul → Cielo ─────────────────────────────────────────────────────────
+    ("#BFDBFE", "#1E40AF"),  # 13 azul oscuro
+    ("#E0F2FE", "#0284C7"),  # 14 cielo
+    ("#BAE6FD", "#075985"),  # 15 cielo oscuro
+    ("#CFFAFE", "#0891B2"),  # 16 ciano
+    # ── Ciano → Verde ────────────────────────────────────────────────────────
+    ("#CCFBF1", "#0D9488"),  # 17 verde-azulado
+    ("#99F6E4", "#0F766E"),  # 18 verde-azulado oscuro
+    ("#D1FAE5", "#059669"),  # 19 esmeralda
+    ("#DCFCE7", "#16A34A"),  # 20 verde
+    # ── Verde → Lima ─────────────────────────────────────────────────────────
+    ("#BBF7D0", "#14532D"),  # 21 verde oscuro
+    ("#ECFCCB", "#65A30D"),  # 22 lima
+    ("#FEF9C3", "#A16207"),  # 23 amarillo
+    ("#FEF3C7", "#D97706"),  # 24 ámbar
+    # ── Ámbar → Naranja ──────────────────────────────────────────────────────
+    ("#FDE68A", "#92400E"),  # 25 ámbar oscuro
+    ("#FFEDD5", "#EA580C"),  # 26 naranja
+    ("#FED7AA", "#9A3412"),  # 27 naranja oscuro
+    ("#FFEBE6", "#E05A38"),  # 28 coral
+    # ── Especiales ───────────────────────────────────────────────────────────
+    ("#FFE0D8", "#B43A22"),  # 29 coral oscuro
+    ("#F1F5F9", "#334155"),  # 30 pizarra
+    ("#FFF7ED", "#78350F"),  # 31 marrón cálido
+    ("#F0FDF4", "#166534"),  # 32 verde bosque
+]
+
+
+def torneo_card_color(torneo_id: str) -> tuple[str, str]:
+    """Devuelve (bg, border) pastel únicos y consistentes para un torneo."""
+    h = int(hashlib.md5(torneo_id.encode()).hexdigest(), 16)
+    return _TORNEO_CARD_COLORS[h % len(_TORNEO_CARD_COLORS)]
 
 
 def _cancelar_confirm(clave):
@@ -833,22 +884,23 @@ def renderizar_tarjeta_grupo_minimalista(
 # TARJETAS DE EQUIPOS (vista escritorio)
 # -------------------------------------------------------
 
-def renderizar_tarjetas_equipos(lista_equipos, editable=False, on_edit=None):
+def renderizar_tarjetas_equipos(lista_equipos, editable=False, on_edit=None, torneo_id: str | None = None):
     """Muestra todos los equipos en una cuadrícula de 4 columnas."""
     if not lista_equipos:
         st.info("No hay equipos cargados.")
         return
 
+    bg, border = torneo_card_color(torneo_id) if torneo_id else ("white", "#ddd")
     cols = st.columns(4)
 
     for idx, equipo in enumerate(lista_equipos):
         escudo = equipo["escudo_url"] or "https://via.placeholder.com/100"
         with cols[idx % 4]:
             st.markdown(f"""
-                <div style="background-color: white; border-radius: 12px; padding: 20px;
+                <div style="background-color: {bg}; border-radius: 12px; padding: 20px;
                             margin-bottom: 4px; text-align: center;
-                            box-shadow: 0px 4px 10px rgba(0,0,0,0.2);
-                            border: 1px solid #ddd; min-height: 160px;
+                            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+                            border: 1px solid {border}; min-height: 160px;
                             display: flex; flex-direction: column;
                             align-items: center; justify-content: center;">
                     <img src="{escudo}"

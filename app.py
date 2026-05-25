@@ -29,6 +29,7 @@ from src.database import (
     actualizar_grupo,
     eliminar_grupo,
     actualizar_num_vueltas,
+    actualizar_duracion_fase,
     set_fase_oculta_bracket,
     hay_partidos_fase,
     eliminar_partidos_fase,
@@ -42,6 +43,7 @@ from src.database import (
     sincronizar_equipos_partidos_fase,
     get_campos_distintos,
     get_partidos_agenda,
+    get_grupos_pdf_data,
 )
 from src.logic import seccion_sorteo_manual
 from src.components import (
@@ -50,6 +52,7 @@ from src.components import (
     configurar_progresion_visual,
     renderizar_tarjeta_grupo_minimalista,
     renderizar_cuadro_progresion,
+    torneo_card_color,
 )
 
 
@@ -352,73 +355,10 @@ if st.sidebar.button("🔒 Cerrar sesión", width='stretch'):
     st.session_state.authenticated = False
     st.rerun()
 
-@st.dialog("📋 Agenda de partidos por campo", width="large")
-def _modal_agenda():
-    from src.pdf_agenda import generar_pdf_agenda
-    torneos_todos = get_torneos()
-    st.write("Selecciona el rango de fechas y los torneos que quieres incluir en la agenda.")
-
-    col_f1, col_f2 = st.columns(2)
-    fecha_desde = col_f1.date_input("Desde", value=None, key="agenda_desde")
-    fecha_hasta = col_f2.date_input("Hasta", value=None, key="agenda_hasta")
-
-    opciones_torneo = {t["nombre"]: t["id"] for t in torneos_todos}
-    torneos_sel = st.multiselect(
-        "Torneos",
-        options=list(opciones_torneo.keys()),
-        default=list(opciones_torneo.keys()),
-        key="agenda_torneos",
-    )
-
-    st.write("---")
-    if st.button("📄 Generar PDF", type="primary", width="stretch"):
-        if not torneos_sel:
-            st.warning("Selecciona al menos un torneo.")
-            return
-        torneo_ids = [opciones_torneo[n] for n in torneos_sel]
-        with st.spinner("Cargando partidos…"):
-            partidos = get_partidos_agenda(
-                fecha_desde=fecha_desde,
-                fecha_hasta=fecha_hasta,
-                torneo_ids=torneo_ids,
-            )
-        if not partidos:
-            st.warning("No hay partidos con fecha asignada para los filtros seleccionados.")
-            return
-        with st.spinner("Generando PDF…"):
-            rango = ""
-            if fecha_desde and fecha_hasta:
-                rango = f" · {fecha_desde.strftime('%d/%m/%Y')} – {fecha_hasta.strftime('%d/%m/%Y')}"
-            elif fecha_desde:
-                rango = f" · desde {fecha_desde.strftime('%d/%m/%Y')}"
-            elif fecha_hasta:
-                rango = f" · hasta {fecha_hasta.strftime('%d/%m/%Y')}"
-            titulo = "Agenda de partidos" + rango
-            pdf_bytes = generar_pdf_agenda(partidos, titulo)
-        st.download_button(
-            label="⬇️ Descargar agenda PDF",
-            data=pdf_bytes,
-            file_name="agenda_partidos.pdf",
-            mime="application/pdf",
-            key="dl_agenda_pdf",
-        )
-
-if st.sidebar.button("📋 Agenda por campo", width='stretch'):
-    _modal_agenda()
-
-# QR de acceso al menú de cuadros (URL global, no ligada a ningún torneo)
 _URL_CUADRO = "https://www.rffm.es/actualidad/futbol-7/torneo-campeones-2026"
-with st.sidebar.expander("QR Cuadro Visual"):
-    _buf = generar_qr(_URL_CUADRO)
-    st.image(_buf, width='stretch')
-    _buf.seek(0)
-    st.download_button(
-        "Descargar",
-        data=_buf,
-        file_name="qr_cuadro_rffm.png",
-        mime="image/png",
-        width='stretch',
-    )
+
+if st.sidebar.button("📅 Agenda Global", width='stretch'):
+    st.session_state["view"] = "agenda_global"
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("## Torneo")
@@ -442,9 +382,20 @@ else:
         nombres_torneos,
         index=st.session_state.torneo_idx,
         key="torneo_selector",
+        on_change=lambda: st.session_state.pop("view", None),
     )
     st.session_state.torneo_idx = nombres_torneos.index(torneo_sel)
     torneo_actual: dict[str, Any] | None = next((t for t in torneos if t["nombre"] == torneo_sel), None)
+
+    if torneo_actual:
+        _bg, _border = torneo_card_color(torneo_actual["id"])
+        st.sidebar.markdown(
+            f'<div style="background:{_bg};border:1.5px solid {_border};border-radius:8px;'
+            f'padding:6px 12px;font-size:0.8rem;font-weight:600;color:#1a1c24;'
+            f'text-align:center;margin-bottom:4px;">'
+            f'🏟️ {torneo_actual["nombre"]}</div>',
+            unsafe_allow_html=True,
+        )
 
 with st.sidebar.expander("➕ Nuevo torneo"):
     nuevo_nombre = st.text_input("Nombre", placeholder="ej: Copa RFFM 2026", key="sb_nuevo_nombre")
@@ -467,8 +418,373 @@ st.sidebar.markdown("---")
 # -------------------------------------------------------
 menu = st.sidebar.selectbox(
     "Menú",
-    ["Dashboard", "Configurador", "Cuadro Visual", "Partidos", "Agenda", "Sorteo", "Ajustes"],
+    ["Dashboard", "Configurador", "Cuadro Visual", "Partidos", "Sorteo", "Ajustes"],
+    on_change=lambda: st.session_state.pop("view", None),
 )
+
+# -------------------------------------------------------
+# AGENDA: diálogo de edición de horario
+# -------------------------------------------------------
+# DASHBOARD GLOBAL — Agenda (no requiere torneo)
+# -------------------------------------------------------
+if st.session_state.get("view") == "agenda_global":
+    _ag_col_title, _ag_col_qr = st.columns([4, 1])
+    _ag_col_title.subheader("📅 Agenda Global de Partidos")
+
+    with _ag_col_qr:
+        with st.expander("QR Cuadro Visual"):
+            try:
+                _qr_buf = generar_qr(_URL_CUADRO)
+                st.image(_qr_buf, width='stretch')
+                _qr_buf.seek(0)
+                st.download_button(
+                    "⬇️ Descargar QR",
+                    data=_qr_buf,
+                    file_name="qr_cuadro_rffm.png",
+                    mime="image/png",
+                    width='stretch',
+                    key="dl_qr_global",
+                )
+            except Exception:
+                pass
+
+    if st.sidebar.button("← Volver", width='stretch', key="back_agenda"):
+        st.session_state.pop("view", None)
+        st.rerun()
+
+    _ag_todos_torneos = get_torneos()
+    _ag_todos_campos  = get_campos_distintos()
+
+    _ag_hoy = datetime.date.today()
+    _ag_r1c1, _ag_r1c2, _ag_r1c3, _ag_r1c4 = st.columns([1, 1, 1, 1])
+    _ag_fecha_desde = _ag_r1c1.date_input("Desde", value=_ag_hoy, format="DD/MM/YYYY", key="gag_desde")
+    _ag_fecha_hasta = _ag_r1c2.date_input("Hasta", value=_ag_hoy, format="DD/MM/YYYY", key="gag_hasta")
+    _ag_hora_ini    = _ag_r1c3.time_input("Hora inicio (vacío = auto)", value=None, key="gag_hora_ini", step=1800)
+    _ag_hora_fin    = _ag_r1c4.time_input("Hora fin (vacío = auto)",   value=None, key="gag_hora_fin", step=1800)
+
+    _ag_r2c1, _ag_r2c2 = st.columns([2, 2])
+    _ag_campos_sel  = _ag_r2c1.multiselect("Campo(s)",   options=_ag_todos_campos, placeholder="Todos los campos", key="gag_campos")
+    _ag_torneos_sel = _ag_r2c2.multiselect("Torneo(s)",  options=[t["nombre"] for t in _ag_todos_torneos], placeholder="Todos los torneos", key="gag_torneos")
+
+    _ag_torneo_ids = [t["id"] for t in _ag_todos_torneos if t["nombre"] in _ag_torneos_sel] if _ag_torneos_sel else None
+    _ag_campos_ids = _ag_campos_sel if _ag_campos_sel else None
+
+    _ag_partidos = get_partidos_agenda(
+        fecha_desde=_ag_fecha_desde,
+        fecha_hasta=_ag_fecha_hasta,
+        campos=_ag_campos_ids,
+        torneo_ids=_ag_torneo_ids,
+    )
+    # Guardamos en session_state para que el diálogo pueda encontrar el partido por id
+    st.session_state.ag_partidos_cache = _ag_partidos
+
+    # ── Rango horario efectivo ────────────────────────────
+    # 0    = sin suelo: cada día arranca en su primer partido
+    # 1440 = sin tope:  cada día termina en su último partido
+    _ag_ini_min_eff = _ag_hora_ini.hour * 60 + _ag_hora_ini.minute if _ag_hora_ini is not None else 0
+    _ag_fin_min_eff = _ag_hora_fin.hour * 60 + _ag_hora_fin.minute if _ag_hora_fin is not None else 24 * 60
+
+    # ── Downloads ─────────────────────────────────────────
+    st.markdown("---")
+    _ag_dc1, _ag_dc2, _ag_dc3 = st.columns([1, 1, 1])
+
+    with _ag_dc1:
+        if st.button("📄 PDF Agenda por campo", width='stretch', type="primary"):
+            if not _ag_partidos:
+                st.warning("No hay partidos con los filtros seleccionados.")
+            else:
+                with st.spinner("Generando PDF…"):
+                    from src.pdf.agenda import generar_pdf_agenda
+                    _rango = ""
+                    if _ag_fecha_desde and _ag_fecha_hasta:
+                        _rango = f" · {_ag_fecha_desde.strftime('%d/%m/%Y')} – {_ag_fecha_hasta.strftime('%d/%m/%Y')}"
+                    _pdf = generar_pdf_agenda(_ag_partidos, "Agenda de partidos" + _rango)
+                st.download_button("⬇️ Descargar PDF", data=_pdf, file_name="agenda_partidos.pdf",
+                                   mime="application/pdf", key="dl_gag_pdf")
+
+    with _ag_dc2:
+        if st.button("📊 PDF Rejilla horaria", width='stretch', type="primary"):
+            if not _ag_partidos:
+                st.warning("No hay partidos con los filtros seleccionados.")
+            else:
+                with st.spinner("Generando PDF rejilla…"):
+                    from src.pdf.agenda_grid import generar_pdf_agenda_grid
+                    _ini_min_dl = _ag_ini_min_eff
+                    _fin_min_dl = _ag_fin_min_eff
+                    _rango = ""
+                    if _ag_fecha_desde and _ag_fecha_hasta:
+                        _rango = f" · {_ag_fecha_desde.strftime('%d/%m/%Y')} – {_ag_fecha_hasta.strftime('%d/%m/%Y')}"
+                    _pdf_grid = generar_pdf_agenda_grid(
+                        _ag_partidos, "Agenda de partidos" + _rango,
+                        hora_ini_min=_ini_min_dl, hora_fin_min=_fin_min_dl,
+                    )
+                st.download_button("⬇️ Descargar PDF", data=_pdf_grid, file_name="agenda_rejilla.pdf",
+                                   mime="application/pdf", key="dl_gag_grid")
+
+    with _ag_dc3:
+        if st.button("📋 Excel Rejilla horaria", width='stretch', type="primary"):
+            if not _ag_partidos:
+                st.warning("No hay partidos con los filtros seleccionados.")
+            else:
+                with st.spinner("Generando Excel…"):
+                    from src.excel_agenda import generar_excel_agenda
+                    _ini_min_dl = _ag_ini_min_eff
+                    _fin_min_dl = _ag_fin_min_eff
+                    _ag_color_map = {
+                        t["id"]: torneo_card_color(t["id"]) for t in _ag_todos_torneos
+                    }
+                    _xlsx = generar_excel_agenda(
+                        _ag_partidos, "Agenda de partidos",
+                        hora_ini_min=_ini_min_dl, hora_fin_min=_fin_min_dl,
+                        color_map=_ag_color_map,
+                    )
+                st.download_button("⬇️ Descargar Excel", data=_xlsx,
+                                   file_name="agenda_rejilla.xlsx",
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                   key="dl_gag_xlsx")
+
+    if not _ag_partidos:
+        st.info("No hay partidos programados para los filtros seleccionados.")
+        st.stop()
+
+    # ── Helpers para vista de rejilla temporal ────────────
+    _PX_MIN   = 3    # píxeles por minuto
+    _AXIS_W   = 52   # px del eje de horas
+    _CAMPO_W  = 290  # px de ancho fijo por campo (scroll a partir de 3)
+    _HDR_H    = 28   # px de altura fija del header de campo
+    _SHIELD   = 32   # px de tamaño de escudo
+    _RFFM_LOGO_URL = "https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png"
+
+    def _hm_to_min(t) -> int:
+        try:
+            parts = str(t)[:5].split(":")
+            return int(parts[0]) * 60 + int(parts[1])
+        except Exception:
+            return 0
+
+    def _min_to_hm(m: int) -> str:
+        return f"{m // 60:02d}:{m % 60:02d}"
+
+    def _dia_ini(campos_dia: dict) -> int:
+        """Calcula el ini_min de un día a partir del primer partido, redondeado a 30 min."""
+        ini = 23 * 60
+        for _campo_ps in campos_dia.values():
+            for _p in _campo_ps:
+                _h = str(_p.get("hora") or "")[:5]
+                if len(_h) == 5 and ":" in _h:
+                    try:
+                        _pm = int(_h[:2]) * 60 + int(_h[3:])
+                        if _pm > 0:
+                            ini = min(ini, _pm)
+                    except Exception:
+                        pass
+        if ini >= 23 * 60:
+            ini = _ag_ini_min_eff or (8 * 60)
+        ini = (ini // 30) * 30  # redondear hacia abajo a 30 min
+        if _ag_hora_ini is not None:
+            ini = min(ini, _ag_ini_min_eff)
+        return ini
+
+    def _dia_fin_min(campos_dia: dict, ini_min: int) -> int:
+        """Calcula el fin_min de un día a partir de sus partidos, redondeado a 30 min."""
+        fin = ini_min + 60
+        for _campo_ps in campos_dia.values():
+            for _p in _campo_ps:
+                _h = str(_p.get("hora") or "")[:5]
+                if len(_h) == 5 and ":" in _h:
+                    try:
+                        _pm = int(_h[:2]) * 60 + int(_h[3:])
+                        fin = max(fin, _pm + (_p.get("duracion_partido") or 50))
+                    except Exception:
+                        pass
+        return (fin + 29) // 30 * 30
+
+    def _axis_inner(ini_min: int, fin_min: int) -> str:
+        html = ""
+        _h = ((ini_min + 59) // 60) * 60
+        while _h <= fin_min:
+            _top = (_h - ini_min) * _PX_MIN - 7
+            html += (f'<div style="position:absolute;top:{_top}px;right:6px;'
+                     f'font-size:0.65rem;color:#888;white-space:nowrap;">{_min_to_hm(_h)}</div>')
+            _h += 60
+        return html
+
+    def _campo_inner(partidos_campo: list, color_cache: dict, ini_min: int, fin_min: int) -> str:
+        html = ""
+        total_h = (fin_min - ini_min) * _PX_MIN
+        # Líneas de hora completa
+        _h = ((ini_min + 59) // 60) * 60
+        while _h <= fin_min:
+            _top = (_h - ini_min) * _PX_MIN
+            html += (f'<div style="position:absolute;top:{_top}px;left:0;right:0;'
+                     f'height:1px;background:#bbb;z-index:1;"></div>')
+            _h += 60
+        # Líneas de media hora discontinuas
+        _h = ((ini_min + 59) // 60) * 60 + 30
+        while _h < fin_min:
+            _top = (_h - ini_min) * _PX_MIN
+            html += (f'<div style="position:absolute;top:{_top}px;left:0;right:0;'
+                     f'height:1px;border-top:1px dashed #ccc;z-index:1;"></div>')
+            _h += 60
+        # Partidos
+        for _p in partidos_campo:
+            try:
+                _sm = _hm_to_min(str(_p.get("hora") or "")[:5])
+            except Exception:
+                continue
+            _dur = _p.get("duracion_partido") or 30
+            _em  = _sm + _dur
+            if _sm >= fin_min or _em <= ini_min:
+                continue
+            _top = (max(_sm, ini_min) - ini_min) * _PX_MIN
+            _hb  = (min(_em, fin_min) - max(_sm, ini_min)) * _PX_MIN - 2
+            _tid = _p.get("torneo_id") or ""
+            _cbg, _cborder = color_cache.get(_tid, ("#ffffff", "#d0d0d0"))
+            _loc = _p.get("nombre_local") or "–"
+            _vis = _p.get("nombre_visitante") or "–"
+            _tor = _p.get("nombre_torneo") or ""
+            _grp = _p.get("nombre_grupo") or ""
+            _rl, _rv = _p.get("resultado_local"), _p.get("resultado_visitante")
+            _marc_str = f"{_rl}–{_rv}" if _rl is not None and _rv is not None else ""
+            _marc_html = (f'<div style="font-size:0.63rem;font-weight:700;color:#cc0000;text-align:center;">{_marc_str}</div>'
+                          if _marc_str else "")
+            _grp_tor = " · ".join(filter(None, [_grp, _tor]))
+            _esc_l = _p.get("escudo_local") or _RFFM_LOGO_URL
+            _esc_v = _p.get("escudo_visitante") or _RFFM_LOGO_URL
+            _card_base = (f'position:absolute;top:{_top}px;left:2px;right:2px;height:{_hb}px;'
+                          f'background-color:{_cbg};border-left:3px solid {_cborder};border-radius:3px;'
+                          f'overflow:hidden;z-index:2;box-sizing:border-box;')
+
+            if _hb >= 48:
+                # Layout completo: grupo·torneo arriba, escudos a los lados, equipos centrados
+                html += (
+                    f'<div style="{_card_base}display:flex;flex-direction:column;'
+                    f'align-items:center;justify-content:center;padding:2px 3px;gap:1px;">'
+                    f'<div style="font-size:0.58rem;color:#555;text-align:center;width:100%;'
+                    f'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{_grp_tor}</div>'
+                    f'<div style="display:flex;align-items:center;width:100%;gap:2px;">'
+                    f'<img src="{_esc_l}" width="{_SHIELD}" height="{_SHIELD}" '
+                    f'style="object-fit:contain;flex-shrink:0;border-radius:3px;" '
+                    f'onerror="this.src=\'{_RFFM_LOGO_URL}\'">'
+                    f'<div style="flex:1;text-align:center;min-width:0;overflow:hidden;">'
+                    f'<div style="font-size:0.65rem;font-weight:700;color:#1a1a1a;'
+                    f'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{_loc}</div>'
+                    f'<div style="font-size:0.55rem;color:#888;font-style:italic;">vs</div>'
+                    f'<div style="font-size:0.65rem;font-weight:700;color:#1a1a1a;'
+                    f'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{_vis}</div>'
+                    f'</div>'
+                    f'<img src="{_esc_v}" width="{_SHIELD}" height="{_SHIELD}" '
+                    f'style="object-fit:contain;flex-shrink:0;border-radius:3px;" '
+                    f'onerror="this.src=\'{_RFFM_LOGO_URL}\'">'
+                    f'</div>'
+                    f'{_marc_html}'
+                    f'</div>'
+                )
+            elif _hb >= 24:
+                # Dos líneas: grupo·torneo / local – visitante
+                html += (
+                    f'<div style="{_card_base}padding:2px 4px;">'
+                    f'<div style="font-size:0.58rem;color:#555;white-space:nowrap;'
+                    f'overflow:hidden;text-overflow:ellipsis;">{_grp_tor}</div>'
+                    f'<div style="font-size:0.63rem;font-weight:700;color:#1a1a1a;'
+                    f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{_loc} – {_vis}</div>'
+                    f'{_marc_html}'
+                    f'</div>'
+                )
+            else:
+                # Una sola línea compacta
+                html += (
+                    f'<div style="{_card_base}padding:1px 4px;display:flex;align-items:center;">'
+                    f'<div style="font-size:0.6rem;font-weight:700;color:#1a1a1a;'
+                    f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{_loc} – {_vis}</div>'
+                    f'</div>'
+                )
+        return html
+
+    def _dia_grid_html(campos_dia: dict, campo_list: list, color_cache: dict, ini_min: int, fin_min: int) -> str:
+        n = len(campo_list)
+        total_h = (fin_min - ini_min) * _PX_MIN
+        total_w  = _AXIS_W + n * _CAMPO_W
+
+        # ── Fila 1: espacio vacío bajo el eje + headers de campos ─────────────
+        # El eje no tiene header; los campos sí. Se separa en dos filas flex
+        # para que el eje de horas y los grids compartan el mismo origen Y.
+        hdr_spacer = f'<div style="width:{_AXIS_W}px;flex-shrink:0;"></div>'
+        hdr_cols = ""
+        for _campo_n in campo_list:
+            hdr_cols += (
+                f'<div style="width:{_CAMPO_W}px;flex-shrink:0;padding-right:6px;">'
+                f'<div style="background:#1A3A5F;color:white;font-weight:700;font-size:0.8rem;'
+                f'height:{_HDR_H}px;line-height:{_HDR_H}px;'
+                f'border-radius:6px 6px 0 0;padding:0 8px;white-space:nowrap;'
+                f'overflow:hidden;text-overflow:ellipsis;">📍 {_campo_n}</div>'
+                f'</div>'
+            )
+
+        # ── Fila 2: eje de horas + grids de partidos ──────────────────────────
+        axis_col = (
+            f'<div style="width:{_AXIS_W}px;flex-shrink:0;position:relative;'
+            f'height:{total_h}px;border-right:1px solid #ccc;">'
+            f'{_axis_inner(ini_min, fin_min)}</div>'
+        )
+        grid_cols = ""
+        for _campo_n in campo_list:
+            grid_cols += (
+                f'<div style="width:{_CAMPO_W}px;flex-shrink:0;padding-right:6px;">'
+                f'<div style="position:relative;height:{total_h}px;background:#e4e4e4;'
+                f'border-radius:0 0 4px 4px;overflow:hidden;border:1px solid #ccc;">'
+                f'{_campo_inner(campos_dia[_campo_n], color_cache, ini_min, fin_min)}</div>'
+                f'</div>'
+            )
+
+        _grid_body = (
+            f'<div style="overflow-x:auto;width:100%;padding-bottom:8px;">'
+            f'<div style="display:flex;min-width:{total_w}px;">{hdr_spacer}{hdr_cols}</div>'
+            f'<div style="display:flex;min-width:{total_w}px;">{axis_col}{grid_cols}</div>'
+            f'</div>'
+        )
+        return _grid_body, total_h + _HDR_H
+
+    # ── Caché de colores por torneo ───────────────────────
+    _ag_torneo_color_cache: dict = {}
+    _ag_name_to_id = {t["nombre"]: t["id"] for t in _ag_todos_torneos}
+    for _p in _ag_partidos:
+        _tid = _p.get("torneo_id") or _ag_name_to_id.get(_p.get("nombre_torneo", ""), "")
+        if _tid and _tid not in _ag_torneo_color_cache:
+            _ag_torneo_color_cache[_tid] = torneo_card_color(_tid)
+
+    # ── Agrupar fecha → campo → partidos ──────────────────
+    _ag_por_fecha: dict = defaultdict(lambda: defaultdict(list))
+    for _p in sorted(_ag_partidos, key=lambda x: (str(x.get("fecha") or ""), str(x.get("hora") or ""))):
+        _ag_por_fecha[str(_p.get("fecha") or "")][_p.get("campo") or "Sin campo"].append(_p)
+
+    DIAS_ES  = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    MESES_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+                "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+
+    for _fecha_iso in sorted(_ag_por_fecha.keys()):
+        try:
+            _dt = datetime.date.fromisoformat(_fecha_iso)
+            _titulo_dia = f"{DIAS_ES[_dt.weekday()]} {_dt.day} de {MESES_ES[_dt.month - 1]} de {_dt.year}"
+        except Exception:
+            _titulo_dia = _fecha_iso
+        st.markdown(f"### {_titulo_dia}")
+        _campos_dia = _ag_por_fecha[_fecha_iso]
+        _campo_list = sorted(_campos_dia.keys())
+        # ini_min por día: auto desde el primer partido del día, con suelo si hora_ini está fijada
+        _ini_min_dia = _dia_ini(_campos_dia)
+        # fin_min por día: auto desde los partidos del día, capado por hora_fin si está fijada
+        _fin_min_dia = _dia_fin_min(_campos_dia, _ini_min_dia)
+        if _ag_hora_fin is not None:
+            _fin_min_dia = min(_fin_min_dia, _ag_fin_min_eff)
+        _fin_min_dia = max(_fin_min_dia, _ini_min_dia + 30)
+        _html_frag, _grid_content_h = _dia_grid_html(
+            _campos_dia, _campo_list, _ag_torneo_color_cache, _ini_min_dia, _fin_min_dia
+        )
+        st.components.v1.html(_html_frag, height=int(_grid_content_h) + 20, scrolling=False)
+        st.markdown("---")
+
+    st.stop()
 
 # Guard: todas las secciones requieren un torneo seleccionado
 if not torneo_actual:
@@ -778,14 +1094,14 @@ def _modal_editar_equipo(equipo: dict[str, Any]) -> None:
 # -------------------------------------------------------
 if menu == "Dashboard":
     equipos = get_equipos(torneo_id)
-    col_e1, col_e2, col_btn, col_pdf = st.columns([1, 1, 1, 1], vertical_alignment="bottom")
+    col_e1, col_e2, col_btn, col_pdf, col_grp = st.columns([1, 1, 1, 1, 1], vertical_alignment="bottom")
     col_e1.metric("Total Equipos", len(equipos))
     col_e2.metric("En Competición", len([e for e in equipos if not e["eliminado"]]))
     if col_btn.button("Añadir equipos", width='stretch'):
         _modal_carga_equipos(torneo_id)
     if col_pdf.button("🖨️ Tarjetas sorteo", width='stretch', disabled=len(equipos) == 0):
         with st.spinner("Generando tarjetas…"):
-            from src.pdf_tarjetas import generar_pdf_tarjetas
+            from src.pdf.tarjetas import generar_pdf_tarjetas
             _pdf_bytes = generar_pdf_tarjetas(equipos, torneo_actual["nombre"])
         st.download_button(
             "📥 Descargar PDF",
@@ -794,6 +1110,21 @@ if menu == "Dashboard":
             mime="application/pdf",
             width='stretch',
         )
+    if col_grp.button("📋 Detalle grupos", width='stretch'):
+        with st.spinner("Generando PDF de grupos…"):
+            from src.pdf.grupos import generar_pdf_grupos
+            _fases_data = get_grupos_pdf_data(torneo_id)
+        if not _fases_data:
+            col_grp.warning("No hay grupos configurados.")
+        else:
+            _pdf_grp = generar_pdf_grupos(_fases_data, torneo_actual["nombre"])
+            st.download_button(
+                "📥 Descargar PDF grupos",
+                data=_pdf_grp,
+                file_name=f"grupos_{torneo_actual['nombre']}.pdf",
+                mime="application/pdf",
+                width='stretch',
+            )
 
     st.write("---")
     st.subheader("Plantilla de Equipos")
@@ -804,7 +1135,7 @@ if menu == "Dashboard":
     )
     if busqueda.strip() and not equipos_filtrados:
         st.caption("Sin resultados.")
-    renderizar_tarjetas_equipos(equipos_filtrados, editable=True, on_edit=_modal_editar_equipo)
+    renderizar_tarjetas_equipos(equipos_filtrados, editable=True, on_edit=_modal_editar_equipo, torneo_id=torneo_id)
 
 # -------------------------------------------------------
 # CONFIGURADOR
@@ -1061,10 +1392,20 @@ if menu == "Partidos":
         st.info("No hay fases configuradas.")
         st.stop()
 
-    fase_sel = st.selectbox("Fase", [f["nombre"] for f in fases])
+    _pt_c1, _pt_c2 = st.columns([3, 1])
+    fase_sel = _pt_c1.selectbox("Fase", [f["nombre"] for f in fases])
     fase_actual = next(f for f in fases if f["nombre"] == fase_sel)
     fase_id     = fase_actual["id"]
     num_vueltas = fase_actual.get("num_vueltas") or 1
+
+    _dur_actual = fase_actual.get("duracion_partido") or 50
+    _dur_nueva  = _pt_c2.number_input(
+        "Duración (min)", min_value=10, max_value=120, value=_dur_actual,
+        step=5, key=f"dur_{fase_id}",
+        help="Duración de cada partido en minutos. Se usa en la Agenda Global.",
+    )
+    if _dur_nueva != _dur_actual:
+        actualizar_duracion_fase(fase_id, int(_dur_nueva))
 
     tiene_partidos = hay_partidos_fase(fase_id)
 
@@ -1104,7 +1445,7 @@ if menu == "Partidos":
             if st.button("📄 Generar PDF", width='stretch', help="Descarga un PDF con las tarjetas de todos los partidos"):
                 try:
                     with st.spinner("Generando PDF..."):
-                        from src.pdf_partidos import generar_pdf_partidos
+                        from src.pdf.partidos import generar_pdf_partidos
                         _partidos_data = get_partidos_fase(fase_id)
                         _grupos_ord = sorted(
                             _partidos_data.items(),
@@ -1258,92 +1599,6 @@ if menu == "Partidos":
                         st.success("Guardado.")
                     st.rerun()
 
-# -------------------------------------------------------
-# AGENDA
-# -------------------------------------------------------
-if menu == "Agenda":
-    st.subheader("Agenda de Partidos")
-
-    # ── Carga previa de opciones de filtro ───────────────
-    todos_torneos  = get_torneos()
-    todos_campos   = get_campos_distintos()
-
-    # ── Filtros ──────────────────────────────────────────
-    hoy = datetime.date.today()
-    fc1, fc2, fc3 = st.columns([1, 2, 2])
-    fecha_sel = fc1.date_input("Fecha", value=hoy, format="DD/MM/YYYY")
-
-    campos_sel = fc2.multiselect(
-        "Campo(s)",
-        options=todos_campos,
-        placeholder="Todos los campos",
-    )
-    torneos_sel = fc3.multiselect(
-        "Torneo(s)",
-        options=[t["nombre"] for t in todos_torneos],
-        placeholder="Todos los torneos",
-    )
-
-    torneo_ids_filtro = (
-        [t["id"] for t in todos_torneos if t["nombre"] in torneos_sel]
-        if torneos_sel else None
-    )
-    campos_filtro = campos_sel if campos_sel else None
-
-    # ── Consulta ─────────────────────────────────────────
-    with st.spinner("Cargando partidos..."):
-        partidos = get_partidos_agenda(
-            fecha_desde=fecha_sel,
-            fecha_hasta=fecha_sel,
-            campos=campos_filtro,
-            torneo_ids=torneo_ids_filtro,
-        )
-
-    DIAS_ES   = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-    MESES_ES  = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
-                 "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
-    titulo_dia = f"{DIAS_ES[fecha_sel.weekday()]} {fecha_sel.day} de {MESES_ES[fecha_sel.month - 1]} de {fecha_sel.year}"
-    st.markdown(f"### {titulo_dia}")
-    st.markdown("---")
-
-    if not partidos:
-        st.info("No hay partidos programados para este día con los filtros seleccionados.")
-        st.stop()
-
-    # ── Agrupar por campo y listar ordenado por hora ──────
-    por_campo = defaultdict(list)
-    for p in sorted(partidos, key=lambda x: x.get("hora") or ""):
-        por_campo[p.get("campo") or "Sin campo"].append(p)
-
-    for campo_nombre, ps in sorted(por_campo.items()):
-        st.markdown(f"#### 📍 {campo_nombre}")
-        cols = st.columns(min(len(ps), 4))
-        for i, p in enumerate(ps):
-            hora   = p.get("hora") or "–"
-            local  = p["nombre_local"]
-            visit  = p["nombre_visitante"]
-            torneo = p["nombre_torneo"]
-            grupo  = p["nombre_grupo"]
-            res_l  = p.get("resultado_local")
-            res_v  = p.get("resultado_visitante")
-
-            if res_l is not None and res_v is not None:
-                marcador = f"{res_l} – {res_v}"
-                marcador_html = f'<span style="color:#cc0000;font-weight:700;font-size:1rem;">{marcador}</span>'
-            else:
-                marcador_html = '<span style="color:#999;font-size:0.85rem;">vs</span>'
-
-            cols[i % 4].markdown(
-                f"""<div style="background:#ffffff;border:1px solid #d0d0d0;border-left:4px solid #cc0000;
-                border-radius:4px;padding:10px 12px;margin-bottom:8px;font-size:0.83rem;line-height:1.6;">
-                <div style="font-weight:700;font-size:0.95rem;color:#1a1a1a;">🕐 {hora}</div>
-                <div style="margin:4px 0;">{local}</div>
-                <div style="margin:2px 0;">{marcador_html}</div>
-                <div style="margin:0 0 4px 0;">{visit}</div>
-                <div style="font-size:0.72rem;color:#aaaaaa;">{torneo} · {grupo}</div>
-                </div>""",
-                unsafe_allow_html=True,
-            )
 
 # -------------------------------------------------------
 # SORTEO

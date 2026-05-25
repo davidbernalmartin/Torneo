@@ -1,0 +1,270 @@
+"""
+PDF de agenda de partidos organizado por campo y día.
+"""
+import io
+from datetime import datetime
+from collections import defaultdict
+
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.colors import HexColor, white
+from reportlab.pdfgen import canvas as pdf_canvas
+
+from ._utils import fetch_img as _fetch_img, draw_shield_centered as _draw_shield_centered, RFFM_LOGO_URL as _RFFM_LOGO, LIGHT_BG, BORDER, torneo_pdf_color
+
+# ── Paleta ────────────────────────────────────────────────────────────────────
+RED      = HexColor("#CC0000")
+DARK     = HexColor("#1A1A1A")
+MUTED    = HexColor("#888888")
+WHITE    = white
+FIELD_BG = HexColor("#1A3A5F")
+DAY_BG   = HexColor("#CC0000")
+
+# ── Dimensiones ───────────────────────────────────────────────────────────────
+PAGE_W, PAGE_H = A4
+MARGIN   = 30
+CARD_W   = PAGE_W - 2 * MARGIN
+HDR_H    = 38
+CARD_H   = 74
+SHIELD_S = 36
+PAD_X    = 14
+VS_W     = 60
+INFO_H   = 16
+BAR_TOP  = 16
+CORNER   = 8
+STRIP_W  = 5
+CARD_GAP = 6
+DAY_H    = 28
+FIELD_H  = 22
+GRP_GAP  = 10
+
+
+# ── Utilidades ────────────────────────────────────────────────────────────────
+
+def _draw_shield(c, img, fallback_img, cx, cy, size):
+    _draw_shield_centered(c, img, fallback_img, cx, cy, size)
+
+
+def _fit_name(c, text, font, max_size, max_w):
+    sz = max_size
+    while sz >= 6 and c.stringWidth(text, font, sz) > max_w:
+        sz -= 0.5
+    if c.stringWidth(text, font, sz) > max_w:
+        t = text
+        while t and c.stringWidth(t + "…", font, sz) > max_w:
+            t = t[:-1]
+        text = t + "…"
+    return text, sz
+
+
+# ── Tarjeta de partido ────────────────────────────────────────────────────────
+
+def _draw_card(c, x, y, partido, cache, rffm_logo):
+    w, h = CARD_W, CARD_H
+
+    card_bg, card_border = torneo_pdf_color(partido.get("torneo_id"))
+
+    # Fondo de color del torneo + borde redondeado
+    c.setFillColor(card_bg)
+    c.setStrokeColor(card_border)
+    c.setLineWidth(0.7)
+    c.roundRect(x, y, w, h, CORNER, fill=1, stroke=1)
+
+    # ── Barra inferior con el nombre del torneo ───────────────────────────────
+    c.setFillColor(card_border)
+    c.rect(x + CORNER, y, w - 2 * CORNER, INFO_H, fill=1, stroke=0)
+    c.roundRect(x, y, w, INFO_H, CORNER, fill=1, stroke=0)
+    c.setStrokeColor(card_border)
+    c.setLineWidth(0.4)
+    c.line(x + CORNER, y + INFO_H, x + w - CORNER, y + INFO_H)
+
+    torneo = partido.get("nombre_torneo", "")
+    c.setFillColor(DARK)
+    if torneo:
+        c.setFont("Helvetica-Bold", 7)
+        max_t = w - STRIP_W - PAD_X * 2
+        t_label = torneo
+        while t_label and c.stringWidth(t_label, "Helvetica-Bold", 7) > max_t:
+            t_label = t_label[:-1]
+        c.drawCentredString(x + w / 2, y + 4.5, t_label)
+    else:
+        c.setFont("Helvetica-Oblique", 6.5)
+        c.setFillColor(MUTED)
+        c.drawCentredString(x + w / 2, y + 4.5, "Torneo sin nombre")
+
+    # ── Zona de contenido ─────────────────────────────────────────────────────
+    content_bot = y + INFO_H
+    content_top = y + h
+    center_y    = (content_bot + content_top) / 2
+    vs_cx       = x + w / 2
+
+    img_l = _fetch_img(partido.get("escudo_local"), cache)
+    img_v = _fetch_img(partido.get("escudo_visitante"), cache)
+    local_name = partido.get("nombre_local", "—")
+    visit_name = partido.get("nombre_visitante", "—")
+
+    left_x1  = x + PAD_X
+    left_x2  = vs_cx - VS_W / 2 - 6
+    right_x1 = vs_cx + VS_W / 2 + 6
+    right_x2 = x + w - PAD_X
+
+    # LOCAL: escudo + nombre
+    shield_cx_l = left_x1 + SHIELD_S / 2
+    _draw_shield(c, img_l, rffm_logo, shield_cx_l, center_y, SHIELD_S)
+    name_x_l  = left_x1 + SHIELD_S + 8
+    name_l, sz_l = _fit_name(c, local_name, "Helvetica-Bold", 10.5, left_x2 - name_x_l)
+    c.setFillColor(DARK)
+    c.setFont("Helvetica-Bold", sz_l)
+    c.drawString(name_x_l, center_y - sz_l / 2, name_l)
+    c.setFont("Helvetica", 5.5)
+    c.setFillColor(MUTED)
+    c.drawString(name_x_l, center_y + sz_l / 2 + 2, "LOCAL")
+
+    # VISITANTE: nombre + escudo
+    shield_cx_v = right_x2 - SHIELD_S / 2
+    _draw_shield(c, img_v, rffm_logo, shield_cx_v, center_y, SHIELD_S)
+    name_x2_v  = right_x2 - SHIELD_S - 8
+    name_v, sz_v = _fit_name(c, visit_name, "Helvetica-Bold", 10.5, name_x2_v - right_x1)
+    c.setFillColor(DARK)
+    c.setFont("Helvetica-Bold", sz_v)
+    c.drawRightString(name_x2_v, center_y - sz_v / 2, name_v)
+    c.setFont("Helvetica", 5.5)
+    c.setFillColor(MUTED)
+    c.drawRightString(name_x2_v, center_y + sz_v / 2 + 2, "VISITANTE")
+
+    # HORA central (en lugar de VS)
+    hora = partido.get("hora")
+    hora_str = str(hora)[:5] if hora else "—:——"
+    c.setFillColor(DARK)
+    c.setFont("Helvetica-Bold", 14)
+    c.drawCentredString(vs_cx, center_y - 5, hora_str)
+    c.setFont("Helvetica", 5.5)
+    c.setFillColor(MUTED)
+    c.drawCentredString(vs_cx, center_y + 8, "HORA")
+
+
+# ── Cabeceras ─────────────────────────────────────────────────────────────────
+
+def _draw_day_header(c, x, y, fecha_str):
+    w = CARD_W
+    c.setFillColor(DAY_BG)
+    c.roundRect(x, y, w, DAY_H, 5, fill=1, stroke=0)
+    # tira izquierda más oscura
+    c.setFillColor(HexColor("#990000"))
+    c.roundRect(x, y, STRIP_W + 4, DAY_H, 5, fill=1, stroke=0)
+    c.rect(x + 3, y, STRIP_W + 1, DAY_H, fill=1, stroke=0)
+    c.setFillColor(WHITE)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(x + STRIP_W + 10, y + 9, fecha_str.upper())
+
+
+def _draw_field_header(c, x, y, campo, n_partidos):
+    w = CARD_W
+    c.setFillColor(FIELD_BG)
+    c.roundRect(x, y, w, FIELD_H, 4, fill=1, stroke=0)
+    c.setFillColor(WHITE)
+    c.setFont("Helvetica-Bold", 9)
+    label = (campo or "CAMPO SIN NOMBRE").upper()
+    max_l = w - 120
+    while label and c.stringWidth(label, "Helvetica-Bold", 9) > max_l:
+        label = label[:-1]
+    c.drawString(x + 10, y + 6.5, label)
+    n_str = f"{n_partidos} partido{'s' if n_partidos != 1 else ''}"
+    c.setFont("Helvetica", 7.5)
+    c.setFillColor(HexColor("#AACCEE"))
+    c.drawRightString(x + w - 10, y + 6.5, n_str)
+
+
+# ── Función principal ─────────────────────────────────────────────────────────
+
+def generar_pdf_agenda(partidos: list, titulo: str) -> bytes:
+    """Genera el PDF de agenda organizado por campo → día."""
+    agenda: dict[str, dict[str, list]] = defaultdict(lambda: defaultdict(list))
+    for p in partidos:
+        fecha = str(p.get("fecha") or "")[:10]
+        campo = p.get("campo") or "Sin campo asignado"
+        agenda[campo][fecha].append(p)
+
+    campos_ordenados = sorted(agenda.keys())
+
+    buf = io.BytesIO()
+    c   = pdf_canvas.Canvas(buf, pagesize=A4)
+    c.setTitle(titulo)
+    c.setAuthor("Gestor Torneos RFFM")
+
+    img_cache: dict = {}
+    rffm_logo = _fetch_img(_RFFM_LOGO, img_cache)
+
+    def draw_page_header():
+        hx, hy, hw = MARGIN, PAGE_H - MARGIN - HDR_H, CARD_W
+        c.setFillColor(RED)
+        c.roundRect(hx, hy, hw, HDR_H, 6, fill=1, stroke=0)
+        c.setFillColor(WHITE)
+        c.setFont("Helvetica-Bold", 13)
+        t = titulo.upper()
+        max_t = hw - 200
+        while t and c.stringWidth(t, "Helvetica-Bold", 13) > max_t:
+            t = t[:-1]
+        c.drawString(hx + 14, hy + 13, t)
+        c.setFont("Helvetica", 8)
+        c.drawRightString(hx + hw - 14, hy + 13, "AGENDA POR CAMPO")
+
+    def new_page():
+        c.showPage()
+        draw_page_header()
+        return PAGE_H - MARGIN - HDR_H - 10
+
+    draw_page_header()
+    y = PAGE_H - MARGIN - HDR_H - 10
+
+    dia_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    mes_nombres = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+                   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+
+    def _fecha_label(fecha_iso):
+        try:
+            dt = datetime.strptime(fecha_iso, "%Y-%m-%d")
+            return f"{dia_nombres[dt.weekday()]}, {dt.day} de {mes_nombres[dt.month-1]} de {dt.year}"
+        except Exception:
+            return fecha_iso
+
+    for i, campo in enumerate(campos_ordenados):
+        dias_campo = agenda[campo]
+
+        if i > 0:
+            y = new_page()
+
+        y -= GRP_GAP
+        total_campo = sum(len(ps) for ps in dias_campo.values())
+        _draw_field_header(c, MARGIN, y - FIELD_H, campo, total_campo)
+        y -= FIELD_H + CARD_GAP
+
+        def _campo_header(campo_nombre):
+            nonlocal y
+            _draw_field_header(c, MARGIN, y - FIELD_H, campo_nombre, total_campo)
+            y -= FIELD_H + CARD_GAP
+
+        for fecha_iso in sorted(dias_campo.keys()):
+            ps = dias_campo[fecha_iso]
+            fecha_label = _fecha_label(fecha_iso)
+
+            needed_day = DAY_H + CARD_GAP + CARD_H
+            if y - needed_day < MARGIN:
+                y = new_page()
+                _campo_header(campo)
+
+            _draw_day_header(c, MARGIN, y - DAY_H, fecha_label)
+            y -= DAY_H + CARD_GAP
+
+            for partido in sorted(ps, key=lambda p: str(p.get("hora") or "")):
+                if y - CARD_H < MARGIN:
+                    y = new_page()
+                    _campo_header(campo)
+                    _draw_day_header(c, MARGIN, y - DAY_H, fecha_label)
+                    y -= DAY_H + CARD_GAP
+                _draw_card(c, MARGIN, y - CARD_H, partido, img_cache, rffm_logo)
+                y -= CARD_H + CARD_GAP
+
+            y -= 4
+
+    c.save()
+    return buf.getvalue()
