@@ -15,6 +15,7 @@ except ImportError:
     _HAS_XL_IMG = False
 
 RFFM_LOGO_URL = "https://rffm-cms.s3.eu-west-1.amazonaws.com/large_favicon_87ea61909c.png"
+SLOT_MIN      = 5    # granularidad de la rejilla en minutos
 _XL_SHIELD_PX = 22   # tamaño del escudo en pixels dentro de la celda
 # Ancho aproximado de una columna de campo (29 chars) en pixels: 29*7+5 = 208 px
 _COL_W_PX = 29 * 7 + 5
@@ -152,7 +153,7 @@ def generar_excel_agenda(
 
         hora_ini_dia = _dia_ini(campos_dia)
         hora_fin_dia = _dia_fin(campos_dia, hora_ini_dia)
-        slots = list(range(hora_ini_dia, hora_fin_dia, 30))
+        slots = list(range(hora_ini_dia, hora_fin_dia, SLOT_MIN))
         n_slots = len(slots)
 
         ws = wb.create_sheet(title=fecha_iso[:31])
@@ -176,16 +177,18 @@ def generar_excel_agenda(
             cell.font = HEADER_FONT_W
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-        # Time axis (default row height, may be raised by match content)
+        # Time axis — altura pequeña para slots vacíos; etiqueta solo cada 30 min
         for idx, slot_min in enumerate(slots):
             row = idx + 2
             h, m = slot_min // 60, slot_min % 60
-            ws.row_dimensions[row].height = 16
-            cell = ws.cell(row=row, column=1, value=f"{h:02d}:{m:02d}")
-            cell.font = Font(size=7, color="FF555555")
-            cell.alignment = Alignment(horizontal="right", vertical="center")
-            fill_bg = "FFF0F0F0" if m == 0 else "FFFFFFFF"
-            cell.fill = PatternFill("solid", fgColor=fill_bg)
+            show_label = (m % 30 == 0)
+            ws.row_dimensions[row].height = 8 if not show_label else 10
+            if show_label:
+                cell = ws.cell(row=row, column=1, value=f"{h:02d}:{m:02d}")
+                cell.font = Font(size=7, bold=True, color="FF222222")
+                cell.alignment = Alignment(horizontal="right", vertical="center")
+            fill_bg = "FFF0F0F0" if m == 0 else ("FFFAFAFA" if m == 30 else "FFFFFFFF")
+            ws.cell(row=row, column=1).fill = PatternFill("solid", fgColor=fill_bg)
 
         # Track occupied (col, row) pairs, needed row heights e imágenes diferidas
         occupied: set[tuple[int, int]] = set()
@@ -208,8 +211,8 @@ def generar_excel_agenda(
                     continue
 
                 # Snap to slot grid
-                start_idx = max(0, (p_min - hora_ini_dia) // 30)
-                n_rows = max(1, -(-dur // 30))  # ceiling div
+                start_idx = max(0, (p_min - hora_ini_dia) // SLOT_MIN)
+                n_rows = max(1, -(-dur // SLOT_MIN))  # ceiling div
                 end_idx = min(start_idx + n_rows - 1, n_slots - 1)
 
                 start_row = start_idx + 2
@@ -220,7 +223,7 @@ def generar_excel_agenda(
                 for r in range(start_row, end_row + 1):
                     occupied.add((col, r))
 
-                # Colors
+                # Colors — fondo pastel, texto y borde en el acento oscuro
                 tid = p.get("torneo_id") or ""
                 bg_hex, border_hex = color_map.get(tid, ("#FFFFFF", "#D0D0D0"))
                 fill = PatternFill("solid", fgColor=_hex_to_argb(bg_hex))
@@ -241,7 +244,7 @@ def generar_excel_agenda(
                 total_content_h = n_lines * _LINE_H + _PAD_H
                 per_row_h = total_content_h / (end_row - start_row + 1)
                 for r in range(start_row, end_row + 1):
-                    row_heights[r] = max(row_heights.get(r, 16), per_row_h)
+                    row_heights[r] = max(row_heights.get(r, 8), per_row_h)
 
                 # Merge and write cell
                 if start_row < end_row:
@@ -251,7 +254,7 @@ def generar_excel_agenda(
                 cell = ws.cell(row=start_row, column=col, value=content)
                 cell.fill = fill
                 cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                cell.font = Font(size=8)
+                cell.font = Font(size=8, bold=True, color=_hex_to_argb(border_hex))
 
                 # Fix borders across all cells in the merged range
                 _set_merged_borders(ws, start_row, end_row, col, border_side)
@@ -263,7 +266,7 @@ def generar_excel_agenda(
 
         # Apply computed row heights
         for r, h in row_heights.items():
-            ws.row_dimensions[r].height = max(h, 18)
+            ws.row_dimensions[r].height = max(h, 8)
 
         # Insertar escudos ahora que las alturas definitivas están fijadas
         if _HAS_XL_IMG:
@@ -313,7 +316,7 @@ def generar_excel_agenda(
                 row = ley_row0 + 1 + i
                 ws.row_dimensions[row].height = 16
                 bg_hex, border_hex = color_map.get(tid, ("#F1F5F9", "#334155"))
-                fill = PatternFill("solid", fgColor=_hex_to_argb(bg_hex))
+                fill  = PatternFill("solid", fgColor=_hex_to_argb(bg_hex))
                 bside = Side(style="medium", color=_hex_to_argb(border_hex))
                 bord  = Border(left=bside, right=bside, top=bside, bottom=bside)
 
@@ -322,7 +325,7 @@ def generar_excel_agenda(
                 swatch.fill = fill
                 swatch.border = bord
 
-                # Nombre del torneo solo en col B (sin fusionar para no extender el color)
+                # Nombre del torneo solo en col B
                 name_cell = ws.cell(row=row, column=2, value=nombre)
                 name_cell.fill = fill
                 name_cell.border = bord

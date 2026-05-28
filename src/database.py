@@ -1,14 +1,37 @@
 import streamlit as st
 import uuid
+import functools
+import httpx
 from supabase import create_client, Client
 from typing import Any
 
+_supabase_client: Client | None = None
 
-@st.cache_resource
+
+def _reset_supabase() -> None:
+    global _supabase_client
+    _supabase_client = None
+
+
 def get_supabase() -> Client:
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+    global _supabase_client
+    if _supabase_client is None:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+        _supabase_client = create_client(url, key)
+    return _supabase_client
+
+
+def _db_retry(fn):
+    """Reintenta una vez recreando el cliente si la conexión falla."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except httpx.ReadError:
+            _reset_supabase()
+            return fn(*args, **kwargs)
+    return wrapper
 
 
 def subir_escudo(fichero) -> str:
@@ -28,6 +51,7 @@ def subir_escudo(fichero) -> str:
 # TORNEOS
 # -------------------------------------------------------
 
+@_db_retry
 def get_torneos() -> list[dict[str, Any]]:
     supabase = get_supabase()
     return supabase.table("torneos").select("*").order("created_at").execute().data  # type: ignore[return-value]
@@ -91,6 +115,7 @@ def eliminar_torneo(torneo_id):
 # -------------------------------------------------------
 
 @st.cache_data(ttl=30)
+@_db_retry
 def get_equipos(torneo_id: str) -> list[dict[str, Any]]:
     supabase = get_supabase()
     return (  # type: ignore[return-value]
@@ -103,6 +128,7 @@ def get_equipos(torneo_id: str) -> list[dict[str, Any]]:
     )
 
 
+@_db_retry
 def get_equipos_libres(torneo_id: str, ocupados_ids: set[str] | None = None) -> list[dict[str, Any]]:
     supabase = get_supabase()
     equipos: list[dict[str, Any]] = (  # type: ignore[assignment]
@@ -154,6 +180,7 @@ def update_equipo(equipo_id, nombre, escudo_url, competicion=None, grupo=None):
 # -------------------------------------------------------
 
 @st.cache_data(ttl=30)
+@_db_retry
 def get_fases(torneo_id: str) -> list[dict[str, Any]]:
     supabase = get_supabase()
     return (  # type: ignore[return-value]
@@ -182,6 +209,7 @@ def crear_fase(nombre, orden, torneo_id):
 # -------------------------------------------------------
 
 @st.cache_data(ttl=30)
+@_db_retry
 def get_grupos_por_fase(fase_id: str) -> list[dict[str, Any]]:
     supabase = get_supabase()
     return supabase.table("grupos").select("*").eq("fase_id", fase_id).execute().data  # type: ignore[return-value]
@@ -223,6 +251,7 @@ def contar_grupos_fase(fase_id):
 # PARTICIPANTES
 # -------------------------------------------------------
 
+@_db_retry
 def get_participantes_grupo(grupo_id: str) -> list[dict[str, Any]]:
     supabase = get_supabase()
     return (  # type: ignore[return-value]
@@ -234,6 +263,7 @@ def get_participantes_grupo(grupo_id: str) -> list[dict[str, Any]]:
     )
 
 
+@_db_retry
 def get_participantes_grupos(ids_grupos: list[str]) -> list[dict[str, Any]]:
     supabase = get_supabase()
     return (  # type: ignore[return-value]
@@ -534,6 +564,7 @@ def sincronizar_equipos_partidos_fase(fase_id):
     return total
 
 
+@_db_retry
 def get_partidos_fase(fase_id):
     """Devuelve {grupo_id: {nombre, orden_cuadro, partidos, partidos_siguiente}} con nombres resueltos."""
     supabase = get_supabase()
@@ -654,6 +685,7 @@ def get_partidos_fase(fase_id):
     return result
 
 
+@_db_retry
 def get_grupos_pdf_data(torneo_id):
     """Devuelve datos completos de grupos para el PDF de detalle de grupos."""
     supabase = get_supabase()
@@ -796,6 +828,7 @@ def actualizar_horario_partido(partido_id, fecha, hora, campo: str):
 # AGENDA (multi-torneo)
 # -------------------------------------------------------
 
+@_db_retry
 def get_campos_distintos():
     """Devuelve lista de campos únicos con partido asignado."""
     supabase = get_supabase()
@@ -803,6 +836,7 @@ def get_campos_distintos():
     return sorted({r["campo"] for r in rows if r.get("campo")})
 
 
+@_db_retry
 def get_partidos_agenda(fecha_desde=None, fecha_hasta=None, campos=None, torneo_ids=None):
     """
     Devuelve lista de partidos con fecha asignada, enriquecidos con nombres de

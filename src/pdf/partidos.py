@@ -31,7 +31,7 @@ CARD_W    = PAGE_W - 2 * MARGIN
 CARD_H    = 68
 SHIELD_S  = 38
 PAD_X     = 14
-VS_W      = 52
+VS_W      = 132
 INFO_H    = 16
 CORNER    = 8
 STRIP_W   = 5
@@ -114,8 +114,15 @@ def _draw_card(c, x: float, y: float, partido: dict, grupo_nombre: str, jornada_
     content_h   = h - bar_h         # ≈ 52 pt
     center_y    = content_y + content_h / 2   # centro vertical del contenido
 
-    # ── VS central ───────────────────────────────────────────────────────────
+    # ── Zona central: cajitas de resultado + VS ───────────────────────────────
     vs_cx = x + w / 2
+    BOX_W, BOX_H = 36, 28
+    box_y = center_y - BOX_H / 2
+    c.setFillColor(HexColor("#FAFAFA"))
+    c.setStrokeColor(HexColor("#BBBBBB"))
+    c.setLineWidth(0.8)
+    c.roundRect(vs_cx - VS_W / 2 + 4, box_y, BOX_W, BOX_H, 3, fill=1, stroke=1)
+    c.roundRect(vs_cx + VS_W / 2 - 4 - BOX_W, box_y, BOX_W, BOX_H, 3, fill=1, stroke=1)
     c.setFillColor(VS_COLOR)
     c.setFont("Helvetica-Bold", 13)
     c.drawCentredString(vs_cx, center_y - 5, "VS")

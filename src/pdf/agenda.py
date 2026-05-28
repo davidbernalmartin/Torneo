@@ -27,7 +27,7 @@ HDR_H    = 38
 CARD_H   = 74
 SHIELD_S = 36
 PAD_X    = 14
-VS_W     = 60
+VS_W     = 132      # ancho reservado para hora central + cajitas de resultado
 INFO_H   = 16
 BAR_TOP  = 16
 CORNER   = 8
@@ -78,7 +78,7 @@ def _draw_card(c, x, y, partido, cache, rffm_logo):
     c.line(x + CORNER, y + INFO_H, x + w - CORNER, y + INFO_H)
 
     torneo = partido.get("nombre_torneo", "")
-    c.setFillColor(DARK)
+    c.setFillColor(WHITE)
     if torneo:
         c.setFont("Helvetica-Bold", 7)
         max_t = w - STRIP_W - PAD_X * 2
@@ -131,11 +131,22 @@ def _draw_card(c, x, y, partido, cache, rffm_logo):
     c.setFillColor(MUTED)
     c.drawRightString(name_x2_v, center_y + sz_v / 2 + 2, "VISITANTE")
 
-    # HORA central (en lugar de VS)
+    # Cajitas de resultado a cada lado de la hora
+    BOX_W, BOX_H = 36, 28
+    box_y = center_y - BOX_H / 2
+    c.setFillColor(HexColor("#FAFAFA"))
+    c.setStrokeColor(HexColor("#BBBBBB"))
+    c.setLineWidth(0.8)
+    # Cajita local (izquierda de la hora)
+    c.roundRect(vs_cx - VS_W / 2 + 4, box_y, BOX_W, BOX_H, 3, fill=1, stroke=1)
+    # Cajita visitante (derecha de la hora)
+    c.roundRect(vs_cx + VS_W / 2 - 4 - BOX_W, box_y, BOX_W, BOX_H, 3, fill=1, stroke=1)
+
+    # HORA central
     hora = partido.get("hora")
     hora_str = str(hora)[:5] if hora else "—:——"
     c.setFillColor(DARK)
-    c.setFont("Helvetica-Bold", 14)
+    c.setFont("Helvetica-Bold", 13)
     c.drawCentredString(vs_cx, center_y - 5, hora_str)
     c.setFont("Helvetica", 5.5)
     c.setFillColor(MUTED)
@@ -177,7 +188,7 @@ def _draw_field_header(c, x, y, campo, n_partidos):
 # ── Función principal ─────────────────────────────────────────────────────────
 
 def generar_pdf_agenda(partidos: list, titulo: str) -> bytes:
-    """Genera el PDF de agenda organizado por campo → día."""
+    """Genera el PDF de agenda: una página por campo+día, cabecera con campo y fecha."""
     agenda: dict[str, dict[str, list]] = defaultdict(lambda: defaultdict(list))
     for p in partidos:
         fecha = str(p.get("fecha") or "")[:10]
@@ -194,28 +205,6 @@ def generar_pdf_agenda(partidos: list, titulo: str) -> bytes:
     img_cache: dict = {}
     rffm_logo = _fetch_img(_RFFM_LOGO, img_cache)
 
-    def draw_page_header():
-        hx, hy, hw = MARGIN, PAGE_H - MARGIN - HDR_H, CARD_W
-        c.setFillColor(RED)
-        c.roundRect(hx, hy, hw, HDR_H, 6, fill=1, stroke=0)
-        c.setFillColor(WHITE)
-        c.setFont("Helvetica-Bold", 13)
-        t = titulo.upper()
-        max_t = hw - 200
-        while t and c.stringWidth(t, "Helvetica-Bold", 13) > max_t:
-            t = t[:-1]
-        c.drawString(hx + 14, hy + 13, t)
-        c.setFont("Helvetica", 8)
-        c.drawRightString(hx + hw - 14, hy + 13, "AGENDA POR CAMPO")
-
-    def new_page():
-        c.showPage()
-        draw_page_header()
-        return PAGE_H - MARGIN - HDR_H - 10
-
-    draw_page_header()
-    y = PAGE_H - MARGIN - HDR_H - 10
-
     dia_nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     mes_nombres = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
                    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
@@ -227,44 +216,53 @@ def generar_pdf_agenda(partidos: list, titulo: str) -> bytes:
         except Exception:
             return fecha_iso
 
-    for i, campo in enumerate(campos_ordenados):
+    def draw_page_header(campo_nombre: str, fecha_label: str):
+        hx, hy, hw = MARGIN, PAGE_H - MARGIN - HDR_H, CARD_W
+        c.setFillColor(RED)
+        c.roundRect(hx, hy, hw, HDR_H, 6, fill=1, stroke=0)
+        # Tira izquierda más oscura
+        c.setFillColor(HexColor("#990000"))
+        c.roundRect(hx, hy, STRIP_W + 4, HDR_H, 6, fill=1, stroke=0)
+        c.rect(hx + 3, hy, STRIP_W + 1, HDR_H, fill=1, stroke=0)
+        c.setFillColor(WHITE)
+        # Campo (línea superior, grande)
+        campo_t = campo_nombre.upper()
+        max_w = hw - 28
+        while campo_t and c.stringWidth(campo_t, "Helvetica-Bold", 13) > max_w:
+            campo_t = campo_t[:-1]
+        c.setFont("Helvetica-Bold", 13)
+        c.drawString(hx + STRIP_W + 12, hy + 20, campo_t)
+        # Fecha (línea inferior, más pequeña)
+        fecha_t = fecha_label.upper()
+        while fecha_t and c.stringWidth(fecha_t, "Helvetica", 8.5) > max_w:
+            fecha_t = fecha_t[:-1]
+        c.setFont("Helvetica", 8.5)
+        c.setFillColor(HexColor("#FFCCCC"))
+        c.drawString(hx + STRIP_W + 12, hy + 7, fecha_t)
+
+    first_page = True
+
+    for campo in campos_ordenados:
         dias_campo = agenda[campo]
-
-        if i > 0:
-            y = new_page()
-
-        y -= GRP_GAP
-        total_campo = sum(len(ps) for ps in dias_campo.values())
-        _draw_field_header(c, MARGIN, y - FIELD_H, campo, total_campo)
-        y -= FIELD_H + CARD_GAP
-
-        def _campo_header(campo_nombre):
-            nonlocal y
-            _draw_field_header(c, MARGIN, y - FIELD_H, campo_nombre, total_campo)
-            y -= FIELD_H + CARD_GAP
 
         for fecha_iso in sorted(dias_campo.keys()):
             ps = dias_campo[fecha_iso]
             fecha_label = _fecha_label(fecha_iso)
 
-            needed_day = DAY_H + CARD_GAP + CARD_H
-            if y - needed_day < MARGIN:
-                y = new_page()
-                _campo_header(campo)
+            if not first_page:
+                c.showPage()
+            first_page = False
 
-            _draw_day_header(c, MARGIN, y - DAY_H, fecha_label)
-            y -= DAY_H + CARD_GAP
+            draw_page_header(campo, fecha_label)
+            y = PAGE_H - MARGIN - HDR_H - 10
 
             for partido in sorted(ps, key=lambda p: str(p.get("hora") or "")):
                 if y - CARD_H < MARGIN:
-                    y = new_page()
-                    _campo_header(campo)
-                    _draw_day_header(c, MARGIN, y - DAY_H, fecha_label)
-                    y -= DAY_H + CARD_GAP
+                    c.showPage()
+                    draw_page_header(campo, fecha_label)
+                    y = PAGE_H - MARGIN - HDR_H - 10
                 _draw_card(c, MARGIN, y - CARD_H, partido, img_cache, rffm_logo)
                 y -= CARD_H + CARD_GAP
-
-            y -= 4
 
     c.save()
     return buf.getvalue()

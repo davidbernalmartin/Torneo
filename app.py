@@ -57,7 +57,7 @@ from src.components import (
 
 
 # ── QR helper ──────────────────────────────────────────
-def generar_qr(url: str):
+def generar_qr(url: str, output_size: int | None = None):
     import qrcode
     from PIL import Image
     import urllib.request as _urlreq
@@ -88,6 +88,9 @@ def generar_qr(url: str):
         img.paste(logo, logo_pos, logo)
     except Exception:
         pass  # si falla la descarga el QR sigue siendo válido
+
+    if output_size:
+        img = img.resize((output_size, output_size), Image.LANCZOS)  # type: ignore[attr-defined]
 
     buf = io.BytesIO()
     img.convert("RGB").save(buf, format="PNG")
@@ -445,6 +448,15 @@ if st.session_state.get("view") == "agenda_global":
                     width='stretch',
                     key="dl_qr_global",
                 )
+                _qr_hd = generar_qr(_URL_CUADRO, output_size=1080)
+                st.download_button(
+                    "⬇️ Descargar QR 1080×1080",
+                    data=_qr_hd,
+                    file_name="qr_cuadro_rffm_1080.png",
+                    mime="image/png",
+                    width='stretch',
+                    key="dl_qr_global_hd",
+                )
             except Exception:
                 pass
 
@@ -482,7 +494,7 @@ if st.session_state.get("view") == "agenda_global":
     # 0    = sin suelo: cada día arranca en su primer partido
     # 1440 = sin tope:  cada día termina en su último partido
     _ag_ini_min_eff = _ag_hora_ini.hour * 60 + _ag_hora_ini.minute if _ag_hora_ini is not None else 0
-    _ag_fin_min_eff = _ag_hora_fin.hour * 60 + _ag_hora_fin.minute if _ag_hora_fin is not None else 24 * 60
+    _ag_fin_min_eff = _ag_hora_fin.hour * 60 + _ag_hora_fin.minute if _ag_hora_fin is not None else 0
 
     # ── Downloads ─────────────────────────────────────────
     st.markdown("---")
@@ -1410,7 +1422,7 @@ if menu == "Partidos":
     tiene_partidos = hay_partidos_fase(fase_id)
 
     # ── Generar / Regenerar / Sincronizar ───────────────
-    col_gen, col_sync, col_pdf, col_filtro = st.columns([2, 2, 2, 3])
+    col_gen, col_sync, col_pdf, col_filtro_campo, col_filtro_equipo = st.columns([2, 2, 2, 2, 2])
     with col_gen:
         lbl = "🔄 Regenerar partidos" if tiene_partidos else "⚡ Generar partidos"
         if st.button(lbl, type="primary", width='stretch'):
@@ -1464,8 +1476,12 @@ if menu == "Partidos":
                 except Exception as _e:
                     st.error(f"Error al generar PDF: {_e}")
 
-    filtro_campo = col_filtro.text_input(
-        "Filtrar por campo", placeholder="Escribe el nombre del campo...",
+    filtro_campo = col_filtro_campo.text_input(
+        "Filtrar por campo", placeholder="🏟️ Campo...",
+        label_visibility="collapsed",
+    )
+    filtro_equipo = col_filtro_equipo.text_input(
+        "Filtrar por equipo", placeholder="⚽ Equipo...",
         label_visibility="collapsed",
     )
 
@@ -1508,13 +1524,18 @@ if menu == "Partidos":
         )
         for grupo_id, info in grupos_ordenados:
             partidos = info["partidos"]
-            if filtro_campo.strip():
+            _fc = filtro_campo.strip().lower()
+            _fe = filtro_equipo.strip().lower()
+            if _fc:
+                partidos = [p for p in partidos if _fc in (p.get("campo") or "").lower()]
+            if _fe:
                 partidos = [
                     p for p in partidos
-                    if filtro_campo.strip().lower() in (p.get("campo") or "").lower()
+                    if _fe in (p.get("nombre_local") or "").lower()
+                    or _fe in (p.get("nombre_visitante") or "").lower()
                 ]
-                if not partidos:
-                    continue
+            if not partidos and (_fc or _fe):
+                continue
 
             with st.expander(f"**{info['nombre']}** — {len(partidos)} partido(s)", expanded=True):
                 df_vista = pd.DataFrame([
