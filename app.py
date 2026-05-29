@@ -437,7 +437,7 @@ if st.session_state.get("view") == "agenda_global":
     with _ag_col_qr:
         with st.expander("QR Cuadro Visual"):
             try:
-                _qr_buf = generar_qr(_URL_CUADRO)
+                _qr_buf = generar_qr(_URL_CUADRO, output_size=1080)
                 st.image(_qr_buf, width='stretch')
                 _qr_buf.seek(0)
                 st.download_button(
@@ -448,10 +448,10 @@ if st.session_state.get("view") == "agenda_global":
                     width='stretch',
                     key="dl_qr_global",
                 )
-                _qr_hd = generar_qr(_URL_CUADRO, output_size=1080)
+                _qr_buf.seek(0)
                 st.download_button(
                     "⬇️ Descargar QR 1080×1080",
-                    data=_qr_hd,
+                    data=_qr_buf,
                     file_name="qr_cuadro_rffm_1080.png",
                     mime="image/png",
                     width='stretch',
@@ -1522,10 +1522,10 @@ if menu == "Partidos":
             partidos_por_grupo.items(),
             key=lambda kv: (kv[1]["orden_cuadro"] is None, kv[1]["orden_cuadro"] or 0, kv[1]["nombre"]),
         )
+        _fc = filtro_campo.strip().lower()
+        _fe = filtro_equipo.strip().lower()
         for grupo_id, info in grupos_ordenados:
             partidos = info["partidos"]
-            _fc = filtro_campo.strip().lower()
-            _fe = filtro_equipo.strip().lower()
             if _fc:
                 partidos = [p for p in partidos if _fc in (p.get("campo") or "").lower()]
             if _fe:
