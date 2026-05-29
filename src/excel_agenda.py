@@ -130,13 +130,15 @@ def generar_excel_agenda(
 
     def _dia_fin(campos_dia: dict, ini_min: int) -> int:
         """Fin del último partido del día, redondeado a 30 min y capado por hora_fin_min."""
+        if hora_fin_min:
+            return hora_fin_min
         fin = ini_min + 60
         for campo_ps in campos_dia.values():
             for p in campo_ps:
                 p_min = _hm_to_min(str(p.get("hora") or "")[:5])
                 fin = max(fin, p_min + (p.get("duracion_partido") or 50))
         fin = (fin + 29) // 30 * 30
-        return min(fin, hora_fin_min)
+        return fin
 
     def _set_merged_borders(ws, start_row: int, end_row: int, col: int, bside: Side) -> None:
         """Aplica bordes correctamente a todas las celdas de un rango fusionado."""

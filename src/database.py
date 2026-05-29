@@ -44,7 +44,7 @@ def subir_escudo(fichero) -> str:
         file=fichero.getvalue(),
         file_options={"content-type": fichero.type, "upsert": "true"},
     )
-    return supabase.storage.from_("escudos").get_public_url(nombre_unico)
+    return supabase.storage.from_("escudos").get_public_url(nombre_unico)  # type: ignore[return-value]
 
 
 # -------------------------------------------------------

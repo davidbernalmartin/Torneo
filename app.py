@@ -713,7 +713,7 @@ if st.session_state.get("view") == "agenda_global":
                 )
         return html
 
-    def _dia_grid_html(campos_dia: dict, campo_list: list, color_cache: dict, ini_min: int, fin_min: int) -> str:
+    def _dia_grid_html(campos_dia: dict, campo_list: list, color_cache: dict, ini_min: int, fin_min: int) -> tuple[str, int]:
         n = len(campo_list)
         total_h = (fin_min - ini_min) * _PX_MIN
         total_w  = _AXIS_W + n * _CAMPO_W
@@ -793,7 +793,7 @@ if st.session_state.get("view") == "agenda_global":
         _html_frag, _grid_content_h = _dia_grid_html(
             _campos_dia, _campo_list, _ag_torneo_color_cache, _ini_min_dia, _fin_min_dia
         )
-        st.components.v1.html(_html_frag, height=int(_grid_content_h) + 20, scrolling=False)
+        st.iframe(_html_frag, height=int(_grid_content_h) + 20)
         st.markdown("---")
 
     st.stop()
@@ -1084,7 +1084,7 @@ def _modal_editar_equipo(equipo: dict[str, Any]) -> None:
                                 placeholder="Ej: Grupo A")
     st.write("")
     if st.button("💾 Guardar cambios", width='stretch', type="primary"):
-        nombre_limpio = nuevo_nombre.strip()
+        nombre_limpio = (nuevo_nombre or "").strip()
         if not nombre_limpio:
             st.error("El nombre no puede estar vacío.")
         else:
@@ -1582,7 +1582,7 @@ if menu == "Partidos":
                 if st.button("Guardar cambios", key=f"guardar_{grupo_id}", type="primary"):
                     updates = []
                     eliminados = 0
-                    for i, row in edited.iterrows():
+                    for i, (_, row) in enumerate(edited.iterrows()):
                         p = partidos[i]
                         if bool(row.get("🗑️", False)):
                             eliminar_partido(p["id"])

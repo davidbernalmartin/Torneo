@@ -380,10 +380,11 @@ def generar_pdf_agenda_grid(
 
         # Paginar campos de CAMPOS_POR_PAGINA en CAMPOS_POR_PAGINA
         chunks = [campo_list[i:i + CAMPOS_POR_PAGINA]
-                  for i in range(0, max(len(campo_list), 1), CAMPOS_POR_PAGINA)]
+                  for i in range(0, len(campo_list), CAMPOS_POR_PAGINA)]
 
         for chunk in chunks:
-            if _min_block_h(campos_dia, hora_ini_dia, hora_fin_dia, px) < MIN_BLOCK_H:
+            campos_chunk = {k: campos_dia[k] for k in chunk if k in campos_dia}
+            if _min_block_h(campos_chunk, hora_ini_dia, hora_fin_dia, px) < MIN_BLOCK_H:
                 mid = round((hora_ini_dia + hora_fin_dia) / 2 / 30) * 30
                 mid = max(hora_ini_dia + 30, min(mid, hora_fin_dia - 30))
                 _draw_day_page(c, fecha_iso, campos_dia, chunk,
