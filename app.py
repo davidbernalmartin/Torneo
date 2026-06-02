@@ -555,6 +555,27 @@ if st.session_state.get("view") == "agenda_global":
                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                    key="dl_gag_xlsx")
 
+    _ag_dc4, _ag_dc5, _ag_dc6 = st.columns([1, 1, 1])
+    with _ag_dc4:
+        if st.button("📐 Excel Planificación", width='stretch', type="secondary"):
+            if not _ag_partidos:
+                st.warning("No hay partidos con los filtros seleccionados.")
+            else:
+                with st.spinner("Generando Excel planificación…"):
+                    from src.excel_planificacion import generar_excel_planificacion
+                    _ag_color_map_pl = {
+                        t["id"]: torneo_card_color(t["id"]) for t in _ag_todos_torneos
+                    }
+                    _xlsx_pl = generar_excel_planificacion(
+                        _ag_partidos, "Planificación de partidos",
+                        hora_ini_min=_ag_ini_min_eff, hora_fin_min=_ag_fin_min_eff,
+                        color_map=_ag_color_map_pl,
+                    )
+                st.download_button("⬇️ Descargar Excel", data=_xlsx_pl,
+                                   file_name="planificacion.xlsx",
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                   key="dl_gag_planif")
+
     if not _ag_partidos:
         st.info("No hay partidos programados para los filtros seleccionados.")
         st.stop()

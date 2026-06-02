@@ -469,6 +469,105 @@
     pointer-events: none; white-space: nowrap; z-index: 300;
   }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Resultados screen ── */
+  #resultados-screen {
+    display: none; position: fixed; inset: 0;
+    background: var(--bg); overflow-y: auto; z-index: 60;
+  }
+  .rs-filters {
+    background: white; border-bottom: 1px solid var(--border);
+    padding: 10px 14px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
+    position: sticky; top: 40px; z-index: 1;
+  }
+  .rs-filter-lbl {
+    font-family: var(--font-display); font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .rs-filter-ctrl {
+    font-family: var(--font-body); font-size: 14px;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 10px; outline: none; color: var(--text); background: white; cursor: pointer;
+  }
+  .rs-filter-ctrl:focus { border-color: var(--red); }
+  .rs-body { padding: 10px 12px; max-width: 640px; margin: 0 auto; }
+  .rs-day-hdr {
+    font-family: var(--font-display); font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em; color: white;
+    background: var(--red); padding: 6px 14px; border-radius: 6px;
+    margin: 14px 0 8px;
+  }
+  .rs-card {
+    background: white; border-radius: 10px; margin-bottom: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden;
+  }
+  .rs-card-top { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+  .rs-team { flex: 1; min-width: 0; }
+  .rs-name {
+    font-family: var(--font-display); font-size: 16px; font-weight: 700;
+    text-transform: uppercase; line-height: 1.15;
+    overflow: hidden; display: -webkit-box;
+    -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+  .rs-name-l { text-align: right; }
+  .rs-name-r { text-align: left; }
+  .rs-scores { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+  .rs-inp {
+    width: 46px; height: 46px; text-align: center;
+    font-family: var(--font-display); font-size: 22px; font-weight: 800;
+    border: 1.5px solid var(--border); border-radius: 8px; outline: none;
+    background: #f8f8f8; color: var(--text); -moz-appearance: textfield;
+  }
+  .rs-inp:focus { border-color: var(--red); background: white; }
+  .rs-inp::-webkit-inner-spin-button,
+  .rs-inp::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .rs-sep { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: #ccc; }
+  .rs-card-bot {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 12px 10px; border-top: 1px solid #f5f5f5;
+    font-size: 12px; color: #999; font-family: var(--font-body); gap: 8px;
+  }
+  .rs-meta { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rs-save {
+    font-family: var(--font-display); font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: white; background: var(--red); border: none;
+    border-radius: 5px; padding: 5px 14px; cursor: pointer; flex-shrink: 0;
+  }
+  .rs-save:hover { opacity: 0.85; }
+  .rs-empty {
+    text-align: center; padding: 48px 24px;
+    font-family: var(--font-body); font-size: 14px; color: var(--text-muted);
+  }
+  .rs-pen-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 12px 8px; flex-wrap: nowrap;
+  }
+  .rs-pen-lbl {
+    font-family: var(--font-display); font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted);
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .rs-pen-btn {
+    flex: 1; min-width: 0; padding: 4px 8px;
+    font-family: var(--font-display); font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.03em;
+    border: 1px solid var(--border); border-radius: 5px;
+    background: white; color: #888; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: all 0.1s;
+  }
+  .rs-pen-btn:hover:not(.selected) { border-color: var(--red); color: var(--red); }
+  .rs-pen-btn.selected { background: var(--red); color: white; border-color: var(--red); }
+  .rs-pen-none { flex: 0 0 auto; color: #ccc; border-style: dashed; font-size: 10px; }
+  .rs-pen-none.selected { background: #f0f0f0; color: #999; border-color: #ccc; border-style: solid; }
+  .rs-check-lbl {
+    display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap;
+    font-family: var(--font-display); font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted);
+  }
+  .rs-check-lbl input[type=checkbox] { accent-color: var(--red); width: 15px; height: 15px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -493,6 +592,13 @@
               padding:4px 10px;border-radius:4px;white-space:nowrap;">
       ‹ Torneos
     </a>
+    <button onclick="openResultados()"
+      style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;
+             text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.85);
+             background:none;border:1px solid rgba(255,255,255,0.4);
+             padding:4px 10px;border-radius:4px;white-space:nowrap;cursor:pointer;">
+      📋 Resultados
+    </button>
     <div class="save-indicator saved" id="save-indicator">
       <div class="save-dot"></div>
       <span id="save-text">Todo guardado</span>
@@ -512,6 +618,8 @@
 </div>
 
 <div id="group-detail"></div>
+
+<div id="resultados-screen"></div>
 
 <div id="toast"></div>
 
@@ -739,14 +847,25 @@ async function onDrop(e, targetPartId) {
       setSaveState("saving");
       try {
         const existingInTarget = participantes.filter(p => p.grupo_id === tgtGrupoId);
-        const hasLocal = existingInTarget.some(p => p.es_local);
-        const esLocal  = !hasLocal;
-        const newPart = await sbPost("participantes_grupo", {
-          grupo_id: tgtGrupoId, equipo_id: srcEqId,
-          es_local: esLocal, goles: 0, puntos: 0,
-        });
-        participantes.push({ ...newPart, equipos: srcEqData });
-        render();
+        // Preferir rellenar un placeholder vacío existente en lugar de crear uno nuevo
+        const emptySlot = existingInTarget.find(p => !p.equipo_id);
+        if (emptySlot) {
+          emptySlot.equipo_id = srcEqId;
+          emptySlot.equipos   = srcEqData;
+          render();
+          await sbPatch("participantes_grupo", emptySlot.id, { equipo_id: srcEqId });
+          await _syncPartidosSlot(tgtGrupoId, emptySlot.posicion, emptySlot.es_local, srcEqId);
+        } else {
+          // No hay placeholder: crear participante nuevo (caso sin partidos generados aún)
+          const hasLocal = existingInTarget.some(p => p.es_local);
+          const esLocal  = !hasLocal;
+          const newPart = await sbPost("participantes_grupo", {
+            grupo_id: tgtGrupoId, equipo_id: srcEqId,
+            es_local: esLocal, goles: 0, puntos: 0,
+          });
+          participantes.push({ ...newPart, equipos: srcEqData });
+          render();
+        }
         setSaveState("saved");
         showToast("Clasificado a la siguiente fase ✓");
       } catch(err) { setSaveState("error"); console.error(err); }
@@ -757,6 +876,7 @@ async function onDrop(e, targetPartId) {
       setSaveState("saving");
       try {
         await sbPatch("participantes_grupo", tgt.id, { equipo_id: srcEqId });
+        await _syncPartidosSlot(tgt.grupo_id, tgt.posicion, tgt.es_local, srcEqId);
         setSaveState("saved");
         showToast("Clasificado a la siguiente fase ✓");
       } catch(err) { setSaveState("error"); console.error(err); }
@@ -933,6 +1053,36 @@ async function saveScore(grupoId, localId, visitId) {
   }
 }
 
+// Actualiza equipo_local/visitante_id en los partidos ya generados de un grupo
+// cuando se clasifica un equipo para esa posición. Funciona para grupos de cualquier tamaño.
+async function _syncPartidosSlot(grupoId, posicion, esLocal, equipoId) {
+  if (!equipoId) return;
+
+  const grupoPartidos = partidos.filter(p => p.grupo_id === grupoId);
+  const patches = [];
+
+  if (posicion == null) {
+    // Grupos de 2 equipos: no tienen posicion numérica, usan es_local
+    for (const p of grupoPartidos) {
+      const upd = {};
+      if (esLocal === true)  { p.equipo_local_id    = equipoId; upd.equipo_local_id    = equipoId; }
+      if (esLocal === false) { p.equipo_visitante_id = equipoId; upd.equipo_visitante_id = equipoId; }
+      if (Object.keys(upd).length) patches.push(sbPatch('partidos', p.id, upd));
+    }
+  } else {
+    if (!grupos.some(gr => gr.id === grupoId)) return;
+    for (const p of grupoPartidos) {
+      const matchL = p.pos_local     === posicion;
+      const matchV = p.pos_visitante === posicion;
+      const upd = {};
+      if (matchL) { p.equipo_local_id    = equipoId; upd.equipo_local_id    = equipoId; }
+      if (matchV) { p.equipo_visitante_id = equipoId; upd.equipo_visitante_id = equipoId; }
+      if (Object.keys(upd).length) patches.push(sbPatch('partidos', p.id, upd));
+    }
+  }
+  if (patches.length) await Promise.all(patches);
+}
+
 async function advanceWinner(grupo, winnerEqId) {
   const sigGrupoId = grupo.siguiente_grupo_id;
   const posicion   = grupo.posicion_en_siguiente;
@@ -958,6 +1108,7 @@ async function advanceWinner(grupo, winnerEqId) {
 
   try {
     await sbPatch("participantes_grupo", targetPart.id, { equipo_id: winnerEqId });
+    await _syncPartidosSlot(targetPart.grupo_id, targetPart.posicion, targetPart.es_local, winnerEqId);
     showToast("Ganador avanzado a la siguiente ronda ✓");
   } catch(err) {
     console.error("Error avanzando ganador:", err);
@@ -965,17 +1116,15 @@ async function advanceWinner(grupo, winnerEqId) {
 }
 
 // ── STANDINGS (grupos > 2 equipos) ───────────────────────
-function calcStandings(grupoId) {
-  const g = grupos.find(gr => gr.id === grupoId);
-  const manualOrder = Array.isArray(g?.orden_desempate) ? g.orden_desempate : [];
 
-  const partsGrupo = byGrupo(grupoId);
+// Núcleo puro: recibe arrays de participantes y partidos directamente.
+// Usado tanto por calcStandings (datos globales) como por rsAdvanceGroup (datos frescos de Supabase).
+function _computeStandings(partsGrupo, gPartidos, manualOrder) {
   const stats = {};
   partsGrupo.forEach(p => {
     if (!p.equipo_id) return;
     stats[p.equipo_id] = { equipo_id: p.equipo_id, eq: eqMap[p.equipo_id] || null, PJ:0, PG:0, PE:0, PP:0, GF:0, GC:0, D:0, Pts:0, _isTied: false };
   });
-  const gPartidos = partidos.filter(m => m.grupo_id === grupoId);
   gPartidos.forEach(m => {
     const rl = m.resultado_local, rv = m.resultado_visitante;
     if (rl == null || rv == null) return;
@@ -994,10 +1143,8 @@ function calcStandings(grupoId) {
     const group = all.slice(i, j);
     if (group.length > 1) {
       const ids = group.map(s => s.equipo_id);
-      // Puntos h2h
       const h = {};
       ids.forEach(id => h[id] = { Pts: 0 });
-      // Penaltis h2h (gana penaltis en empate del partido directo)
       const pen = {};
       ids.forEach(id => pen[id] = 0);
       gPartidos.forEach(m => {
@@ -1013,34 +1160,32 @@ function calcStandings(grupoId) {
         } else h[m.equipo_visitante_id].Pts += 3;
       });
       group.sort((a, b) => {
-        // 1. h2h Pts (resultado partido / miniliga)
         const hA = h[a.equipo_id], hB = h[b.equipo_id];
         if (hB.Pts !== hA.Pts) return hB.Pts - hA.Pts;
-        // 2. D global
         if (b.D !== a.D) return b.D - a.D;
-        // 3. Penaltis h2h (partido / miniliga)
         if (pen[b.equipo_id] !== pen[a.equipo_id]) return pen[b.equipo_id] - pen[a.equipo_id];
-        // 4. Desempate manual
         const ia = manualOrder.indexOf(a.equipo_id);
         const ib = manualOrder.indexOf(b.equipo_id);
         if (ia >= 0 && ib >= 0) return ia - ib;
         return 0;
       });
-      // Marcar como empatados los que siguen iguales tras todos los criterios automáticos
-      for (let k = 0; k < group.length - 1; k++) {
-        const a = group[k], b = group[k + 1];
-        if (h[a.equipo_id].Pts === h[b.equipo_id].Pts &&
-            a.D === b.D &&
-            pen[a.equipo_id] === pen[b.equipo_id]) {
-          a._isTied = true;
-          b._isTied = true;
-        }
-      }
+      // Todos los equipos con los mismos puntos pueden reordenarse manualmente
+      group.forEach(s => { s._isTied = true; });
     }
     group.forEach(s => result.push(s));
     i = j;
   }
   return result;
+}
+
+function calcStandings(grupoId) {
+  const g = grupos.find(gr => gr.id === grupoId);
+  const manualOrder = Array.isArray(g?.orden_desempate) ? g.orden_desempate : [];
+  return _computeStandings(
+    byGrupo(grupoId),
+    partidos.filter(m => m.grupo_id === grupoId),
+    manualOrder
+  );
 }
 
 function advancingPositions(grupoNombre) {
@@ -1352,6 +1497,9 @@ async function savePartidoResult(matchId, grupoId) {
       await sbPatch('partidos', matchId, { penaltis_ganador_id: penGanadorId });
       m.penaltis_ganador_id = penGanadorId;
     } catch(_) {}
+    // Para grupos de 2: actualizar goles en participantes_grupo
+    if (grupos.find(gr => gr.id === grupoId)?.tipo_grupo === 2)
+      try { await _syncGoles(grupoId, m, rl, rv); } catch(_) {}
     // --- Comprobar si el grupo está completo ---
     const partidosDelGrupo = partidos.filter(p => p.grupo_id === grupoId);
     const todoRelleno = partidosDelGrupo.every(p => 
@@ -1456,6 +1604,7 @@ async function advanceGroupStandings(grupoId) {
   });
 
   const patches = [];
+  const syncs   = [];
   for (let i = 0; i < Math.min(standings.length, targetSlots.length); i++) {
     const slot = targetSlots[i];
     const team = standings[i];
@@ -1463,8 +1612,10 @@ async function advanceGroupStandings(grupoId) {
     slot.equipo_id = team.equipo_id;
     slot.equipos   = eqMap[team.equipo_id] || null;
     patches.push(sbPatch('participantes_grupo', slot.id, { equipo_id: team.equipo_id }));
+    syncs.push({ grupoId: slot.grupo_id, posicion: slot.posicion, esLocal: slot.es_local, equipoId: team.equipo_id });
   }
   if (patches.length) await Promise.all(patches);
+  await Promise.all(syncs.map(s => _syncPartidosSlot(s.grupoId, s.posicion, s.esLocal, s.equipoId)));
 }
 
 // ── SLOT LABEL ────────────────────────────────────────────
@@ -1980,6 +2131,405 @@ async function clearChampion() {
     if (torneoData) torneoData.campeon_id = null;
     render();
   } catch(err) { console.error(err); }
+}
+
+// Actualiza goles en participantes_grupo para grupos de 2 tras guardar un resultado.
+// Funciona tanto en contexto bracket (byGrupo) como standalone (fetch Supabase).
+async function _syncGoles(grupoId, m, rl, rv) {
+  let partsG = byGrupo(grupoId);
+  if (!partsG.length) {
+    try { partsG = await sbGet("participantes_grupo", "select=id,equipo_id,posicion&grupo_id=eq." + grupoId); }
+    catch(_) {}
+  }
+  const find = (eqId, pos) => partsG.find(p => eqId ? p.equipo_id === eqId : p.posicion === pos);
+  const partL = find(m.equipo_local_id, m.pos_local);
+  const partV = find(m.equipo_visitante_id, m.pos_visitante);
+  const patches = [];
+  if (partL) { const gp = participantes.find(p => p.id === partL.id); if (gp) gp.goles = rl; patches.push(sbPatch('participantes_grupo', partL.id, { goles: rl })); }
+  if (partV) { const gp = participantes.find(p => p.id === partV.id); if (gp) gp.goles = rv; patches.push(sbPatch('participantes_grupo', partV.id, { goles: rv })); }
+  if (patches.length) await Promise.all(patches);
+}
+
+// Rellena `cache` con filas de `table` para los ids que falten.
+async function _fillCache(ids, cache, table, select) {
+  const missing = [...new Set(ids.filter(id => id && !cache[id]))];
+  if (!missing.length) return;
+  const rows = await sbGet(table, select + "&id=in.(" + missing.join(",") + ")");
+  rows.forEach(r => cache[r.id] = r);
+}
+
+// ── RESULTADOS SCREEN ────────────────────────────────────
+const _RS_PALETTE = [
+  ["#FEE2E2","#DC2626"],["#FFF0E8","#C2410C"],["#FECDD3","#9F1239"],["#FFE4E6","#E11D48"],
+  ["#FCE7F3","#DB2777"],["#FDF4FF","#D946EF"],["#FAE8FF","#A855F8"],["#F3E8FF","#7C3AED"],
+  ["#E9D5FF","#5B21B6"],["#E0E7FF","#4F46E5"],["#C7D2FE","#3730A3"],["#DBEAFE","#2563EB"],
+  ["#BFDBFE","#1E40AF"],["#E0F2FE","#0284C7"],["#BAE6FD","#075985"],["#CFFAFE","#0891B2"],
+  ["#CCFBF1","#0D9488"],["#99F6E4","#0F766E"],["#D1FAE5","#059669"],["#DCFCE7","#16A34A"],
+  ["#BBF7D0","#14532D"],["#ECFCCB","#65A30D"],["#FEF9C3","#A16207"],["#FEF3C7","#D97706"],
+  ["#FDE68A","#92400E"],["#FFEDD5","#EA580C"],["#FED7AA","#9A3412"],["#FFEBE6","#E05A38"],
+  ["#FFE0D8","#B43A22"],["#F1F5F9","#334155"],["#FFF7ED","#78350F"],["#F0FDF4","#166534"],
+];
+function _rsTorneoColor(id) {
+  if (!id) return ["#FFFFFF","#D0D0D0"];
+  let h = 5381;
+  for (let i = 0; i < id.length; i++) h = (Math.imul(h, 33) ^ id.charCodeAt(i)) >>> 0;
+  return _RS_PALETTE[h % _RS_PALETTE.length];
+}
+
+let _resTorneosCache = [];
+let _rsTorneosMap    = {}; // id → nombre, built once when cache fills
+let _resPartidosCache = [];
+let _resEqCache = {};
+let _resGrupoCache = {};
+let _resFaseCache = {};
+let _rsPen = {}; // matchId → 'local' | 'visit' | null
+
+function rsPenSelect(matchId, side) {
+  _rsPen[matchId] = (_rsPen[matchId] === side && side !== null) ? null : side;
+  const cur = _rsPen[matchId];
+  ['local','visit'].forEach(s => {
+    const b = document.getElementById('rspen-'+s+'-'+matchId);
+    if (b) b.classList.toggle('selected', s === cur);
+  });
+  const nb = document.getElementById('rspen-none-'+matchId);
+  if (nb) nb.classList.toggle('selected', cur === null);
+}
+
+async function rsAdvanceGroup(grupoId) {
+  try {
+    // ── Si el grupo ya está cargado en el bracket actual, usar la lógica existente ──
+    if (grupos.some(g => g.id === grupoId)) {
+      const bp = partidos.filter(p => p.grupo_id === grupoId);
+      if (bp.every(p => p.resultado_local !== null && p.resultado_visitante !== null)) {
+        await advanceGroupStandings(grupoId);
+        render();
+      }
+      return;
+    }
+
+    // ── Contexto autónomo: cargar datos frescos de Supabase ──
+    const [ag_p, ag_parts] = await Promise.all([
+      sbGet("partidos", "select=*&grupo_id=eq." + grupoId),
+      sbGet("participantes_grupo", "select=*&grupo_id=eq." + grupoId),
+    ]);
+    if (!ag_p.every(p => p.resultado_local !== null && p.resultado_visitante !== null)) return;
+
+    let ag_grupo = _resGrupoCache[grupoId];
+    if (!ag_grupo) {
+      const gl = await sbGet("grupos", "select=*&id=eq." + grupoId);
+      ag_grupo = gl[0]; if (!ag_grupo) return;
+      _resGrupoCache[grupoId] = ag_grupo;
+    }
+
+    // Calcular clasificación — misma lógica exacta que calcStandings (detalle de grupo)
+    const manualOrder = Array.isArray(ag_grupo.orden_desempate) ? ag_grupo.orden_desempate : [];
+    const ranking = _computeStandings(ag_parts, ag_p, manualOrder);
+    if (!ranking.length) return;
+
+    // Localizar la fase del grupo y las fases posteriores del mismo torneo
+    let ag_fase = _resFaseCache[ag_grupo.fase_id];
+    if (!ag_fase || ag_fase.orden == null) {
+      const fl = await sbGet("fases", "select=id,orden,torneo_id&id=eq." + ag_grupo.fase_id);
+      ag_fase = fl[0]; if (!ag_fase) return;
+      _resFaseCache[ag_fase.id] = ag_fase;
+    }
+    const torneoFases = await sbGet("fases", "select=id,orden&torneo_id=eq." + ag_fase.torneo_id + "&order=orden");
+    const laterIds = torneoFases.filter(f => f.orden > ag_fase.orden).map(f => f.id);
+    if (!laterIds.length) return;
+
+    const laterGrupos = await sbGet("grupos", "select=id&fase_id=in.(" + laterIds.join(",") + ")");
+    if (!laterGrupos.length) return;
+
+    // Slots destino cuyo referencia_origen coincide con el nombre del grupo
+    const targetSlots = await sbGet("participantes_grupo",
+      "select=*&grupo_id=in.(" + laterGrupos.map(g => g.id).join(",") + ")&referencia_origen=eq." + encodeURIComponent(ag_grupo.nombre));
+    if (!targetSlots.length) return;
+
+    targetSlots.sort((a, b) => (a.es_local === b.es_local) ? 0 : a.es_local ? -1 : 1);
+
+    const patches = [];
+    for (let i = 0; i < Math.min(ranking.length, targetSlots.length); i++) {
+      const slot = targetSlots[i], team = ranking[i];
+      if (!team?.equipo_id || slot.equipo_id === team.equipo_id) continue;
+      patches.push(sbPatch("participantes_grupo", slot.id, { equipo_id: team.equipo_id }));
+    }
+    if (patches.length) {
+      await Promise.all(patches);
+      showToast("Clasificados avanzados ✓");
+    }
+  } catch(err) { console.error("rsAdvanceGroup:", err); }
+}
+
+function _rsDay(iso) {
+  const D = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+  const M = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  try {
+    const d = new Date(iso + "T00:00:00");
+    return D[(d.getDay()+6)%7] + " " + d.getDate() + " de " + M[d.getMonth()] + " de " + d.getFullYear();
+  } catch(_) { return iso; }
+}
+
+async function openResultados() {
+  const screen = document.getElementById("resultados-screen");
+  const today = new Date().toISOString().slice(0,10);
+  screen.innerHTML = `
+    <div class="gd-header">
+      <button class="gd-back" onclick="closeResultados()">‹ Volver</button>
+      <span class="gd-title">Resultados</span>
+    </div>
+    <div class="rs-filters">
+      <span class="rs-filter-lbl">Fecha</span>
+      <input type="date" id="rs-fecha" class="rs-filter-ctrl" value="${today}" onchange="rsLoad()">
+      <span class="rs-filter-lbl">Torneo</span>
+      <select id="rs-torneo" class="rs-filter-ctrl" onchange="rsLoad()">
+        <option value="">Todos los torneos</option>
+      </select>
+      <input type="text" id="rs-campo" class="rs-filter-ctrl" placeholder="🏟 Campo…" style="width:140px;" oninput="rsRender()">
+      <label class="rs-check-lbl">
+        <input type="checkbox" id="rs-pendientes" onchange="rsRender()"> Sin resultado
+      </label>
+    </div>
+    <div class="rs-body" id="rs-body"><div class="rs-empty">Cargando…</div></div>`;
+  screen.style.display = "block";
+
+  try {
+    if (!_resTorneosCache.length) {
+      _resTorneosCache = await sbGet("torneos", "select=id,nombre&order=created_at");
+      _resTorneosCache.forEach(t => _rsTorneosMap[t.id] = t.nombre);
+    }
+    const sel = document.getElementById("rs-torneo");
+    if (sel) {
+      _resTorneosCache.forEach(t => {
+        const o = document.createElement("option");
+        o.value = t.id; o.textContent = t.nombre; sel.appendChild(o);
+      });
+      if (torneoData?.id) sel.value = torneoData.id;
+    }
+  } catch(e) { console.error(e); }
+
+  await rsLoad();
+}
+
+function closeResultados() {
+  document.getElementById("resultados-screen").style.display = "none";
+}
+
+async function rsLoad() {
+  const body = document.getElementById("rs-body");
+  if (!body) return;
+  body.innerHTML = '<div class="rs-empty">Cargando…</div>';
+
+  const fecha    = document.getElementById("rs-fecha")?.value  || "";
+  const torneoId = document.getElementById("rs-torneo")?.value || "";
+
+  if (!fecha && !torneoId) {
+    body.innerHTML = '<div class="rs-empty">Selecciona una fecha o un torneo para ver los partidos.</div>';
+    return;
+  }
+
+  try {
+    let params = "select=*&order=fecha,hora";
+    if (fecha) params += "&fecha=eq." + fecha;
+
+    if (torneoId) {
+      const rsFases = await sbGet("fases", "select=id,orden,torneo_id&torneo_id=eq." + torneoId);
+      rsFases.forEach(f => _resFaseCache[f.id] = f);
+      if (!rsFases.length) { body.innerHTML = '<div class="rs-empty">No hay partidos para estos filtros.</div>'; return; }
+      const rsGrupos = await sbGet("grupos", "select=id,nombre,fase_id&fase_id=in.(" + rsFases.map(f=>f.id).join(",") + ")");
+      rsGrupos.forEach(g => _resGrupoCache[g.id] = g);
+      if (!rsGrupos.length) { body.innerHTML = '<div class="rs-empty">No hay partidos para estos filtros.</div>'; return; }
+      params += "&grupo_id=in.(" + rsGrupos.map(g=>g.id).join(",") + ")";
+    }
+
+    _resPartidosCache = await sbGet("partidos", params);
+    if (!_resPartidosCache.length) {
+      body.innerHTML = '<div class="rs-empty">No hay partidos para estos filtros.</div>'; return;
+    }
+
+    // Grupos y equipos son independientes entre sí → paralelo; fases depende de grupos → secuencial
+    const eqIds = [...new Set([..._resPartidosCache.map(p=>p.equipo_local_id), ..._resPartidosCache.map(p=>p.equipo_visitante_id)])];
+    await Promise.all([
+      _fillCache(_resPartidosCache.map(p=>p.grupo_id), _resGrupoCache, "grupos", "select=id,nombre,fase_id"),
+      _fillCache(eqIds, _resEqCache, "equipos", "select=id,nombre,escudo_url"),
+    ]);
+    await _fillCache(Object.values(_resGrupoCache).map(g=>g.fase_id), _resFaseCache, "fases", "select=id,orden,torneo_id");
+
+    rsRender();
+
+  } catch(err) {
+    body.innerHTML = `<div class="rs-empty">Error: ${err.message}</div>`;
+    console.error(err);
+  }
+}
+
+function rsRender() {
+  const body = document.getElementById("rs-body");
+  if (!body || !_resPartidosCache.length) return;
+
+  const campoQ     = (document.getElementById("rs-campo")?.value || "").toLowerCase().trim();
+  const soloSinRes = document.getElementById("rs-pendientes")?.checked || false;
+
+  // Filtrar
+  let filtered = [..._resPartidosCache];
+  if (campoQ)     filtered = filtered.filter(m => (m.campo||"").toLowerCase().includes(campoQ));
+  if (soloSinRes) filtered = filtered.filter(m => m.resultado_local === null || m.resultado_visitante === null);
+
+  if (!filtered.length) {
+    body.innerHTML = '<div class="rs-empty">No hay partidos para los filtros aplicados.</div>';
+    return;
+  }
+
+  // Ordenar: Fecha → Hora → Torneo → Grupo
+  filtered.sort((a, b) => {
+    const fa = (a.fecha||"").slice(0,10), fb = (b.fecha||"").slice(0,10);
+    if (fa !== fb) return fa < fb ? -1 : 1;
+    const ha = (a.hora||""), hb = (b.hora||"");
+    if (ha !== hb) return ha < hb ? -1 : 1;
+    const ga = _resGrupoCache[a.grupo_id], gb = _resGrupoCache[b.grupo_id];
+    const faseA = ga ? _resFaseCache[ga.fase_id] : null;
+    const faseB = gb ? _resFaseCache[gb.fase_id] : null;
+    const ta = faseA ? (_rsTorneosMap[faseA.torneo_id] || "") : "";
+    const tb = faseB ? (_rsTorneosMap[faseB.torneo_id] || "") : "";
+    if (ta !== tb) return ta < tb ? -1 : 1;
+    const na = ga?.nombre || "", nb = gb?.nombre || "";
+    return na < nb ? -1 : na > nb ? 1 : 0;
+  });
+
+  // Agrupar por fecha
+  const byF = {};
+  filtered.forEach(p => {
+    const k = (p.fecha||"").slice(0,10) || "sin-fecha";
+    if (!byF[k]) byF[k] = [];
+    byF[k].push(p);
+  });
+
+  const _RFFM = "https://rffm-cms.s3.eu-west-1.amazonaws.com/favicon_87ea61909c.png";
+  const _shStyle = "width:36px;height:36px;object-fit:contain;border-radius:3px;flex-shrink:0;";
+  const sh = eq => `<img src="${eq?.escudo_url||_RFFM}" style="${_shStyle}" onerror="this.src='${_RFFM}'">`;
+  let html = "";
+  Object.keys(byF).sort().forEach(f => {
+    html += `<div class="rs-day-hdr">${f==="sin-fecha"?"Sin fecha":_rsDay(f)}</div>`;
+    byF[f].forEach(m => {
+      const eqL   = _resEqCache[m.equipo_local_id];
+      const eqV   = _resEqCache[m.equipo_visitante_id];
+      const grupo = _resGrupoCache[m.grupo_id];
+      const fase  = grupo ? _resFaseCache[grupo.fase_id] : null;
+      const torNombre = fase ? (_rsTorneosMap[fase.torneo_id] || "") : "";
+      const played = m.resultado_local !== null && m.resultado_visitante !== null;
+
+      const penSide = m.penaltis_ganador_id
+        ? (m.penaltis_ganador_id === m.equipo_local_id ? 'local' : 'visit')
+        : null;
+      _rsPen[m.id] = penSide;
+
+      const [cardBg, cardBorder] = _rsTorneoColor(fase?.torneo_id || null);
+
+      const meta = [
+        m.hora  ? "⏰ "+m.hora.slice(0,5) : "",
+        m.campo ? "📍 "+m.campo : "",
+        torNombre ? "🏆 "+torNombre : "",
+        grupo?.nombre || ""
+      ].filter(Boolean).join("  ·  ");
+
+      html += `<div class="rs-card" style="background:${cardBg};border-left:4px solid ${cardBorder};">
+        <div class="rs-card-top">
+          ${sh(eqL)}
+          <div class="rs-team"><div class="rs-name rs-name-l">${eqL?.nombre||"—"}</div></div>
+          <div class="rs-scores">
+            <input type="number" id="rsl-${m.id}" class="rs-inp" min="0" value="${played?m.resultado_local:''}" placeholder="—">
+            <span class="rs-sep">–</span>
+            <input type="number" id="rsv-${m.id}" class="rs-inp" min="0" value="${played?m.resultado_visitante:''}" placeholder="—">
+          </div>
+          <div class="rs-team"><div class="rs-name rs-name-r">${eqV?.nombre||"—"}</div></div>
+          ${sh(eqV)}
+        </div>
+        <div class="rs-pen-row">
+          <span class="rs-pen-lbl">Penaltis</span>
+          <button id="rspen-local-${m.id}" class="rs-pen-btn${penSide==='local'?' selected':''}" onclick="rsPenSelect('${m.id}','local')">${eqL?.nombre||'Local'}</button>
+          <button id="rspen-visit-${m.id}" class="rs-pen-btn${penSide==='visit'?' selected':''}" onclick="rsPenSelect('${m.id}','visit')">${eqV?.nombre||'Visitante'}</button>
+          <button id="rspen-none-${m.id}" class="rs-pen-btn rs-pen-none${!penSide?' selected':''}" onclick="rsPenSelect('${m.id}',null)">Sin penaltis</button>
+        </div>
+        <div class="rs-card-bot">
+          <span class="rs-meta">${meta}</span>
+          <button class="rs-save" onclick="rsSave('${m.id}')">Guardar</button>
+        </div>
+      </div>`;
+    });
+  });
+  body.innerHTML = html;
+}
+
+async function rsSave(matchId) {
+  const rl = parseInt(document.getElementById("rsl-"+matchId)?.value);
+  const rv = parseInt(document.getElementById("rsv-"+matchId)?.value);
+  if (isNaN(rl) || isNaN(rv)) { showToast("⚠️ Introduce ambos resultados"); return; }
+
+  const penSide = _rsPen[matchId] ?? null;
+  const m = _resPartidosCache.find(p => p.id === matchId);
+  const penGanadorId = penSide === 'local' ? m?.equipo_local_id
+                     : penSide === 'visit' ? m?.equipo_visitante_id
+                     : null;
+
+  try {
+    setSaveState("saving");
+    await sbPatch("partidos", matchId, { resultado_local: rl, resultado_visitante: rv, penaltis_ganador_id: penGanadorId });
+    if (m) { m.resultado_local = rl; m.resultado_visitante = rv; m.penaltis_ganador_id = penGanadorId; }
+    // Sync global partidos array (bracket view)
+    const gm = partidos.find(p => p.id === matchId);
+    if (gm) { gm.resultado_local = rl; gm.resultado_visitante = rv; gm.penaltis_ganador_id = penGanadorId; }
+
+    // Para grupos de 2: actualizar goles en participantes_grupo
+    const rsGrupo = m?.grupo_id ? (grupos.find(gr => gr.id === m.grupo_id) || _resGrupoCache[m.grupo_id]) : null;
+    if (rsGrupo?.tipo_grupo === 2) try { await _syncGoles(m.grupo_id, m, rl, rv); } catch(_) {}
+
+    // Determinar ganador del partido
+    let winnerEqId = null;
+    if (rl > rv)              winnerEqId = m?.equipo_local_id;
+    else if (rv > rl)         winnerEqId = m?.equipo_visitante_id;
+    else if (penSide==='local') winnerEqId = m?.equipo_local_id;
+    else if (penSide==='visit') winnerEqId = m?.equipo_visitante_id;
+
+    // Si es la final (grupo sin siguiente_grupo_id y en la última fase), guardar el campeón
+    if (winnerEqId && m?.grupo_id) {
+      const grpFinal = rsGrupo;
+      if (grpFinal && !grpFinal.siguiente_grupo_id) {
+        try {
+          let torneoId = null, esFinal = false;
+          if (fases.length) {
+            // Contexto bracket: fases global ya cargadas y ordenadas por orden asc
+            esFinal  = fases[fases.length - 1]?.id === grpFinal.fase_id;
+            torneoId = new URLSearchParams(window.location.search).get("torneo");
+          } else {
+            // Contexto autónomo: buscar en caché o Supabase
+            let fase = _resFaseCache[grpFinal.fase_id];
+            if (!fase) {
+              const fl = await sbGet("fases", "select=id,orden,torneo_id&id=eq." + grpFinal.fase_id);
+              fase = fl[0]; if (fase) _resFaseCache[fase.id] = fase;
+            }
+            if (fase) {
+              torneoId = fase.torneo_id;
+              const tf = await sbGet("fases", "select=id,orden&torneo_id=eq." + torneoId + "&order=orden");
+              esFinal  = tf[tf.length - 1]?.id === grpFinal.fase_id;
+            }
+          }
+          if (esFinal && torneoId) {
+            await sbPatch("torneos", torneoId, { campeon_id: winnerEqId });
+            if (torneoData) { torneoData.campeon_id = winnerEqId; render(); }
+            showToast("🏆 ¡Campeón guardado!");
+          }
+        } catch(err) { console.error("campeón:", err); }
+      }
+    }
+
+    setSaveState("saved");
+    showToast("Resultado guardado ✓");
+    // Avanzar clasificados si el grupo está completo (funciona con y sin bracket cargado)
+    if (m?.grupo_id) await rsAdvanceGroup(m.grupo_id);
+  } catch(err) {
+    setSaveState("error");
+    showToast("⚠️ Error al guardar");
+    console.error(err);
+  }
 }
 
 // ── START ─────────────────────────────────────────────────

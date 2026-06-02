@@ -3,7 +3,7 @@ import random
 import streamlit as st
 from collections import Counter
 
-from src.database import get_supabase, get_fases, get_grupos_por_fase
+from src.database import get_supabase, get_fases, get_grupos_por_fase, sincronizar_equipos_partidos_fase
 
 
 # -------------------------------------------------------
@@ -48,6 +48,101 @@ def realizar_sorteo(fase_id, lista_grupos, torneo_id):
 
     if participantes:
         supabase.table("participantes_grupo").insert(participantes).execute()
+
+
+# -------------------------------------------------------
+# SORTEO ALEATORIO (rellena plazas vacías)
+# -------------------------------------------------------
+
+def sorteo_aleatorio_fase(supabase, fase_id: str, torneo_id: str) -> tuple[int, int]:
+    """
+    Asigna aleatoriamente los equipos libres a la fase indicada.
+    - Si ya existen plazas vacías (equipo_id NULL): las rellena con UPDATE.
+    - Si no hay plazas: inserta directamente respetando tipo_grupo de cada grupo.
+    Devuelve (n_asignados, n_sin_plaza).
+    """
+    # 1. Grupos de la fase con su capacidad
+    grupos = (
+        supabase.table("grupos")
+        .select("id, tipo_grupo")
+        .eq("fase_id", fase_id)
+        .execute()
+        .data
+    )
+    ids_grupos = [g["id"] for g in grupos]
+    if not ids_grupos:
+        return 0, 0
+
+    # 2. Participantes actuales (para saber quién ya está asignado y cuántos hay por grupo)
+    todos_parts = (
+        supabase.table("participantes_grupo")
+        .select("id, grupo_id, equipo_id")
+        .in_("grupo_id", ids_grupos)
+        .execute()
+        .data
+    )
+    asignados_ids = {p["equipo_id"] for p in todos_parts if p.get("equipo_id")}
+    plazas_vacias = [p for p in todos_parts if not p.get("equipo_id")]
+
+    # 3. Equipos libres (no asignados en esta fase)
+    equipos = (
+        supabase.table("equipos")
+        .select("id")
+        .eq("torneo_id", torneo_id)
+        .eq("eliminado", False)
+        .execute()
+        .data
+    )
+    libres = [e for e in equipos if e["id"] not in asignados_ids]
+    random.shuffle(libres)
+
+    if not libres:
+        return 0, 0
+
+    n_asignados = 0
+    equipo_idx  = 0
+
+    if plazas_vacias:
+        # ── Caso A: hay plazas pre-existentes → UPDATE ────────────────────────
+        random.shuffle(plazas_vacias)
+        for plaza in plazas_vacias:
+            if equipo_idx >= len(libres):
+                break
+            supabase.table("participantes_grupo") \
+                .update({"equipo_id": libres[equipo_idx]["id"], "puntos": 0, "goles": 0}) \
+                .eq("id", plaza["id"]) \
+                .execute()
+            equipo_idx  += 1
+            n_asignados += 1
+    else:
+        # ── Caso B: sin plazas → INSERT respetando capacidad de cada grupo ────
+        ya_por_grupo = Counter(p["grupo_id"] for p in todos_parts if p.get("equipo_id"))
+        grupos_mezclados = list(grupos)
+        random.shuffle(grupos_mezclados)
+        for grupo in grupos_mezclados:
+            capacidad  = grupo.get("tipo_grupo") or 0
+            ya_tiene   = ya_por_grupo.get(grupo["id"], 0)
+            huecos     = capacidad - ya_tiene
+            for _ in range(huecos):
+                if equipo_idx >= len(libres):
+                    break
+                supabase.table("participantes_grupo").insert({
+                    "grupo_id":  grupo["id"],
+                    "equipo_id": libres[equipo_idx]["id"],
+                    "puntos":    0,
+                    "goles":     0,
+                }).execute()
+                equipo_idx  += 1
+                n_asignados += 1
+
+    # 4. Sincronizar partidos
+    if n_asignados > 0:
+        try:
+            sincronizar_equipos_partidos_fase(fase_id)
+        except Exception:
+            pass
+
+    return n_asignados, max(0, len(libres) - n_asignados)
 
 
 # -------------------------------------------------------
@@ -117,6 +212,39 @@ def seccion_sorteo_manual(supabase, torneo_id=None):
         st.success("¡Sorteo completado! Todos los equipos están en sus grupos.")
         return
 
+    # ── Sorteo aleatorio automático ───────────────────────────────────────────
+    with st.container(border=True):
+        st.markdown("**Sorteo automático**")
+        col_btn, col_info = st.columns([1, 3], vertical_alignment="center")
+        with col_btn:
+            if st.button("🎲 Sorteo aleatorio", width="stretch", type="primary",
+                         help="Reparte aleatoriamente todos los equipos pendientes entre las plazas vacías"):
+                if st.session_state.get(f"confirm_sorteo_{fase_id}"):
+                    st.session_state.pop(f"confirm_sorteo_{fase_id}", None)
+                    with st.spinner("Realizando sorteo..."):
+                        n_asig, n_sobra = sorteo_aleatorio_fase(supabase, fase_id, torneo_id)
+                    if n_sobra:
+                        st.warning(f"Sorteo realizado: {n_asig} equipos asignados. "
+                                   f"{n_sobra} equipos sin plaza disponible.")
+                    else:
+                        st.success(f"✅ Sorteo completado: {n_asig} equipos asignados.")
+                    st.rerun()
+                else:
+                    st.session_state[f"confirm_sorteo_{fase_id}"] = True
+
+        with col_info:
+            if st.session_state.get(f"confirm_sorteo_{fase_id}"):
+                st.warning(
+                    f"Se asignarán **{len(equipos_libres)}** equipos aleatoriamente. "
+                    "Pulsa de nuevo para confirmar."
+                )
+            else:
+                st.caption(f"{len(equipos_libres)} equipos pendientes · "
+                           f"{sum(g['plazas_libres'] for g in grupos_disponibles)} plazas libres")
+
+    st.markdown("---")
+
+    # ── Sorteo manual uno a uno ───────────────────────────────────────────────
     with st.container(border=True):
         c1, c2, c3 = st.columns([2, 2, 1], vertical_alignment="bottom")
         with c1:

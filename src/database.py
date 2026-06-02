@@ -449,7 +449,7 @@ def generar_partidos_fase(fase_id, num_vueltas):
         tipo      = g["tipo_grupo"] or 0
         feeders   = feeder_map.get(grupo_id, [])
 
-        # Participantes reales ya asignados
+        # Participantes ya cargados
         parts = (
             supabase.table("participantes_grupo")
             .select("id, equipo_id, posicion")
@@ -457,12 +457,15 @@ def generar_partidos_fase(fase_id, num_vueltas):
             .execute()
             .data
         )
-        real_ids = [p["equipo_id"] for p in sorted(parts, key=lambda p: p.get("posicion") or 0) if p.get("equipo_id")]
+        real_parts = [p for p in parts if p.get("equipo_id")]
+        null_parts  = [p for p in parts if not p.get("equipo_id")]
+        n = tipo
+        if n < 2:
+            continue
 
-        if real_ids:
-            # ── Modo real: equipos ya asignados ──────────────────
-            if len(real_ids) < 2:
-                continue
+        if len(real_parts) >= n:
+            # ── Modo real: todos los equipos asignados ────────────
+            real_ids = [p["equipo_id"] for p in sorted(real_parts, key=lambda p: p.get("posicion") or 0)]
             rows = [
                 {
                     "grupo_id":            grupo_id,
@@ -474,18 +477,30 @@ def generar_partidos_fase(fase_id, num_vueltas):
                 }
                 for m in _round_robin(real_ids, num_vueltas)
             ]
+            supabase.table("partidos").insert(rows).execute()
+            total += len(rows)
         else:
-            # ── Modo placeholder ──────────────────────────────────
-            n = tipo
-            if n < 2:
-                continue
+            # ── Modo placeholder (0, 1 o varios equipos conocidos) ─
+            filled_pos   = {p["posicion"] for p in real_parts if p.get("posicion")}
+            null_pos     = {p["posicion"] for p in null_parts  if p.get("posicion")}
+            # Plazas vacías sin posición asignada (creadas por el configurador)
+            unpositioned = [p for p in null_parts if not p.get("posicion")]
 
-            # Crear/actualizar filas NULL con posición y etiqueta
-            null_parts = [p for p in parts if not p.get("equipo_id")]
-            existing_pos = {p["posicion"] for p in null_parts if p.get("posicion")}
             for pos in range(1, n + 1):
                 label = _label_placeholder(pos, g["nombre"], feeders, n)
-                if pos not in existing_pos:
+                if pos in filled_pos:
+                    pass  # Posición ya ocupada por equipo real, no tocar
+                elif pos in null_pos:
+                    row = next(p for p in null_parts if p["posicion"] == pos)
+                    supabase.table("participantes_grupo").update({"label": label}).eq("id", row["id"]).execute()
+                elif unpositioned:
+                    # Reutilizar plaza existente sin posición en lugar de insertar
+                    row = unpositioned.pop(0)
+                    supabase.table("participantes_grupo").update({
+                        "posicion": pos,
+                        "label":    label,
+                    }).eq("id", row["id"]).execute()
+                else:
                     supabase.table("participantes_grupo").insert({
                         "grupo_id": grupo_id,
                         "equipo_id": None,
@@ -494,10 +509,6 @@ def generar_partidos_fase(fase_id, num_vueltas):
                         "puntos":    0,
                         "goles":     0,
                     }).execute()
-                else:
-                    # Actualizar label por si el nombre del grupo cambió
-                    row = next(p for p in null_parts if p["posicion"] == pos)
-                    supabase.table("participantes_grupo").update({"label": label}).eq("id", row["id"]).execute()
 
             rows = [
                 {
@@ -510,49 +521,118 @@ def generar_partidos_fase(fase_id, num_vueltas):
                 }
                 for m in _round_robin(list(range(1, n + 1)), num_vueltas)
             ]
-
-        supabase.table("partidos").insert(rows).execute()
-        total += len(rows)
+            supabase.table("partidos").insert(rows).execute()
+            total += len(rows)
+            # Rellenar inmediatamente los equipos ya conocidos
+            sincronizar_equipos_partidos_grupo(grupo_id)
 
     st.cache_data.clear()
     return total
 
 
 def sincronizar_equipos_partidos_grupo(grupo_id):
-    """Rellena equipo_local/visitante_id en partidos placeholder cuando ya hay equipo en esa posición."""
+    """Regenera los partidos del grupo con los equipos actuales heredando campo/hora/fecha existentes."""
     supabase = get_supabase()
 
+    # ── Datos del grupo ───────────────────────────────────────
+    g_data = supabase.table("grupos").select("tipo_grupo, fase_id").eq("id", grupo_id).execute().data
+    if not g_data:
+        return 0
+    tipo = g_data[0].get("tipo_grupo") or 0
+    if tipo < 2:
+        return 0
+    fase_id = g_data[0]["fase_id"]
+
+    # num_vueltas desde la fase
+    f_data = supabase.table("fases").select("num_vueltas").eq("id", fase_id).execute().data
+    num_vueltas = (f_data[0].get("num_vueltas") or 1) if f_data else 1
+
+    # ── Scheduling existente: (jornada, idx_dentro_jornada) → {campo, hora, fecha} ─
+    existing = (
+        supabase.table("partidos")
+        .select("jornada, campo, hora, fecha")
+        .eq("grupo_id", grupo_id)
+        .order("jornada")
+        .order("id")
+        .execute()
+        .data
+    )
+    # Guardar TODOS los partidos por jornada, en orden
+    sched_por_jornada: dict[int, list] = {}
+    for p in existing:
+        j = p.get("jornada")
+        if j is not None:
+            sched_por_jornada.setdefault(int(j), []).append(
+                {k: p.get(k) for k in ("campo", "hora", "fecha")}
+            )
+    jornada_counters: dict[int, int] = {}
+
+    def _apply_sched(row: dict, jornada: int) -> dict:
+        j = int(jornada)
+        idx = jornada_counters.get(j, 0)
+        jornada_counters[j] = idx + 1
+        entries = sched_por_jornada.get(j, [])
+        if idx < len(entries):
+            for k, v in entries[idx].items():
+                if v is not None:
+                    row[k] = v
+        return row
+
+    # ── Participantes actuales ────────────────────────────────
     parts = (
         supabase.table("participantes_grupo")
-        .select("equipo_id, posicion")
+        .select("equipo_id, posicion, es_local")
         .eq("grupo_id", grupo_id)
         .execute()
         .data
     )
-    pos_map = {p["posicion"]: p["equipo_id"] for p in parts if p.get("posicion") and p.get("equipo_id")}
-    if not pos_map:
-        return 0
+    real_parts = [p for p in parts if p.get("equipo_id")]
 
-    partidos = (
-        supabase.table("partidos")
-        .select("id, pos_local, pos_visitante, equipo_local_id, equipo_visitante_id")
-        .eq("grupo_id", grupo_id)
-        .execute()
-        .data
-    )
-    updated = 0
-    for p in partidos:
-        upd = {}
-        if p.get("pos_local") and not p.get("equipo_local_id") and p["pos_local"] in pos_map:
-            upd["equipo_local_id"] = pos_map[p["pos_local"]]
-        if p.get("pos_visitante") and not p.get("equipo_visitante_id") and p["pos_visitante"] in pos_map:
-            upd["equipo_visitante_id"] = pos_map[p["pos_visitante"]]
-        if upd:
-            supabase.table("partidos").update(upd).eq("id", p["id"]).execute()
-            updated += 1
+    # ── Eliminar partidos antiguos ────────────────────────────
+    supabase.table("partidos").delete().eq("grupo_id", grupo_id).execute()
+
+    # ── Generar nuevas filas ──────────────────────────────────
+    if len(real_parts) >= tipo:
+        # Todos los equipos conocidos: partido real con IDs directos
+        real_ids = [p["equipo_id"] for p in sorted(real_parts, key=lambda p: p.get("posicion") or 0)]
+        rows = [
+            _apply_sched({
+                "grupo_id":            grupo_id,
+                "equipo_local_id":     m["local"],
+                "equipo_visitante_id": m["visitante"],
+                "pos_local":           None,
+                "pos_visitante":       None,
+                "jornada":             m["jornada"],
+            }, m["jornada"])
+            for m in _round_robin(real_ids, num_vueltas)
+        ]
+    else:
+        # Algún equipo aún sin asignar: modo placeholder con IDs donde los haya
+        pos_eq: dict[int, str] = {}
+        for p in real_parts:
+            if p.get("posicion") is not None:
+                try:
+                    pos_eq[int(p["posicion"])] = p["equipo_id"]
+                except (TypeError, ValueError):
+                    pass
+
+        rows = [
+            _apply_sched({
+                "grupo_id":            grupo_id,
+                "pos_local":           m["local"],
+                "pos_visitante":       m["visitante"],
+                "equipo_local_id":     pos_eq.get(m["local"]),
+                "equipo_visitante_id": pos_eq.get(m["visitante"]),
+                "jornada":             m["jornada"],
+            }, m["jornada"])
+            for m in _round_robin(list(range(1, tipo + 1)), num_vueltas)
+        ]
+
+    if rows:
+        supabase.table("partidos").insert(rows).execute()
 
     st.cache_data.clear()
-    return updated
+    return len(rows)
 
 
 def sincronizar_equipos_partidos_fase(fase_id):

@@ -61,6 +61,10 @@ def _fit_name(c, text, font, max_size, max_w):
 def _draw_card(c, x, y, partido, cache, rffm_logo):
     w, h = CARD_W, CARD_H
 
+    has_local   = bool(partido.get("equipo_local_id"))
+    has_visit   = bool(partido.get("equipo_visitante_id"))
+    grupo_nombre = (partido.get("nombre_grupo") or "").upper()
+
     card_bg, card_border = torneo_pdf_color(partido.get("torneo_id"))
 
     # Fondo de color del torneo + borde redondeado
@@ -97,43 +101,72 @@ def _draw_card(c, x, y, partido, cache, rffm_logo):
     center_y    = (content_bot + content_top) / 2
     vs_cx       = x + w / 2
 
-    img_l = _fetch_img(partido.get("escudo_local"), cache)
-    img_v = _fetch_img(partido.get("escudo_visitante"), cache)
-    local_name = partido.get("nombre_local", "—")
-    visit_name = partido.get("nombre_visitante", "—")
-
     left_x1  = x + PAD_X
     left_x2  = vs_cx - VS_W / 2 - 6
     right_x1 = vs_cx + VS_W / 2 + 6
     right_x2 = x + w - PAD_X
 
-    # LOCAL: escudo + nombre
-    shield_cx_l = left_x1 + SHIELD_S / 2
-    _draw_shield(c, img_l, rffm_logo, shield_cx_l, center_y, SHIELD_S)
-    name_x_l  = left_x1 + SHIELD_S + 8
-    name_l, sz_l = _fit_name(c, local_name, "Helvetica-Bold", 10.5, left_x2 - name_x_l)
-    c.setFillColor(DARK)
-    c.setFont("Helvetica-Bold", sz_l)
-    c.drawString(name_x_l, center_y - sz_l / 2, name_l)
-    c.setFont("Helvetica", 5.5)
-    c.setFillColor(MUTED)
-    c.drawString(name_x_l, center_y + sz_l / 2 + 2, "LOCAL")
+    # ── LOCAL ─────────────────────────────────────────────────────────────────
+    if has_local:
+        img_l = _fetch_img(partido.get("escudo_local"), cache)
+        local_name = partido.get("nombre_local", "—")
+        shield_cx_l = left_x1 + SHIELD_S / 2
+        _draw_shield(c, img_l, rffm_logo, shield_cx_l, center_y, SHIELD_S)
+        name_x_l = left_x1 + SHIELD_S + 8
+        name_l, sz_l = _fit_name(c, local_name, "Helvetica-Bold", 10.5, left_x2 - name_x_l)
+        c.setFillColor(DARK)
+        c.setFont("Helvetica-Bold", sz_l)
+        c.drawString(name_x_l, center_y - sz_l / 2, name_l)
+        c.setFont("Helvetica", 5.5)
+        c.setFillColor(MUTED)
+        c.drawString(name_x_l, center_y + sz_l / 2 + 2, "LOCAL")
+    else:
+        # Línea en blanco para escribir el nombre a mano
+        line_y = center_y - 2
+        c.setStrokeColor(HexColor("#BBBBBB"))
+        c.setLineWidth(0.8)
+        c.line(left_x1 + 4, line_y, left_x2 - 4, line_y)
+        c.setFont("Helvetica", 5.5)
+        c.setFillColor(MUTED)
+        c.drawString(left_x1 + 4, line_y + 4, "LOCAL")
 
-    # VISITANTE: nombre + escudo
-    shield_cx_v = right_x2 - SHIELD_S / 2
-    _draw_shield(c, img_v, rffm_logo, shield_cx_v, center_y, SHIELD_S)
-    name_x2_v  = right_x2 - SHIELD_S - 8
-    name_v, sz_v = _fit_name(c, visit_name, "Helvetica-Bold", 10.5, name_x2_v - right_x1)
-    c.setFillColor(DARK)
-    c.setFont("Helvetica-Bold", sz_v)
-    c.drawRightString(name_x2_v, center_y - sz_v / 2, name_v)
-    c.setFont("Helvetica", 5.5)
-    c.setFillColor(MUTED)
-    c.drawRightString(name_x2_v, center_y + sz_v / 2 + 2, "VISITANTE")
+    # ── VISITANTE ─────────────────────────────────────────────────────────────
+    if has_visit:
+        img_v = _fetch_img(partido.get("escudo_visitante"), cache)
+        visit_name = partido.get("nombre_visitante", "—")
+        shield_cx_v = right_x2 - SHIELD_S / 2
+        _draw_shield(c, img_v, rffm_logo, shield_cx_v, center_y, SHIELD_S)
+        name_x2_v = right_x2 - SHIELD_S - 8
+        name_v, sz_v = _fit_name(c, visit_name, "Helvetica-Bold", 10.5, name_x2_v - right_x1)
+        c.setFillColor(DARK)
+        c.setFont("Helvetica-Bold", sz_v)
+        c.drawRightString(name_x2_v, center_y - sz_v / 2, name_v)
+        c.setFont("Helvetica", 5.5)
+        c.setFillColor(MUTED)
+        c.drawRightString(name_x2_v, center_y + sz_v / 2 + 2, "VISITANTE")
+    else:
+        line_y = center_y - 2
+        c.setStrokeColor(HexColor("#BBBBBB"))
+        c.setLineWidth(0.8)
+        c.line(right_x1 + 4, line_y, right_x2 - 4, line_y)
+        c.setFont("Helvetica", 5.5)
+        c.setFillColor(MUTED)
+        c.drawRightString(right_x2 - 4, line_y + 4, "VISITANTE")
 
-    # Cajitas de resultado a cada lado de la hora
+    # ── Cajitas de resultado a cada lado de la hora ───────────────────────────
     BOX_W, BOX_H = 36, 28
     box_y = center_y - BOX_H / 2
+
+    # Nombre del grupo encima de las cajitas
+    if grupo_nombre:
+        c.setFont("Helvetica-Bold", 6)
+        c.setFillColor(MUTED)
+        grp_label = grupo_nombre
+        max_grp = VS_W - 8
+        while grp_label and c.stringWidth(grp_label, "Helvetica-Bold", 6) > max_grp:
+            grp_label = grp_label[:-1]
+        c.drawCentredString(vs_cx, box_y + BOX_H + 4, grp_label)
+
     c.setFillColor(HexColor("#FAFAFA"))
     c.setStrokeColor(HexColor("#BBBBBB"))
     c.setLineWidth(0.8)

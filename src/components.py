@@ -286,11 +286,15 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
         supabase.table("participantes_grupo")
         .select("*")
         .in_("grupo_id", ids_destino)
+        .order("created_at", desc=False)
         .execute()
     )
     plazas_por_grupo: dict = {}
     for p in res_plazas.data:
         plazas_por_grupo.setdefault(p["grupo_id"], []).append(p)
+    # Ordenar plazas de cada grupo: es_local=True primero (slot 0), resto por created_at
+    for gid in plazas_por_grupo:
+        plazas_por_grupo[gid].sort(key=lambda p: (0 if p.get("es_local") else 1, p.get("created_at", "")))
 
     grupos_origen_sorted = sorted(grupos_origen, key=lambda g: _num(g["nombre"]))
     nombres_origen = [g["nombre"] for g in grupos_origen_sorted]
@@ -469,7 +473,6 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
                             supabase.table("participantes_grupo").update(payload).eq("id", plaza["id"]).execute()
                             # Liberar siguiente_grupo_id del grupo anterior si cambió de grupo
                             if cambio_grupo and ref_bd and ref_bd != _CUALQUIER_GRUPO:
-                                # Solo liberar si ninguna otra plaza de este destino sigue usando ese grupo
                                 aun_referenciado = any(
                                     st.session_state.get(f"pcfg_g_{g_id}_{j}") == ref_bd
                                     for j in range(g_dest["tipo_grupo"]) if j != i
@@ -481,9 +484,20 @@ def configurar_progresion_visual(grupos_destino, grupos_origen, supabase, torneo
                                             {"siguiente_grupo_id": None}
                                         ).eq("id", g_ant["id"]).execute()
                         else:
-                            supabase.table("participantes_grupo").insert(
-                                {**payload, "puntos": 0, "goles": 0}
-                            ).execute()
+                            # Antes de insertar, buscar si ya existe una plaza con el mismo
+                            # es_local en este grupo (evita duplicados si el índice no coincidió)
+                            es_local_val = i == 0
+                            existing = next(
+                                (p for p in plazas_por_grupo.get(g_id, [])
+                                 if p.get("es_local") == es_local_val),
+                                None,
+                            )
+                            if existing:
+                                supabase.table("participantes_grupo").update(payload).eq("id", existing["id"]).execute()
+                            else:
+                                supabase.table("participantes_grupo").insert(
+                                    {**payload, "puntos": 0, "goles": 0}
+                                ).execute()
 
                         # Actualizar siguiente_grupo_id del grupo origen
                         if sel_grupo != _CUALQUIER_GRUPO:
@@ -783,13 +797,29 @@ def renderizar_tarjeta_grupo_minimalista(
                     if not e_match:
                         st.error("Equipo no encontrado. Recarga la página e inténtalo de nuevo.")
                     else:
-                        supabase.table("participantes_grupo").insert({
-                            "grupo_id": grupo_id,
-                            "equipo_id": e_match["id"],
-                            "referencia_origen": "Sorteo",
-                            "puntos": 0,
-                            "goles":  0,
-                        }).execute()
+                        plaza_libre = (
+                            supabase.table("participantes_grupo")
+                            .select("id")
+                            .eq("grupo_id", grupo_id)
+                            .is_("equipo_id", "null")
+                            .limit(1)
+                            .execute()
+                        )
+                        if plaza_libre.data:
+                            supabase.table("participantes_grupo").update({
+                                "equipo_id": e_match["id"],
+                                "referencia_origen": "Sorteo",
+                                "puntos": 0,
+                                "goles":  0,
+                            }).eq("id", plaza_libre.data[0]["id"]).execute()
+                        else:
+                            supabase.table("participantes_grupo").insert({
+                                "grupo_id": grupo_id,
+                                "equipo_id": e_match["id"],
+                                "referencia_origen": "Sorteo",
+                                "puntos": 0,
+                                "goles":  0,
+                            }).execute()
                         st.rerun()
                 except Exception as e:
                     st.error(f"Error al asignar: {e}")
