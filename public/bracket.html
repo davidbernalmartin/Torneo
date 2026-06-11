@@ -2285,6 +2285,7 @@ async function openResultados() {
         <option value="">Todos los torneos</option>
       </select>
       <input type="text" id="rs-campo" class="rs-filter-ctrl" placeholder="🏟 Campo…" style="width:140px;" oninput="rsRender()">
+      <input type="text" id="rs-equipo" class="rs-filter-ctrl" placeholder="⚽ Equipo…" style="width:140px;" oninput="rsRender()">
       <label class="rs-check-lbl">
         <input type="checkbox" id="rs-pendientes" onchange="rsRender()"> Sin resultado
       </label>
@@ -2366,12 +2367,19 @@ function rsRender() {
   const body = document.getElementById("rs-body");
   if (!body || !_resPartidosCache.length) return;
 
-  const campoQ     = (document.getElementById("rs-campo")?.value || "").toLowerCase().trim();
+  const campoQ     = (document.getElementById("rs-campo")?.value  || "").toLowerCase().trim();
+  const equipoQ    = (document.getElementById("rs-equipo")?.value || "").toLowerCase().trim();
   const soloSinRes = document.getElementById("rs-pendientes")?.checked || false;
 
   // Filtrar
   let filtered = [..._resPartidosCache];
-  if (campoQ)     filtered = filtered.filter(m => (m.campo||"").toLowerCase().includes(campoQ));
+  if (campoQ)  filtered = filtered.filter(m => (m.campo||"").toLowerCase().includes(campoQ));
+  if (equipoQ) filtered = filtered.filter(m => {
+    const eqL = _resEqCache[m.equipo_local_id];
+    const eqV = _resEqCache[m.equipo_visitante_id];
+    return (eqL?.nombre||"").toLowerCase().includes(equipoQ)
+        || (eqV?.nombre||"").toLowerCase().includes(equipoQ);
+  });
   if (soloSinRes) filtered = filtered.filter(m => m.resultado_local === null || m.resultado_visitante === null);
 
   if (!filtered.length) {

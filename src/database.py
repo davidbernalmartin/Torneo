@@ -175,6 +175,12 @@ def update_equipo(equipo_id, nombre, escudo_url, competicion=None, grupo=None):
     st.cache_data.clear()
 
 
+def eliminar_equipo(equipo_id):
+    supabase = get_supabase()
+    supabase.table("equipos").delete().eq("id", equipo_id).execute()
+    st.cache_data.clear()
+
+
 # -------------------------------------------------------
 # FASES
 # -------------------------------------------------------
@@ -889,6 +895,21 @@ def eliminar_partido(partido_id):
     st.cache_data.clear()
 
 
+def crear_partido(grupo_id: str, equipo_local_id: str | None, equipo_visitante_id: str | None,
+                  jornada: int, fecha=None, hora: str | None = None, campo: str | None = None):
+    supabase = get_supabase()
+    supabase.table("partidos").insert({
+        "grupo_id":            grupo_id,
+        "equipo_local_id":     equipo_local_id,
+        "equipo_visitante_id": equipo_visitante_id,
+        "jornada":             jornada,
+        "fecha":               str(fecha) if fecha else None,
+        "hora":                hora or None,
+        "campo":               campo or None,
+    }).execute()
+    st.cache_data.clear()
+
+
 def actualizar_horario_partido(partido_id, fecha, hora, campo: str):
     """Actualiza fecha, hora y campo de un partido concreto."""
     supabase = get_supabase()
@@ -1036,3 +1057,127 @@ def get_partidos_agenda(fecha_desde=None, fecha_hasta=None, campos=None, torneo_
         p["duracion_partido"] = meta.get("duracion")
 
     return partidos
+
+
+@_db_retry
+def get_campeones_subcampeones(torneo_ids: list[str]) -> list[dict]:
+    """
+    Campeón: campeon_id en la tabla torneos.
+    Subcampeón: el equipo de la última fase que NO es el campeón.
+    """
+    if not torneo_ids:
+        return []
+
+    supabase = get_supabase()
+
+    torneos_raw = (
+        supabase.table("torneos").select("id, nombre, campeon_id")
+        .in_("id", torneo_ids).execute().data
+    )
+    torneo_map = {t["id"]: t for t in torneos_raw}
+
+    fases_raw = (
+        supabase.table("fases").select("id, torneo_id, orden")
+        .in_("torneo_id", torneo_ids).execute().data
+    )
+
+    # Última fase por torneo
+    ultima_fase: dict[str, dict] = {}
+    for f in fases_raw:
+        tid = f["torneo_id"]
+        if tid not in ultima_fase or f["orden"] > ultima_fase[tid]["orden"]:
+            ultima_fase[tid] = f
+
+    fase_ids = [f["id"] for f in ultima_fase.values()]
+
+    # Equipos de la última fase (todos los participantes con equipo asignado)
+    equipos_por_fase: dict[str, set] = {}
+    if fase_ids:
+        grupos_raw = (
+            supabase.table("grupos").select("id, fase_id")
+            .in_("fase_id", fase_ids).execute().data
+        )
+        grupo_ids = [g["id"] for g in grupos_raw]
+        grupo_a_fase = {g["id"]: g["fase_id"] for g in grupos_raw}
+
+        if grupo_ids:
+            parts = (
+                supabase.table("participantes_grupo")
+                .select("grupo_id, equipo_id")
+                .in_("grupo_id", grupo_ids).execute().data
+            )
+            for p in parts:
+                if p.get("equipo_id"):
+                    fid = grupo_a_fase[p["grupo_id"]]
+                    equipos_por_fase.setdefault(fid, set()).add(p["equipo_id"])
+
+    # Recopilar todos los eq_ids que necesitamos resolver
+    all_eq_ids: set[str] = set()
+    for t in torneos_raw:
+        if t.get("campeon_id"):
+            all_eq_ids.add(t["campeon_id"])
+    for eq_set in equipos_por_fase.values():
+        all_eq_ids.update(eq_set)
+
+    eq_map: dict[str, dict] = {}
+    if all_eq_ids:
+        for e in supabase.table("equipos").select("id, nombre, escudo_url").in_("id", list(all_eq_ids)).execute().data:
+            eq_map[e["id"]] = e
+
+    # Número de equipos por torneo
+    equipos_count: dict[str, int] = {}
+    if torneo_ids:
+        for e in supabase.table("equipos").select("id, torneo_id").in_("torneo_id", torneo_ids).execute().data:
+            tid = e["torneo_id"]
+            equipos_count[tid] = equipos_count.get(tid, 0) + 1
+
+    # Número de partidos por torneo (a través de grupos → fases → torneos)
+    all_fase_ids = [f["id"] for f in fases_raw]
+    partidos_count: dict[str, int] = {}
+    if all_fase_ids:
+        todos_grupos = (
+            supabase.table("grupos").select("id, fase_id")
+            .in_("fase_id", all_fase_ids).execute().data
+        )
+        grupo_a_torneo = {}
+        for g in todos_grupos:
+            fid = g["fase_id"]
+            for f in fases_raw:
+                if f["id"] == fid:
+                    grupo_a_torneo[g["id"]] = f["torneo_id"]
+                    break
+        todos_grupo_ids = [g["id"] for g in todos_grupos]
+        if todos_grupo_ids:
+            for p in supabase.table("partidos").select("id, grupo_id").in_("grupo_id", todos_grupo_ids).execute().data:
+                tid = grupo_a_torneo.get(p["grupo_id"])
+                if tid:
+                    partidos_count[tid] = partidos_count.get(tid, 0) + 1
+
+    resultado: list[dict] = []
+    for tid in torneo_ids:
+        t = torneo_map.get(tid)
+        if not t:
+            continue
+
+        campeon_id = t.get("campeon_id")
+        campeon    = eq_map.get(campeon_id) if campeon_id else None
+
+        # Subcampeón: equipo de la última fase que no es el campeón
+        subcampeon = None
+        ultima = ultima_fase.get(tid)
+        if ultima and campeon_id:
+            otros = equipos_por_fase.get(ultima["id"], set()) - {campeon_id}
+            if otros:
+                subcampeon_id = next(iter(otros))
+                subcampeon = eq_map.get(subcampeon_id)
+
+        resultado.append({
+            "torneo_id":     tid,
+            "torneo_nombre": t.get("nombre", ""),
+            "campeon":       campeon,
+            "subcampeon":    subcampeon,
+            "num_equipos":   equipos_count.get(tid, 0),
+            "num_partidos":  partidos_count.get(tid, 0),
+        })
+
+    return resultado

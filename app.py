@@ -19,6 +19,7 @@ from src.database import (
     subir_equipos_batch,
     update_equipo,
     patch_equipo,
+    eliminar_equipo,
     get_fases,
     get_grupos_por_fase,
     get_participantes_grupo,
@@ -37,6 +38,7 @@ from src.database import (
     get_partidos_fase,
     actualizar_partidos_batch,
     eliminar_partido,
+    crear_partido,
     subir_escudo,
     set_visible_bracket,
     set_orden_menu,
@@ -44,6 +46,7 @@ from src.database import (
     get_campos_distintos,
     get_partidos_agenda,
     get_grupos_pdf_data,
+    get_campeones_subcampeones,
 )
 from src.logic import seccion_sorteo_manual
 from src.components import (
@@ -556,6 +559,40 @@ if st.session_state.get("view") == "agenda_global":
                                    key="dl_gag_xlsx")
 
     _ag_dc4, _ag_dc5, _ag_dc6 = st.columns([1, 1, 1])
+    with _ag_dc5:
+        if st.button("👕 PDF Equipos", width='stretch', type="secondary"):
+            if not _ag_partidos:
+                st.warning("No hay partidos con los filtros seleccionados.")
+            else:
+                with st.spinner("Generando PDF equipos…"):
+                    from src.pdf.equipos_agenda import generar_pdf_equipos_agenda
+                    _rango_eq = ""
+                    if _ag_fecha_desde and _ag_fecha_hasta:
+                        _rango_eq = f" · {_ag_fecha_desde.strftime('%d/%m/%Y')} – {_ag_fecha_hasta.strftime('%d/%m/%Y')}"
+                    _pdf_eq = generar_pdf_equipos_agenda(_ag_partidos, "Equipos participantes" + _rango_eq)
+                st.download_button("⬇️ Descargar PDF", data=_pdf_eq,
+                                   file_name="equipos_agenda.pdf",
+                                   mime="application/pdf",
+                                   key="dl_gag_equipos")
+
+    with _ag_dc6:
+        if st.button("🏆 Excel Campeones", width='stretch', type="secondary"):
+            _cam_ids = _ag_torneo_ids or [t["id"] for t in _ag_todos_torneos]
+            if not _cam_ids:
+                st.warning("No hay torneos seleccionados.")
+            else:
+                with st.spinner("Generando Excel campeones…"):
+                    from src.excel_campeones import generar_excel_campeones
+                    _cam_datos = get_campeones_subcampeones(_cam_ids)
+                if not _cam_datos:
+                    st.warning("No se encontraron datos de campeones para los torneos seleccionados.")
+                else:
+                    _xlsx_cam = generar_excel_campeones(_cam_datos)
+                    st.download_button("⬇️ Descargar Excel", data=_xlsx_cam,
+                                       file_name="campeones.xlsx",
+                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                       key="dl_gag_campeones")
+
     with _ag_dc4:
         if st.button("📐 Excel Planificación", width='stretch', type="secondary"):
             if not _ag_partidos:
@@ -579,6 +616,65 @@ if st.session_state.get("view") == "agenda_global":
     if not _ag_partidos:
         st.info("No hay partidos programados para los filtros seleccionados.")
         st.stop()
+
+    # ── Vista de terreno de juego ─────────────────────────
+    st.markdown("---")
+    with st.expander("🏟️ Vista de terreno de juego"):
+        _ag_campos_disponibles = sorted({
+            (p.get("campo") or "").strip()
+            for p in _ag_partidos
+            if (p.get("campo") or "").strip()
+        })
+        if not _ag_campos_disponibles:
+            st.info("Los partidos no tienen campo asignado.")
+        else:
+            _vc_opts = ["— Vacío —"] + _ag_campos_disponibles
+
+            def _vc_sel(label, key, default_idx=0):
+                return st.selectbox(label, options=_vc_opts,
+                                    index=min(default_idx, len(_vc_opts) - 1),
+                                    key=key)
+
+            st.caption("Mitad superior del campo")
+            _vc_c0, _vc_c1 = st.columns(2)
+            with _vc_c0:
+                _vc_s0 = _vc_sel("↖ Celda 1", "vc_s0", 1)
+                _vc_s2 = _vc_sel("↙ Celda 3", "vc_s2", 1)
+            with _vc_c1:
+                _vc_s1 = _vc_sel("↗ Celda 2", "vc_s1", 1)
+                _vc_s3 = _vc_sel("↘ Celda 4", "vc_s3", 1)
+
+            st.caption("Mitad inferior del campo")
+            _vc_c2, _vc_c3 = st.columns(2)
+            with _vc_c2:
+                _vc_s4 = _vc_sel("↖ Celda 5", "vc_s4", 1)
+                _vc_s6 = _vc_sel("↙ Celda 7", "vc_s6", 1)
+            with _vc_c3:
+                _vc_s5 = _vc_sel("↗ Celda 6", "vc_s5", 1)
+                _vc_s7 = _vc_sel("↘ Celda 8", "vc_s7", 1)
+
+            def _vc_partidos(sel):
+                if sel == "— Vacío —":
+                    return []
+                return [p for p in _ag_partidos if (p.get("campo") or "").strip() == sel]
+
+            _vc_cells = [
+                {"nombre": s, "partidos": _vc_partidos(s)}
+                for s in [_vc_s0, _vc_s1, _vc_s2, _vc_s3,
+                           _vc_s4, _vc_s5, _vc_s6, _vc_s7]
+            ]
+
+            if st.button("📄 Generar PDF terreno", key="btn_gen_campo", type="primary"):
+                with st.spinner("Generando PDF…"):
+                    from src.pdf.campo_partidos import generar_pdf_campo_partidos
+                    _vc_pdf = generar_pdf_campo_partidos(_vc_cells)
+                st.download_button(
+                    "⬇️ Descargar PDF",
+                    data=_vc_pdf,
+                    file_name="terreno_partidos_A3.pdf",
+                    mime="application/pdf",
+                    key="dl_vc_pdf",
+                )
 
     # ── Helpers para vista de rejilla temporal ────────────
     _PX_MIN   = 3    # píxeles por minuto
@@ -1121,6 +1217,14 @@ def _modal_editar_equipo(equipo: dict[str, Any]) -> None:
                           nueva_competicion.strip(), nuevo_grupo.strip())
             st.rerun()
 
+    st.divider()
+    with st.expander("🗑️ Borrar equipo"):
+        st.warning(f"Se eliminará **{equipo['nombre']}** permanentemente, incluyendo su participación en grupos y partidos.")
+        confirmar = st.checkbox("Sí, quiero borrar este equipo", key=f"confirm_del_eq_{equipo['id']}")
+        if st.button("🗑️ Eliminar equipo", disabled=not confirmar, type="primary", width='stretch'):
+            eliminar_equipo(equipo["id"])
+            st.rerun()
+
 
 # -------------------------------------------------------
 # DASHBOARD
@@ -1417,6 +1521,55 @@ if menu == "Cuadro Visual":
 # -------------------------------------------------------
 # PARTIDOS
 # -------------------------------------------------------
+
+@st.dialog("➕ Crear partido manual")
+def _dialog_crear_partido(fase_id: str, torneo_id: str):
+    grupos = get_grupos_por_fase(fase_id)
+    if not grupos:
+        st.warning("No hay grupos en esta fase.")
+        return
+
+    equipos = get_equipos(torneo_id)
+    eq_opts = {e["nombre"]: e["id"] for e in equipos}
+    eq_nombres = ["— Sin asignar —"] + list(eq_opts.keys())
+
+    grupo_nombres = [g["nombre"] for g in grupos]
+    grupo_map     = {g["nombre"]: g["id"] for g in grupos}
+
+    grupo_sel  = st.selectbox("Grupo", grupo_nombres, key="cp_grupo")
+    col_l, col_v = st.columns(2)
+    local_sel  = col_l.selectbox("Equipo local",     eq_nombres, key="cp_local")
+    visita_sel = col_v.selectbox("Equipo visitante", eq_nombres, key="cp_visita")
+
+    col_f, col_h, col_j = st.columns(3)
+    fecha_sel  = col_f.date_input("Fecha",   value=None, format="DD/MM/YYYY", key="cp_fecha")
+    hora_sel   = col_h.time_input("Hora",    value=None, step=1800,           key="cp_hora")
+    jornada_sel = col_j.number_input("Jornada", min_value=1, value=1, step=1, key="cp_jornada")
+
+    campo_sel  = st.text_input("Campo", placeholder="Nombre del campo", key="cp_campo")
+
+    st.write("")
+    if st.button("Guardar partido", type="primary", width="stretch"):
+        local_id  = eq_opts.get(local_sel)  if local_sel  != "— Sin asignar —" else None
+        visita_id = eq_opts.get(visita_sel) if visita_sel != "— Sin asignar —" else None
+        if local_id and visita_id and local_id == visita_id:
+            st.error("El equipo local y visitante no pueden ser el mismo.")
+            return
+        try:
+            crear_partido(
+                grupo_id            = grupo_map[grupo_sel],
+                equipo_local_id     = local_id,
+                equipo_visitante_id = visita_id,
+                jornada             = int(jornada_sel),
+                fecha               = fecha_sel,
+                hora                = str(hora_sel)[:5] if hora_sel else None,
+                campo               = campo_sel.strip() or None,
+            )
+            st.rerun()
+        except Exception as _e:
+            st.error(f"Error al crear partido: {_e}")
+
+
 if menu == "Partidos":
     st.subheader("Calendario de Partidos")
 
@@ -1443,7 +1596,7 @@ if menu == "Partidos":
     tiene_partidos = hay_partidos_fase(fase_id)
 
     # ── Generar / Regenerar / Sincronizar ───────────────
-    col_gen, col_sync, col_pdf, col_filtro_campo, col_filtro_equipo = st.columns([2, 2, 2, 2, 2])
+    col_gen, col_sync, col_nuevo, col_pdf, col_filtro_campo, col_filtro_equipo = st.columns([2, 2, 2, 2, 2, 2])
     with col_gen:
         lbl = "🔄 Regenerar partidos" if tiene_partidos else "⚡ Generar partidos"
         if st.button(lbl, type="primary", width='stretch'):
@@ -1460,6 +1613,10 @@ if menu == "Partidos":
                         st.rerun()
                 except Exception as e:
                     st.error(f"Error al generar partidos: {e}")
+
+    with col_nuevo:
+        if st.button("➕ Crear partido", width='stretch'):
+            _dialog_crear_partido(fase_id, torneo_id)
 
     with col_sync:
         if tiene_partidos:
